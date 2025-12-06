@@ -5,13 +5,13 @@ import pandas as pd
 import torch
 from sklearn.preprocessing import LabelEncoder
 from dataclasses import dataclass
-from load_mm_data import load_multiomics_benchmark_shamir, load_multiomics_benchmark_ds, ALL_MULTIOMICS_DATASETS, ALL_MULTIOMICS_DATASETS_SHAMIR
+from .load_mm_data import load_multiomics_benchmark_shamir, load_multiomics_benchmark_ds, ALL_MULTIOMICS_DATASETS, ALL_MULTIOMICS_DATASETS_SHAMIR
 from torch.utils.data import DataLoader
 from sklearn.datasets import fetch_openml
 
-from utils import feature_reduction_agglomeration
+from .utils import feature_reduction_agglomeration
 
-from config import PriorDatasetConfig, PriorDataLoaderConfig
+from .config import PriorDatasetConfig, PriorDataLoaderConfig
 
 
 def load_prior_dataloader(
