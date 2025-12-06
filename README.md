@@ -80,6 +80,30 @@ bash experiments/train.sh
 
 - **Attention Analysis**: Use `analysis/extract_multi_omics_attention.py` to extract interpretable attention weights from trained models.
 - **Feature Reduction**: Use `analysis/multiomics_feature_reduction.py` for benchmarking on reduced feature sets.
+
+### Ablation Studies
+
+The repository includes scripts for systematic ablation studies to understand model behavior:
+
+**Feature Grouping Benchmark:**
+
+Compare TabPFN performance across different `features_per_group` settings to understand the impact of feature grouping on model accuracy:
+
+```bash
+python analysis/grouping_benchmark.py \
+    --suite_id 334 \
+    --max_features 100 \
+    --max_instances 2000 \
+    --grouping_values 1 2 3 \
+    --output_file results/grouping_benchmark.csv \
+    --device cuda:0
+```
+
+This will:
+- Test the base TabPFN v2.5 model with different feature grouping configurations
+- Run 3-fold cross-validation on each OpenML task in the specified suite
+- Save detailed results and generate comparison plots automatically
+
 ---
 
 ## License
