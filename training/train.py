@@ -153,8 +153,8 @@ class Trainer:
             model = models[0]
             config = configs[0]
             
-            model.features_per_group = self.train_config.features_per_group
-            config.features_per_group = self.train_config.features_per_group
+            model.features_per_group = self.model_config.features_per_group
+            config.features_per_group = self.model_config.features_per_group
 
             # Compare loaded config to self.model_config and assert all fields are equal
             for field in fields(self.model_config):
