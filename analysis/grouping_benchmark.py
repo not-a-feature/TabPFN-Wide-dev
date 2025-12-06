@@ -174,15 +174,15 @@ def main(
                 num_classes = len(np.unique(y))
 
                 if num_features < min_features or num_features > max_features:
-                    # print(f"Skipping {dataset_name}: {num_features} features outside range")
+                    print(f"Skipping {dataset_name}: {num_features} features outside range [{min_features}, {max_features}]")
                     continue
                 
                 if num_instances > max_instances:
-                    # print(f"Skipping {dataset_name}: {num_instances} instances exceeds max")
+                    print(f"Skipping {dataset_name}: {num_instances} instances exceeds max {max_instances}")
                     continue
 
                 if num_classes < 2 or num_classes > 10:
-                    # print(f"Skipping {dataset_name}: {num_classes} classes not supported")
+                    print(f"Skipping {dataset_name}: {num_classes} classes not supported")
                     continue
 
                 print(f"\nDataset: {dataset_name}")
@@ -245,6 +245,7 @@ def main(
                     print(f"  Fold {fold}: accuracy={accuracy:.3f}, f1={f1_weighted:.3f}, roc_auc={roc_auc:.3f}")
 
                 # Save results after each task
+                os.makedirs(os.path.dirname(output_file), exist_ok=True)
                 res_df.to_csv(output_file, index=False)
                 print(f"Dataset {dataset_name} processed successfully (grouping={grouping})")
 
@@ -252,6 +253,12 @@ def main(
                 print(f"Error with dataset {dataset_name}: {e}")
                 continue
 
+    # Ensure file is saved even if loop finishes (e.g. if everything was skipped, still might want to save headers or previous content)
+    # But if res_df is empty and output_file doesn't exist, maybe we should create it with headers?
+    if not os.path.exists(output_file) and len(res_df) > 0:
+         os.makedirs(os.path.dirname(output_file), exist_ok=True)
+         res_df.to_csv(output_file, index=False)
+    
     print(f"Results saved to {output_file}")
 
     if generate_plot and len(res_df) > 0:
@@ -278,7 +285,7 @@ if __name__ == "__main__":
         help="Maximum number of instances to consider"
     )
     parser.add_argument(
-        "--output_file", type=str, default="grouping_benchmark_hdlss_results.csv",
+        "--output_file", type=str, default="analysis_results/grouping_benchmark_results.csv",
         help="Output CSV file path"
     )
     parser.add_argument(
