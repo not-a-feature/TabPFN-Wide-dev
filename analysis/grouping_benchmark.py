@@ -1,5 +1,6 @@
 import argparse
 import os
+import pickle
 import sys
 import warnings
 
@@ -28,6 +29,13 @@ setattr(TabPFNClassifier, "fit", fit)
 # Filter warnings
 warnings.filterwarnings("ignore")
 
+# Column definitions
+RESULT_COLUMNS = [
+    "task_id", "task_name", "num_features", "num_instances", "num_classes",
+    "fold", "features_per_group", "duplicate_factor",
+    "accuracy", "f1_weighted", "roc_auc_score", "mask_injected"
+]
+
 
 def plot_results(results_file, output_plot):
     """Generate comparison plot of performance across grouping settings."""
@@ -45,12 +53,6 @@ def plot_results(results_file, output_plot):
         if metric not in df.columns:
             continue
             
-        # Aggregate across folds for each task
-        agg_cols = ["task_id", "features_per_group"]
-        if "duplicate_factor" in df.columns:
-             # Just in case, though usually we plot standard grouping
-             pass 
-
         agg_df = df.groupby(["task_id", "features_per_group"])[metric].mean().reset_index()
         
         sns.boxplot(data=agg_df, x="features_per_group", y=metric, ax=axes[idx])
@@ -63,11 +65,196 @@ def plot_results(results_file, output_plot):
     plt.savefig(output_plot, dpi=300, bbox_inches='tight')
     print(f"Plot saved to {output_plot}")
     
-    # Print summary statistics
     print("\n=== Summary Statistics ===")
     if "features_per_group" in df.columns:
         summary = df.groupby("features_per_group")[metrics].agg(["mean", "std"])
         print(summary)
+
+
+def register_embedding_hook(model, embeddings_list):
+    """
+    Register a forward hook on the input encoder to capture embeddings.
+    
+    Args:
+        model: The TabPFN model
+        embeddings_list: List to store captured embeddings
+        
+    Returns:
+        Hook handle (for removal later)
+    """
+    def hook_fn(module, input, output):
+        embeddings_list.append(output.detach().cpu().clone())
+    
+    # Hook into the encoder output
+    # The encoder is model.encoder, which is a SequentialEncoder
+    # We want to capture the output after the LinearInputEncoderStep
+    assert hasattr(model, "encoder"), "Model must have encoder attribute"
+    
+    handle = model.encoder.register_forward_hook(hook_fn)
+    return handle
+
+
+def extract_embeddings_with_model(
+    model,
+    X_train,
+    y_train,
+    X_test,
+    clf,
+    device
+):
+    """
+    Extract embeddings from the model using a forward hook.
+    
+    Returns:
+        embeddings: numpy array of embeddings from test set
+        predictions: prediction probabilities
+    """
+    embeddings_list = []
+    hook_handle = register_embedding_hook(model, embeddings_list)
+    
+    try:
+        # Run forward pass
+        clf.fit(X_train, y_train, model=model)
+        pred_probs = clf.predict_proba(X_test)
+        
+        # Extract embeddings
+        # The hook captures embeddings in the format from encoder output
+        # We need the test portion
+        if len(embeddings_list) > 0:
+            # Get the last captured embeddings
+            emb = embeddings_list[-1]
+            # emb shape: (seq_len, batch*features, emsize)
+            # We need to extract test portion and reshape appropriately
+            embeddings = emb.numpy()
+        else:
+            embeddings = None
+            
+    finally:
+        hook_handle.remove()
+    
+    return embeddings, pred_probs
+
+
+def analyze_embeddings(embeddings_dict, output_dir):
+    """
+    Analyze and visualize embeddings from different methods.
+    
+    Args:
+        embeddings_dict: Dict mapping method name -> embeddings array
+        output_dir: Directory to save visualizations
+    """
+    import umap
+    from sklearn.preprocessing import StandardScaler
+    
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Prepare data for UMAP
+    all_embeddings = []
+    all_labels = []
+    
+    for method_name, emb_array in embeddings_dict.items():
+        if emb_array is None or len(emb_array) == 0:
+            continue
+        
+        # Flatten to 2D if needed
+        if len(emb_array.shape) > 2:
+            # Take mean over sequence dimension
+            emb_flat = emb_array.mean(axis=0)
+        else:
+            emb_flat = emb_array
+            
+        # Flatten further if needed
+        if len(emb_flat.shape) > 2:
+            emb_flat = emb_flat.reshape(emb_flat.shape[0], -1)
+            
+        all_embeddings.append(emb_flat)
+        all_labels.extend([method_name] * len(emb_flat))
+    
+    if len(all_embeddings) == 0:
+        print("No embeddings to analyze")
+        return
+    
+    all_embeddings = np.vstack(all_embeddings)
+    
+    # Standardize
+    scaler = StandardScaler()
+    all_embeddings_scaled = scaler.fit_transform(all_embeddings)
+    
+    # UMAP projection
+    print("Computing UMAP projection...")
+    reducer = umap.UMAP(n_components=2, random_state=42, n_neighbors=15, min_dist=0.1)
+    embedding_2d = reducer.fit_transform(all_embeddings_scaled)
+    
+    # Plot UMAP
+    fig, ax = plt.subplots(figsize=(10, 8))
+    
+    unique_methods = list(embeddings_dict.keys())
+    colors = plt.cm.Set2(np.linspace(0, 1, len(unique_methods)))
+    
+    for i, method in enumerate(unique_methods):
+        mask = np.array(all_labels) == method
+        ax.scatter(
+            embedding_2d[mask, 0],
+            embedding_2d[mask, 1],
+            c=[colors[i]],
+            label=method,
+            alpha=0.6,
+            s=50
+        )
+    
+    ax.set_xlabel("UMAP 1")
+    ax.set_ylabel("UMAP 2")
+    ax.set_title("UMAP Projection of Embeddings by Method")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    
+    umap_path = os.path.join(output_dir, "umap_embeddings.png")
+    plt.savefig(umap_path, dpi=300, bbox_inches='tight')
+    print(f"UMAP plot saved to {umap_path}")
+    plt.close()
+    
+    # Distribution plots
+    fig, axes = plt.subplots(1, len(unique_methods), figsize=(5*len(unique_methods), 4))
+    if len(unique_methods) == 1:
+        axes = [axes]
+    
+    for i, method in enumerate(unique_methods):
+        emb = embeddings_dict[method]
+        if emb is not None and len(emb) > 0:
+            emb_flat = emb.flatten()
+            axes[i].hist(emb_flat, bins=50, alpha=0.7, edgecolor='black')
+            axes[i].set_title(f"{method}\nMean: {emb_flat.mean():.3f}, Std: {emb_flat.std():.3f}")
+            axes[i].set_xlabel("Embedding Value")
+            axes[i].set_ylabel("Frequency")
+            axes[i].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    dist_path = os.path.join(output_dir, "embedding_distributions.png")
+    plt.savefig(dist_path, dpi=300, bbox_inches='tight')
+    print(f"Distribution plot saved to {dist_path}")
+    plt.close()
+    
+    # Statistics table
+    stats_data = []
+    for method in unique_methods:
+        emb = embeddings_dict[method]
+        if emb is not None and len(emb) > 0:
+            emb_flat = emb.flatten()
+            stats_data.append({
+                "method": method,
+                "mean": emb_flat.mean(),
+                "std": emb_flat.std(),
+                "min": emb_flat.min(),
+                "max": emb_flat.max(),
+                "shape": str(emb.shape)
+            })
+    
+    stats_df = pd.DataFrame(stats_data)
+    stats_path = os.path.join(output_dir, "embedding_statistics.csv")
+    stats_df.to_csv(stats_path, index=False)
+    print(f"Statistics saved to {stats_path}")
+    print("\n=== Embedding Statistics ===")
+    print(stats_df.to_string(index=False))
 
 
 def evaluate_task(
@@ -78,10 +265,15 @@ def evaluate_task(
     openml_task, 
     res_df, 
     duplicate_features=1,
-    inject_masks=False
+    inject_masks=False,
+    extract_embeddings=False
 ):
     """
     Evaluates a single task with specific grouping and feature duplication settings.
+    
+    Returns:
+        res_df: Updated results dataframe
+        embeddings: Extracted embeddings (if extract_embeddings=True), else None
     """
     dataset = openml_task.get_dataset()
     X, y, _, _ = dataset.get_data(target=openml_task.target_name)
@@ -106,14 +298,8 @@ def evaluate_task(
         assert duplicate_features == 1, "Cannot inject masks with feature duplication"
         if grouping > 1:
             n_samples, n_features = X.shape
-            
-            # Create new X with interleaved masks
-            # New width = n_features * grouping
             X_new = np.full((n_samples, n_features * grouping), np.nan, dtype=X.dtype)
-            
-            # Fill every 'grouping'-th column with original features
             X_new[:, 0::grouping] = X
-            
             X = X_new
     
     # Assertions for validity
@@ -145,12 +331,21 @@ def evaluate_task(
 
     model.features_per_group = grouping
 
+    embeddings_collected = [] if extract_embeddings else None
+
     for fold, (train_idx, test_idx) in enumerate(skf.split(X, y)):
         X_train, X_test = X[train_idx], X[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
         
-        clf.fit(X_train, y_train, model=model)
-        pred_probs = clf.predict_proba(X_test)
+        if extract_embeddings and fold == 0:  # Only extract for first fold
+            embeddings, pred_probs = extract_embeddings_with_model(
+                model, X_train, y_train, X_test, clf, device
+            )
+            if embeddings is not None:
+                embeddings_collected.append(embeddings)
+        else:
+            clf.fit(X_train, y_train, model=model)
+            pred_probs = clf.predict_proba(X_test)
         
         # Verify predictions shape
         assert pred_probs.shape[0] == len(y_test), f"Predictions shape mismatch: {pred_probs.shape} vs {len(y_test)}"
@@ -185,17 +380,14 @@ def evaluate_task(
             "accuracy": [accuracy],
             "f1_weighted": [f1_weighted],
             "roc_auc_score": [roc_auc],
+            "mask_injected": [inject_masks]
         }
-        
-        if inject_masks:
-            row_data["mask_injected"] = [True]
-        else:
-            row_data["mask_injected"] = [False]
 
         new_row = pd.DataFrame(row_data)
         res_df = pd.concat([res_df, new_row], ignore_index=True)
-        
-    return res_df
+    
+    final_embeddings = embeddings_collected[0] if embeddings_collected else None
+    return res_df, final_embeddings
 
 
 def main(
@@ -208,7 +400,9 @@ def main(
     device="cuda:0",
     generate_plot=True,
     duplication_output_file=None,
-    masking_output_file=None
+    masking_output_file=None,
+    extract_embeddings=False,
+    embedding_tasks_limit=3
 ):
     """
     Benchmark TabPFN base model.
@@ -252,16 +446,10 @@ def main(
     
     dup_output = duplication_output_file or output_file.replace(".csv", "_duplication.csv")
     
-    dup_columns = [
-        "task_id", "task_name", "num_features", "num_instances", "num_classes",
-        "fold", "features_per_group", "duplicate_factor", 
-        "accuracy", "f1_weighted", "roc_auc_score", "mask_injected"
-    ]
-    
     if os.path.exists(dup_output):
         dup_df = pd.read_csv(dup_output)
     else:
-        dup_df = pd.DataFrame(columns=dup_columns)
+        dup_df = pd.DataFrame(columns=RESULT_COLUMNS)
 
     duplication_factors = [1, 2, 3] 
     
@@ -275,8 +463,9 @@ def main(
                continue
 
             t = openml.tasks.get_task(task_id)
-            dup_df = evaluate_task(
-                task_id, grouping, model, device, t, dup_df, duplicate_features=dup, inject_masks=False
+            dup_df, _ = evaluate_task(
+                task_id, grouping, model, device, t, dup_df, 
+                duplicate_features=dup, inject_masks=False
             )
             
             os.makedirs(os.path.dirname(os.path.abspath(dup_output)) or ".", exist_ok=True)
@@ -289,21 +478,11 @@ def main(
     
     mask_output = masking_output_file or output_file.replace(".csv", "_masking.csv")
     
-    mask_columns = [
-        "task_id", "task_name", "num_features", "num_instances", "num_classes",
-        "fold", "features_per_group", "duplicate_factor", 
-        "accuracy", "f1_weighted", "roc_auc_score", "mask_injected"
-    ]
-    
     if os.path.exists(mask_output):
         mask_df = pd.read_csv(mask_output)
     else:
-        mask_df = pd.DataFrame(columns=mask_columns)
+        mask_df = pd.DataFrame(columns=RESULT_COLUMNS)
 
-    # We use grouping values 1, 2, 3. 
-    # For grouping 1: 0 masks.
-    # For grouping 2: 1 mask.
-    # For grouping 3: 2 masks.
     masking_grouping_values = [1, 2, 3]
 
     for grouping in masking_grouping_values:
@@ -315,8 +494,9 @@ def main(
                continue
 
             t = openml.tasks.get_task(task_id)
-            mask_df = evaluate_task(
-                task_id, grouping, model, device, t, mask_df, duplicate_features=1, inject_masks=True
+            mask_df, _ = evaluate_task(
+                task_id, grouping, model, device, t, mask_df, 
+                duplicate_features=1, inject_masks=True
             )
             
             os.makedirs(os.path.dirname(os.path.abspath(mask_output)) or ".", exist_ok=True)
@@ -328,12 +508,6 @@ def main(
     print(f"\nRunning Standard Grouping Benchmark")
     print(f"Testing features_per_group values: {grouping_values}")
     
-    res_columns = [
-        "task_id", "task_name", "num_features", "num_instances", "num_classes",
-        "fold", "features_per_group", "duplicate_factor",
-        "accuracy", "f1_weighted", "roc_auc_score", "mask_injected"
-    ]
-    
     if os.path.exists(output_file):
         res_df = pd.read_csv(output_file)
         if "duplicate_factor" not in res_df.columns:
@@ -341,14 +515,13 @@ def main(
         if "mask_injected" not in res_df.columns:
             res_df["mask_injected"] = False
     else:
-        res_df = pd.DataFrame(columns=res_columns)
+        res_df = pd.DataFrame(columns=RESULT_COLUMNS)
 
     for grouping in grouping_values:
         print(f"\nProcessing Grouping: {grouping}")
         for task_id in openml_df["tid"].values:
             task_id = int(task_id)
             
-            # Check if exists (duplicate=1, mask=False)
             exists = False
             if not res_df.empty:
                 cond = (res_df["task_id"] == task_id) & (res_df["features_per_group"] == grouping)
@@ -363,8 +536,9 @@ def main(
                 continue
             
             t = openml.tasks.get_task(task_id)
-            res_df = evaluate_task(
-                task_id, grouping, model, device, t, res_df, duplicate_features=1, inject_masks=False
+            res_df, _ = evaluate_task(
+                task_id, grouping, model, device, t, res_df, 
+                duplicate_features=1, inject_masks=False
             )
             
             os.makedirs(os.path.dirname(os.path.abspath(output_file)) or ".", exist_ok=True)
@@ -374,6 +548,100 @@ def main(
     if generate_plot and not res_df.empty:
         plot_output = output_file.replace(".csv", "_plot.png")
         plot_results(output_file, plot_output)
+
+    # --- Embedding Extraction and Analysis ---
+    if extract_embeddings:
+        print(f"\n=== Extracting Embeddings for Analysis ===")
+        
+        embedding_output_dir = os.path.join(
+            os.path.dirname(os.path.abspath(output_file)), "embeddings"
+        )
+        os.makedirs(embedding_output_dir, exist_ok=True)
+        
+        # Select subset of tasks for embedding analysis
+        embedding_tasks = openml_df["tid"].values[:embedding_tasks_limit]
+        print(f"Analyzing embeddings for {len(embedding_tasks)} tasks")
+        
+        grouping_for_comparison = 2  # Use grouping=2 for all methods
+        
+        embeddings_dict = {}
+        
+        for task_id in embedding_tasks:
+            task_id = int(task_id)
+            t = openml.tasks.get_task(task_id)
+            
+            print(f"\n--- Extracting embeddings for task {task_id} ---")
+            
+            # Direct method (no duplication, no masking)
+            print("  Method: Direct")
+            _, emb_direct = evaluate_task(
+                task_id, grouping_for_comparison, model, device, t,
+                pd.DataFrame(columns=RESULT_COLUMNS),
+                duplicate_features=1, inject_masks=False, extract_embeddings=True
+            )
+            if emb_direct is not None:
+                key = f"t{task_id}_direct"
+                embeddings_dict[key] = emb_direct
+            
+            # Duplication method
+            print("  Method: Duplication")
+            _, emb_dup = evaluate_task(
+                task_id, grouping_for_comparison, model, device, t,
+                pd.DataFrame(columns=RESULT_COLUMNS),
+                duplicate_features=grouping_for_comparison, inject_masks=False, extract_embeddings=True
+            )
+            if emb_dup is not None:
+                key = f"t{task_id}_duplication"
+                embeddings_dict[key] = emb_dup
+            
+            # Masking method
+            print("  Method: Masking")
+            _, emb_mask = evaluate_task(
+                task_id, grouping_for_comparison, model, device, t,
+                pd.DataFrame(columns=RESULT_COLUMNS),
+                duplicate_features=1, inject_masks=True, extract_embeddings=True
+            )
+            if emb_mask is not None:
+                key = f"t{task_id}_masking"
+                embeddings_dict[key] = emb_mask
+        
+        # Save embeddings
+        embeddings_file = os.path.join(embedding_output_dir, "embeddings.pkl")
+        with open(embeddings_file, "wb") as f:
+            pickle.dump(embeddings_dict, f)
+        print(f"\nEmbeddings saved to {embeddings_file}")
+        
+        # Analyze
+        if len(embeddings_dict) > 0:
+            # Group by method type for visualization
+            method_embeddings = {
+                "Direct": [],
+                "Duplication": [],
+                "Masking": []
+            }
+            
+            for key, emb in embeddings_dict.items():
+                if "direct" in key:
+                    method_embeddings["Direct"].append(emb)
+                elif "duplication" in key:
+                    method_embeddings["Duplication"].append(emb)
+                elif "masking" in key:
+                    method_embeddings["Masking"].append(emb)
+            
+            # Concatenate embeddings for each method
+            method_embeddings_concat = {}
+            for method, emb_list in method_embeddings.items():
+                if len(emb_list) > 0:
+                    # Handle different shapes
+                    try:
+                        method_embeddings_concat[method] = np.concatenate(emb_list, axis=0)
+                    except:
+                        # If shapes differ, take the first one
+                        method_embeddings_concat[method] = emb_list[0]
+            
+            analyze_embeddings(method_embeddings_concat, embedding_output_dir)
+        else:
+            print("No embeddings were extracted")
 
 
 if __name__ == "__main__":
@@ -388,6 +656,8 @@ if __name__ == "__main__":
     parser.add_argument("--no_plot", action="store_true")
     parser.add_argument("--duplication_output_file", type=str, default="analysis_results/duplication_benchmark_results.csv")
     parser.add_argument("--masking_output_file", type=str, default="analysis_results/masking_benchmark_results.csv")
+    parser.add_argument("--extract_embeddings", action="store_true", help="Extract and analyze embeddings")
+    parser.add_argument("--embedding_tasks_limit", type=int, default=3, help="Number of tasks to analyze embeddings for")
     
     args = parser.parse_args()
     
@@ -401,5 +671,7 @@ if __name__ == "__main__":
         device=args.device,
         generate_plot=not args.no_plot,
         duplication_output_file=args.duplication_output_file,
-        masking_output_file=args.masking_output_file
+        masking_output_file=args.masking_output_file,
+        extract_embeddings=args.extract_embeddings,
+        embedding_tasks_limit=args.embedding_tasks_limit
     )
