@@ -1,36 +1,46 @@
+import argparse
 import os
 import sys
+import warnings
+
+# Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
 import openml
-from openml import tasks
-import warnings
-warnings.filterwarnings("ignore")
-
-from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import RepeatedStratifiedKFold
-from sklearn.metrics import roc_auc_score
-from tabpfnwide.utils import PredictionResults
-from tabpfnwide.patches import fit
-from tabpfn.model_loading import load_model_criterion_config
-from tabpfn import TabPFNClassifier
-import argparse
-import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
+from openml import tasks
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import RepeatedStratifiedKFold
+from sklearn.preprocessing import LabelEncoder
+from sklearn.utils import shuffle
 
+from tabpfn import TabPFNClassifier
+from tabpfn.model_loading import load_model_criterion_config
+from tabpfnwide.patches import fit
+from tabpfnwide.utils import PredictionResults
+
+# Apply patch
 setattr(TabPFNClassifier, "fit", fit)
-
 
 def plot_results(results_file, output_plot):
     """Generate comparison plot of performance across grouping settings."""
+    assert os.path.exists(results_file), f"Results file not found: {results_file}"
     df = pd.read_csv(results_file)
     
+    if df.empty:
+        print(f"No results to plot in {results_file}")
+        return
+
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     metrics = ["accuracy", "f1_weighted", "roc_auc_score"]
     
     for idx, metric in enumerate(metrics):
+        if metric not in df.columns:
+            continue
+            
         # Aggregate across folds for each task
         agg_df = df.groupby(["task_id", "features_per_group"])[metric].mean().reset_index()
         
@@ -46,9 +56,9 @@ def plot_results(results_file, output_plot):
     
     # Print summary statistics
     print("\n=== Summary Statistics ===")
-    summary = df.groupby("features_per_group")[metrics].agg(["mean", "std"])
-    print(summary)
-
+    if "features_per_group" in df.columns:
+        summary = df.groupby("features_per_group")[metrics].agg(["mean", "std"])
+        print(summary)
 
 
 def evaluate_task(
@@ -63,102 +73,96 @@ def evaluate_task(
     """
     Evaluates a single task with specific grouping and feature duplication settings.
     """
-    try:
-        dataset = openml_task.get_dataset()
-        X, y, _, _ = dataset.get_data(target=openml_task.target_name)
+    dataset = openml_task.get_dataset()
+    X, y, _, _ = dataset.get_data(target=openml_task.target_name)
+    
+    # Ensure X is numpy array for consistent manipulation
+    if hasattr(X, "values"):
+        X = X.values
+    if hasattr(X, "to_numpy"):
+        X = X.to_numpy()
+    X = np.asarray(X)
+    
+    # Handle feature duplication
+    # e.g. [f1, f1, f2, f2] corresponds to groups [f1, f1], [f2, f2].
+    if duplicate_features > 1:
+        X = np.repeat(X, duplicate_features, axis=1)
+    
+    # Assertions for validity
+    assert len(X) == len(y), "X and y must have same number of instances"
+    assert duplicate_features >= 1, "Duplicate features must be >= 1"
+
+    num_features = X.shape[1]
+    num_instances = X.shape[0]
+    num_classes = len(np.unique(y))
+    dataset_name = dataset.name
+
+    print(f"\nTask: {task_id} (Dataset: {dataset_name}) - Grouping: {grouping}, Dup: {duplicate_features}")
+    print(f"  Features: {num_features}, Instances: {num_instances}, Classes: {num_classes}")
+
+    # Shuffle
+    X, y = shuffle(X, y, random_state=42)
+    
+    # Encode labels
+    le = LabelEncoder()
+    y = le.fit_transform(y)
+
+    clf = TabPFNClassifier(
+        device=device, n_estimators=1, ignore_pretraining_limits=True
+    )
+    
+    skf = RepeatedStratifiedKFold(
+        n_splits=3, n_repeats=3, random_state=42 
+    )
+
+    model.features_per_group = grouping
+
+    for fold, (train_idx, test_idx) in enumerate(skf.split(X, y)):
+        X_train, X_test = X[train_idx], X[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
         
-        # Handle feature duplication
-        if duplicate_features > 1:
-            if hasattr(X, "values"):
-                X = X.values
-            if hasattr(X, "to_numpy"): # Ensure numpy array for repetition
-                 X = np.asarray(X)
-            
-            # Repeat columns: [f1, f2] -> [f1, f1, f2, f2] if repeat=2? 
-            # Or [f1, f2, f1, f2]? The prompt says "douplicate the features (collumns)". 
-            # TabPFN grouping expects features in groups to be adjacent if they are "same". 
-            # Actually, features_per_group just takes chunks of features.
-            # If we want "grouped" features to be the duplicates, we should repeat them adjacently.
-            # e.g. [f1, f1, f2, f2] corresponds to groups [f1, f1], [f2, f2].
-            X = np.repeat(X, duplicate_features, axis=1)
-
-        num_features = X.shape[1]
-        num_instances = X.shape[0]
-        num_classes = len(np.unique(y))
-        dataset_name = dataset.name
-
-        print(f"\nTask: {task_id} (Dataset: {dataset_name}) - Grouping: {grouping}, Dup: {duplicate_features}")
-        print(f"  Features: {num_features}, Instances: {num_instances}, Classes: {num_classes}")
-
-        from sklearn.utils import shuffle
-        X, y = shuffle(X, y, random_state=42)
-        X = X.values if hasattr(X, "values") else X 
-        le = LabelEncoder()
-        y = le.fit_transform(y)
-
-        clf = TabPFNClassifier(
-            device=device, n_estimators=1, ignore_pretraining_limits=True
-        )
+        clf.fit(X_train, y_train, model=model)
+        pred_probs = clf.predict_proba(X_test)
         
-        skf = RepeatedStratifiedKFold(
-            n_splits=3, n_repeats=3, random_state=42 
-        )
+        # Verify predictions shape
+        assert pred_probs.shape[0] == len(y_test), f"Predictions shape mismatch: {pred_probs.shape} vs {len(y_test)}"
 
-        model.features_per_group = grouping
-
-        for fold, (train_idx, test_idx) in enumerate(skf.split(X, y)):
-            X_train, X_test = X[train_idx], X[test_idx]
-            y_train, y_test = y[train_idx], y[test_idx]
-            
-            clf.fit(X_train, y_train, model=model)
-            pred_probs = clf.predict_proba(X_test)
-
-            pred_res = PredictionResults(y_test, pred_probs)
-            accuracy = pred_res.get_classification_report(print_report=False)["accuracy"]
-            f1_weighted = pred_res.get_f1_score(average="weighted")
-            
-            if pred_probs.shape[-1] == 2:
-                roc_auc = roc_auc_score(
-                    pred_res.ground_truth, pred_res.prediction_probas[:, 1]
-                )
-            else:
-                roc_auc = roc_auc_score(
-                    pred_res.ground_truth,
-                    pred_res.prediction_probas,
-                    multi_class="ovr",
-                    average="macro",
-                    labels=np.arange(pred_probs.shape[-1]),
-                )
-            
-            res_df = pd.concat(
-                [
-                    res_df,
-                    pd.DataFrame(
-                        {
-                            "task_id": [task_id],
-                            "task_name": [dataset_name],
-                            "num_features": [num_features],
-                            "num_instances": [num_instances],
-                            "num_classes": [num_classes],
-                            "fold": [fold],
-                            "features_per_group": [grouping],
-                            "duplicate_factor": [duplicate_features],
-                            "accuracy": [accuracy],
-                            "f1_weighted": [f1_weighted],
-                            "roc_auc_score": [roc_auc],
-                        }
-                    ),
-                ],
-                ignore_index=True,
+        pred_res = PredictionResults(y_test, pred_probs)
+        report = pred_res.get_classification_report(print_report=False)
+        accuracy = report["accuracy"]
+        f1_weighted = pred_res.get_f1_score(average="weighted")
+        
+        if pred_probs.shape[-1] == 2:
+            roc_auc = roc_auc_score(
+                pred_res.ground_truth, pred_res.prediction_probas[:, 1]
             )
-            
-        return res_df
-
-    except Exception as e:
-        print(f"Error with task {task_id}: {e}")
-        # import traceback
-        # traceback.print_exc()
-        return res_df
+        else:
+            roc_auc = roc_auc_score(
+                pred_res.ground_truth,
+                pred_res.prediction_probas,
+                multi_class="ovr",
+                average="macro",
+                labels=np.arange(pred_probs.shape[-1]),
+            )
+        
+        new_row = pd.DataFrame(
+            {
+                "task_id": [task_id],
+                "task_name": [dataset_name],
+                "num_features": [num_features],
+                "num_instances": [num_instances],
+                "num_classes": [num_classes],
+                "fold": [fold],
+                "features_per_group": [grouping],
+                "duplicate_factor": [duplicate_features],
+                "accuracy": [accuracy],
+                "f1_weighted": [f1_weighted],
+                "roc_auc_score": [roc_auc],
+            }
+        )
+        res_df = pd.concat([res_df, new_row], ignore_index=True)
+        
+    return res_df
 
 
 def main(
@@ -175,22 +179,29 @@ def main(
     """
     Benchmark TabPFN base model.
     """
-    # ... (rest of the setup code) ...
     # Fetch OpenML suite
     suite = openml.study.get_suite(suite_id=suite_id)
     openml_df = tasks.list_tasks(output_format="dataframe", task_id=suite.tasks)
+    
+    assert not openml_df.empty, f"No tasks found for suite {suite_id}"
 
     if "task_type" in openml_df.columns:
         openml_df = openml_df[openml_df["task_type"] == "Supervised Classification"]
 
-    openml_df = openml_df[openml_df["NumberOfFeatures"] >= min_features]
-    openml_df = openml_df[openml_df["NumberOfFeatures"] <= max_features]
-    openml_df = openml_df[openml_df["NumberOfInstances"] <= max_instances]
-    openml_df = openml_df[openml_df["NumberOfClasses"] < 10]
-    openml_df = openml_df[openml_df["NumberOfClasses"] > 1]
+    openml_df = openml_df[
+        (openml_df["NumberOfFeatures"] >= min_features) &
+        (openml_df["NumberOfFeatures"] <= max_features) &
+        (openml_df["NumberOfInstances"] <= max_instances) &
+        (openml_df["NumberOfClasses"] < 10) &
+        (openml_df["NumberOfClasses"] > 1)
+    ]
 
     print(f"Found {len(openml_df)} tasks to process in suite {suite_id}")
     
+    if len(openml_df) == 0:
+        print("No tasks meet the criteria. Exiting.")
+        return
+
     # Load model once
     models, _, _, _ = load_model_criterion_config(
         model_path=None,
@@ -202,18 +213,21 @@ def main(
     )
     model = models[0]
 
+    # --- Feature Duplication Benchmark ---
     print(f"Running Feature Duplication Benchmark")
-    # Duplication Loop: factor 1, 2, 3 -> implies grouping 1, 2, 3
     
     dup_output = duplication_output_file or output_file.replace(".csv", "_duplication.csv")
-    dup_df = pd.DataFrame(columns=[
+    
+    dup_columns = [
         "task_id", "task_name", "num_features", "num_instances", "num_classes",
         "fold", "features_per_group", "duplicate_factor", 
         "accuracy", "f1_weighted", "roc_auc_score"
-    ])
+    ]
     
     if os.path.exists(dup_output):
         dup_df = pd.read_csv(dup_output)
+    else:
+        dup_df = pd.DataFrame(columns=dup_columns)
 
     duplication_factors = [1, 2, 3] 
     
@@ -222,49 +236,55 @@ def main(
         print(f"\nTraining with Duplication={dup}, Grouping={grouping}")
         
         for task_id in openml_df["tid"].values:
-            if ((dup_df["task_id"] == task_id) & (dup_df["duplicate_factor"] == dup)).any():
+            task_id = int(task_id)
+            if not dup_df.empty and ((dup_df["task_id"] == task_id) & (dup_df["duplicate_factor"] == dup)).any():
                continue
 
-            t = openml.tasks.get_task(int(task_id))
+            # Scientific code: Crash early on error. Do not try/except broadly.
+            t = openml.tasks.get_task(task_id)
             dup_df = evaluate_task(
                 task_id, grouping, model, device, t, dup_df, duplicate_features=dup
             )
             
-            os.makedirs(os.path.dirname(dup_output), exist_ok=True)
+            os.makedirs(os.path.dirname(os.path.abspath(dup_output)) or ".", exist_ok=True)
             dup_df.to_csv(dup_output, index=False)
     
     print(f"Duplication results saved to {dup_output}")
 
-    # Standard Grouping Benchmark Loop
+    # --- Standard Grouping Benchmark ---
     print(f"\nRunning Standard Grouping Benchmark")
     print(f"Testing features_per_group values: {grouping_values}")
-    res_df = pd.DataFrame(columns=[
+    
+    res_columns = [
         "task_id", "task_name", "num_features", "num_instances", "num_classes",
         "fold", "features_per_group", "duplicate_factor",
         "accuracy", "f1_weighted", "roc_auc_score"
-    ])
+    ]
     
     if os.path.exists(output_file):
         res_df = pd.read_csv(output_file)
         if "duplicate_factor" not in res_df.columns:
             res_df["duplicate_factor"] = 1
+    else:
+        res_df = pd.DataFrame(columns=res_columns)
 
     for grouping in grouping_values:
         print(f"\nProcessing Grouping: {grouping}")
         for task_id in openml_df["tid"].values:
-            if ((res_df["task_id"] == task_id) & (res_df["features_per_group"] == grouping)).any():
+            task_id = int(task_id)
+            if not res_df.empty and ((res_df["task_id"] == task_id) & (res_df["features_per_group"] == grouping)).any():
                 continue
             
-            t = openml.tasks.get_task(int(task_id))
+            t = openml.tasks.get_task(task_id)
             res_df = evaluate_task(
                 task_id, grouping, model, device, t, res_df, duplicate_features=1
             )
             
-            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+            os.makedirs(os.path.dirname(os.path.abspath(output_file)) or ".", exist_ok=True)
             res_df.to_csv(output_file, index=False)
 
     print(f"Results saved to {output_file}")
-    if generate_plot and len(res_df) > 0:
+    if generate_plot and not res_df.empty:
         plot_output = output_file.replace(".csv", "_plot.png")
         plot_results(output_file, plot_output)
 
@@ -279,7 +299,6 @@ if __name__ == "__main__":
     parser.add_argument("--grouping_values", type=int, nargs="+", default=[1, 2, 3])
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--no_plot", action="store_true")
-    # parser.add_argument("--run_duplication", action="store_true", help="Run feature duplication benchmark instead") # Removed
     parser.add_argument("--duplication_output_file", type=str, default="analysis_results/duplication_benchmark_results.csv")
     
     args = parser.parse_args()
@@ -293,7 +312,5 @@ if __name__ == "__main__":
         grouping_values=args.grouping_values,
         device=args.device,
         generate_plot=not args.no_plot,
-        # run_duplication=args.run_duplication, # Removed
         duplication_output_file=args.duplication_output_file
     )
-
