@@ -177,7 +177,7 @@ def plot_combined_results(df, output_plot):
     ax.set_title("Accuracy Distribution per Combination")
     ax.set_xlabel("Combination")
     ax.set_ylabel("Accuracy")
-    ax.set_ylim(0.5, 1.1)
+    ax.set_ylim(0.3, 1.1)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
 
     # Calculate and annotate the mean on the box plot
@@ -186,7 +186,7 @@ def plot_combined_results(df, output_plot):
         mean_value = means[label]
         ax.text(
             i,
-            mean_value - 0.02,
+            mean_value - 0.05,
             f"{mean_value:.4f}",
             horizontalalignment="center",
             color="black",
@@ -223,7 +223,7 @@ def plot_combined_auroc_results(df, output_plot):
     ax.set_title("AUROC Distribution per Combination")
     ax.set_xlabel("Combination")
     ax.set_ylabel("AUROC")
-    ax.set_ylim(0.5, 1.1)
+    ax.set_ylim(0.3, 1.1)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
 
     # Calculate and annotate the mean on the box plot
@@ -232,7 +232,7 @@ def plot_combined_auroc_results(df, output_plot):
         mean_value = means[label]
         ax.text(
             i,
-            mean_value + 0.01,
+            mean_value - 0.05,
             f"{mean_value:.4f}",
             horizontalalignment="center",
             color="black",
@@ -721,6 +721,9 @@ def main(
         if generate_plot:
             plot_output = output_file.replace(".csv", "_combined_plot.png")
             plot_combined_results(final_df, plot_output)
+
+            plot_output = output_file.replace(".csv", "_combined_auroc.png")
+            plot_combined_auroc_results(final_df, plot_output)
 
         # Get all unique labels for consistent coloring
         if "combo_label" not in final_df.columns:
