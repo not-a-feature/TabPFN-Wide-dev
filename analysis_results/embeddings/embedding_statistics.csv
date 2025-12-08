@@ -1,4 +1,4 @@
 method,mean,std,min,max,shape
-Direct,3.06e-05,inf,-16.47,11.03,"(7608, 13, 192)"
-Duplication,3.98e-05,inf,-12.75,10.06,"(7608, 26, 192)"
-Masking,0.001871,inf,-17.83,15.414,"(7608, 26, 192)"
+Duplication | grp=2 | dup=2 | masks=0,2.015e-05,inf,-17.2,25.4,"(898, 39, 192)"
+Grouping | grp=2 | dup=1 | masks=0,-1.395e-05,inf,-17.19,26.56,"(898, 20, 192)"
+Masking | grp=2 | dup=1 | masks=1,0.00375,inf,-17.45,26.86,"(898, 44, 192)"
