@@ -377,6 +377,10 @@ def evaluate_task(
             X_new[:, 0::grouping] = X
             X = X_new
 
+    df_sample = pd.DataFrame(X)
+    print("Sample of processed X (first 3 rows, up to 10 cols):")
+    print(df_sample.iloc[:3, :10].to_string(index=False))
+
     # Assertions for validity
     assert len(X) == len(y), "X and y must have same number of instances"
     assert duplicate_features >= 1, "Duplicate features must be >= 1"
