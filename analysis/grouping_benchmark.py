@@ -410,55 +410,59 @@ def evaluate_task(
         X_train, X_test = X[train_idx], X[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
 
-        if extract_embeddings and fold == 0:  # Only extract for first fold
-            embeddings, pred_probs = extract_embeddings_with_model(
-                model, X_train, y_train, X_test, clf, device
-            )
-            if embeddings is not None:
-                embeddings_collected.append(embeddings)
-        else:
-            clf.fit(X_train, y_train, model=model)
-            pred_probs = clf.predict_proba(X_test)
+        try:
+            if extract_embeddings and fold == 0:  # Only extract for first fold
+                embeddings, pred_probs = extract_embeddings_with_model(
+                    model, X_train, y_train, X_test, clf, device
+                )
+                if embeddings is not None:
+                    embeddings_collected.append(embeddings)
+            else:
+                clf.fit(X_train, y_train, model=model)
+                pred_probs = clf.predict_proba(X_test)
 
-        # Verify predictions shape
-        assert pred_probs.shape[0] == len(
-            y_test
-        ), f"Predictions shape mismatch: {pred_probs.shape} vs {len(y_test)}"
+            # Verify predictions shape
+            assert pred_probs.shape[0] == len(
+                y_test
+            ), f"Predictions shape mismatch: {pred_probs.shape} vs {len(y_test)}"
 
-        pred_res = PredictionResults(y_test, pred_probs)
-        report = pred_res.get_classification_report(print_report=False)
-        accuracy = report["accuracy"]
-        f1_weighted = pred_res.get_f1_score(average="weighted")
+            pred_res = PredictionResults(y_test, pred_probs)
+            report = pred_res.get_classification_report(print_report=False)
+            accuracy = report["accuracy"]
+            f1_weighted = pred_res.get_f1_score(average="weighted")
 
-        if pred_probs.shape[-1] == 2:
-            roc_auc = roc_auc_score(pred_res.ground_truth, pred_res.prediction_probas[:, 1])
-        else:
-            roc_auc = roc_auc_score(
-                pred_res.ground_truth,
-                pred_res.prediction_probas,
-                multi_class="ovr",
-                average="macro",
-                labels=np.arange(pred_probs.shape[-1]),
-            )
+            if pred_probs.shape[-1] == 2:
+                roc_auc = roc_auc_score(pred_res.ground_truth, pred_res.prediction_probas[:, 1])
+            else:
+                roc_auc = roc_auc_score(
+                    pred_res.ground_truth,
+                    pred_res.prediction_probas,
+                    multi_class="ovr",
+                    average="macro",
+                    labels=np.arange(pred_probs.shape[-1]),
+                )
 
-        row_data = {
-            "task_id": [task_id],
-            "task_name": [dataset_name],
-            "num_features": [num_features],
-            "num_instances": [num_instances],
-            "num_classes": [num_classes],
-            "fold": [fold],
-            "features_per_group": [grouping],
-            "duplicate_factor": [duplicate_features],
-            "accuracy": [accuracy],
-            "f1_weighted": [f1_weighted],
-            "roc_auc_score": [roc_auc],
-            "mask_injected": [inject_masks],
-            "analysis_type": [analysis_type],
-        }
+            row_data = {
+                "task_id": [task_id],
+                "task_name": [dataset_name],
+                "num_features": [num_features],
+                "num_instances": [num_instances],
+                "num_classes": [num_classes],
+                "fold": [fold],
+                "features_per_group": [grouping],
+                "duplicate_factor": [duplicate_features],
+                "accuracy": [accuracy],
+                "f1_weighted": [f1_weighted],
+                "roc_auc_score": [roc_auc],
+                "mask_injected": [inject_masks],
+                "analysis_type": [analysis_type],
+            }
 
-        new_row = pd.DataFrame(row_data)
-        res_df = pd.concat([res_df, new_row], ignore_index=True)
+            new_row = pd.DataFrame(row_data)
+            res_df = pd.concat([res_df, new_row], ignore_index=True)
+        except Exception as e:
+            print(f"Skipping fold {fold} for task {task_id} due to error: {e}")
+            continue
 
     final_embeddings = embeddings_collected[0] if embeddings_collected else None
     return res_df, final_embeddings
@@ -476,7 +480,7 @@ def main(
     duplication_output_file=None,
     masking_output_file=None,
     extract_embeddings=False,
-    embedding_tasks_limit=3,
+    tasks_limit=None,
 ):
     """
     Benchmark TabPFN base model.
@@ -498,6 +502,10 @@ def main(
         & (openml_df["NumberOfClasses"] < 10)
         & (openml_df["NumberOfClasses"] > 1)
     ]
+
+    if tasks_limit is not None:
+        print(f"Limiting to {tasks_limit} tasks")
+        openml_df = openml_df.head(tasks_limit)
 
     print(f"Found {len(openml_df)} tasks to process in suite {suite_id}")
 
@@ -639,7 +647,7 @@ def main(
         os.makedirs(embedding_output_dir, exist_ok=True)
 
         # Select subset of tasks for embedding analysis
-        embedding_tasks = openml_df["tid"].values[:embedding_tasks_limit]
+        embedding_tasks = openml_df["tid"].values
         print(f"Analyzing embeddings for {len(embedding_tasks)} tasks")
 
         grouping_for_comparison = 2  # Use grouping=2 for all methods
@@ -760,10 +768,10 @@ if __name__ == "__main__":
         "--extract_embeddings", action="store_true", help="Extract and analyze embeddings"
     )
     parser.add_argument(
-        "--embedding_tasks_limit",
+        "--tasks_limit",
         type=int,
         default=20,
-        help="Number of tasks to analyze embeddings for",
+        help="Number of tasks to analyze",
     )
 
     args = parser.parse_args()
@@ -780,5 +788,5 @@ if __name__ == "__main__":
         duplication_output_file=args.duplication_output_file,
         masking_output_file=args.masking_output_file,
         extract_embeddings=args.extract_embeddings,
-        embedding_tasks_limit=args.embedding_tasks_limit,
+        tasks_limit=args.tasks_limit,
     )
