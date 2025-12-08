@@ -177,8 +177,22 @@ def plot_combined_results(df, output_plot):
     ax.set_title("Accuracy Distribution per Combination")
     ax.set_xlabel("Combination")
     ax.set_ylabel("Accuracy")
-    ax.set_ylim(0, 1)
+    ax.set_ylim(0.5, 1.1)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+
+    # Calculate and annotate the mean on the box plot
+    means = plot_df.groupby("combo_label")["accuracy"].mean()
+    for i, label in enumerate(unique_labels):
+        mean_value = means[label]
+        ax.text(
+            i,
+            mean_value - 0.02,
+            f"{mean_value:.2f}",
+            horizontalalignment="center",
+            color="black",
+            fontsize=9,
+        )
+
     plt.tight_layout()
     plt.savefig(output_plot, dpi=300, bbox_inches="tight")
     plt.close()
