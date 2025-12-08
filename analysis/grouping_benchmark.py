@@ -32,6 +32,7 @@ warnings.filterwarnings("ignore")
 RESULT_COLUMNS = [
     "task_id",
     "task_name",
+    "scenario_name",
     "num_features",
     "num_instances",
     "num_classes",
@@ -43,6 +44,18 @@ RESULT_COLUMNS = [
     "f1_weighted",
     "roc_auc_score",
     "analysis_type",
+]
+
+# Define scenarios configuration
+SCENARIOS = [
+    {"name": "A", "grouping": 1, "dup": 1, "mask": 0, "type": "grouping"},
+    {"name": "B", "grouping": 2, "dup": 1, "mask": 0, "type": "grouping"},
+    {"name": "C", "grouping": 3, "dup": 1, "mask": 0, "type": "grouping"},
+    {"name": "D", "grouping": 2, "dup": 2, "mask": 0, "type": "duplication"},
+    {"name": "E", "grouping": 3, "dup": 3, "mask": 0, "type": "duplication"},
+    {"name": "F", "grouping": 2, "dup": 1, "mask": 1, "type": "masking"},
+    {"name": "G", "grouping": 3, "dup": 1, "mask": 2, "type": "masking"},
+    {"name": "H", "grouping": 3, "dup": 2, "mask": 1, "type": "mixed"},
 ]
 
 
@@ -71,18 +84,29 @@ def print_all_results(df):
         print("No benchmark results to display.")
         return
 
-    sort_cols = [
-        col
-        for col in [
-            "analysis_type",
-            "task_id",
-            "features_per_group",
-            "duplicate_factor",
-            "masks_injected",
-        ]
-        if col in df.columns
-    ]
-    df_sorted = df.sort_values(sort_cols).reset_index(drop=True)
+    # Create a working copy to avoid modifying the original df in place if not desired
+    df_work = df.copy()
+
+    # Ensure scenario_name is populated for sorting
+    if "scenario_name" not in df_work.columns:
+        df_work["scenario_name"] = None
+
+    def fill_scenario(row):
+        if pd.notna(row.get("scenario_name")):
+            return row["scenario_name"]
+        for s in SCENARIOS:
+            if (
+                (s["grouping"] == row["features_per_group"])
+                and (s["dup"] == row["duplicate_factor"])
+                and (s["mask"] == row["masks_injected"])
+            ):
+                return s["name"]
+        return "Z"  # End of list
+
+    df_work["scenario_name"] = df_work.apply(fill_scenario, axis=1)
+
+    sort_cols = ["scenario_name", "task_id"]
+    df_sorted = df_work.sort_values(sort_cols).reset_index(drop=True)
 
     print("\n=== Complete Benchmark Results ===")
     print(df_sorted.to_string(index=False))
@@ -92,7 +116,13 @@ def print_all_results(df):
     if available_metrics:
         summary = (
             df_sorted.groupby(
-                ["analysis_type", "features_per_group", "duplicate_factor", "masks_injected"]
+                [
+                    "scenario_name",
+                    "analysis_type",
+                    "features_per_group",
+                    "duplicate_factor",
+                    "masks_injected",
+                ]
             )[available_metrics]
             .agg(["mean", "std", "count"])
             .reset_index()
@@ -102,6 +132,22 @@ def print_all_results(df):
 
 
 def get_combo_label(row):
+    # Try to find scenario name if not present
+    s_name = row.get("scenario_name")
+    if pd.isna(s_name) or s_name is None:
+        # Lookup in SCENARIOS
+        grp = row.get("features_per_group")
+        dup = row.get("duplicate_factor")
+        mask = row.get("masks_injected")
+
+        for s in SCENARIOS:
+            if (s["grouping"] == grp) and (s["dup"] == dup) and (s["mask"] == mask):
+                s_name = s["name"]
+                break
+
+    if s_name:
+        return f"{s_name}: {row['analysis_type']} | grp={row['features_per_group']} | dup={row['duplicate_factor']} | masks={row['masks_injected']}"
+
     analysis = row.get("analysis_type", "analysis").capitalize()
     masks = row.get("masks_injected", 0)
     return f"{analysis} | grp={row['features_per_group']} | dup={row['duplicate_factor']} | masks={masks}"
@@ -342,6 +388,7 @@ def evaluate_task(
     masks_injected=0,
     extract_embeddings=False,
     analysis_type="grouping",
+    scenario_name=None,
 ):
     """
     Evaluates a single task with specific grouping and feature duplication settings.
@@ -463,6 +510,7 @@ def evaluate_task(
             row_data = {
                 "task_id": [task_id],
                 "task_name": [dataset_name],
+                "scenario_name": [scenario_name],
                 "num_features": [num_features],
                 "num_instances": [num_instances],
                 "num_classes": [num_classes],
@@ -545,16 +593,7 @@ def main(
     all_results_dfs = []
 
     # Define scenarios
-    scenarios = [
-        {"name": "A", "grouping": 1, "dup": 1, "mask": 0, "type": "grouping"},
-        {"name": "B", "grouping": 2, "dup": 1, "mask": 0, "type": "grouping"},
-        {"name": "C", "grouping": 3, "dup": 1, "mask": 0, "type": "grouping"},
-        {"name": "D", "grouping": 2, "dup": 2, "mask": 0, "type": "duplication"},
-        {"name": "E", "grouping": 3, "dup": 3, "mask": 0, "type": "duplication"},
-        {"name": "F", "grouping": 2, "dup": 1, "mask": 1, "type": "masking"},
-        {"name": "G", "grouping": 3, "dup": 1, "mask": 2, "type": "masking"},
-        {"name": "H", "grouping": 3, "dup": 2, "mask": 1, "type": "mixed"},
-    ]
+    # Moved to global SCENARIOS
 
     print(f"\nRunning Benchmark Scenarios A-H")
 
@@ -565,10 +604,12 @@ def main(
             res_df["masks_injected"] = 0
         if "duplicate_factor" not in res_df.columns:
             res_df["duplicate_factor"] = 1
+        if "scenario_name" not in res_df.columns:
+            res_df["scenario_name"] = None
     else:
         res_df = pd.DataFrame(columns=RESULT_COLUMNS)
 
-    for scenario in scenarios:
+    for scenario in SCENARIOS:
         name = scenario["name"]
         grp = scenario["grouping"]
         dup = scenario["dup"]
@@ -602,6 +643,7 @@ def main(
                 duplicate_factor=dup,
                 masks_injected=mask,
                 analysis_type=ana_type,
+                scenario_name=name,
             )
 
             os.makedirs(os.path.dirname(os.path.abspath(output_file)) or ".", exist_ok=True)
@@ -629,9 +671,7 @@ def main(
     if extract_embeddings:
         print(f"\n=== Extracting Embeddings for Analysis ===")
 
-        embedding_output_dir = os.path.join(
-            os.path.dirname(os.path.abspath(output_file)), "embeddings"
-        )
+        embedding_output_dir = os.path.dirname(os.path.abspath(output_file))
         os.makedirs(embedding_output_dir, exist_ok=True)
 
         # Select subset of tasks for embedding analysis
@@ -648,13 +688,13 @@ def main(
 
             print(f"\n--- Extracting embeddings for task {task_id} ---")
 
-            for scenario in scenarios:
+            for scenario in SCENARIOS:
                 name = scenario["name"]
                 grp = scenario["grouping"]
                 dup = scenario["dup"]
                 mask = scenario["mask"]
                 ana_type = scenario["type"]
-                
+
                 print(f"  Method: {name} ({ana_type})")
                 _, emb = evaluate_task(
                     task_id,
@@ -667,8 +707,9 @@ def main(
                     masks_injected=mask,
                     extract_embeddings=True,
                     analysis_type=ana_type,
+                    scenario_name=name,
                 )
-                
+
                 if emb is not None:
                     key = f"t{task_id}_{name}"
                     embeddings_dict[key] = emb
@@ -677,15 +718,18 @@ def main(
         if len(embeddings_dict) > 0:
             # Group by method type for visualization
             method_embeddings = {}
-            
+
             # Initialize lists for all scenarios
-            for scenario in scenarios:
-                label = get_combo_label({
-                    "analysis_type": scenario["type"],
-                    "features_per_group": scenario["grouping"],
-                    "duplicate_factor": scenario["dup"],
-                    "masks_injected": scenario["mask"],
-                })
+            for scenario in SCENARIOS:
+                label = get_combo_label(
+                    {
+                        "scenario_name": scenario["name"],
+                        "analysis_type": scenario["type"],
+                        "features_per_group": scenario["grouping"],
+                        "duplicate_factor": scenario["dup"],
+                        "masks_injected": scenario["mask"],
+                    }
+                )
                 method_embeddings[label] = []
 
             # Sort embeddings into the correct lists
@@ -693,17 +737,20 @@ def main(
                 # key format: t{task_id}_{name}
                 # Extract name (last part after underscore)
                 scenario_name = key.split("_")[-1]
-                
+
                 # Find matching scenario
-                matched_scenario = next((s for s in scenarios if s["name"] == scenario_name), None)
-                
+                matched_scenario = next((s for s in SCENARIOS if s["name"] == scenario_name), None)
+
                 if matched_scenario:
-                    label = get_combo_label({
-                        "analysis_type": matched_scenario["type"],
-                        "features_per_group": matched_scenario["grouping"],
-                        "duplicate_factor": matched_scenario["dup"],
-                        "masks_injected": matched_scenario["mask"],
-                    })
+                    label = get_combo_label(
+                        {
+                            "scenario_name": matched_scenario["name"],
+                            "analysis_type": matched_scenario["type"],
+                            "features_per_group": matched_scenario["grouping"],
+                            "duplicate_factor": matched_scenario["dup"],
+                            "masks_injected": matched_scenario["mask"],
+                        }
+                    )
                     method_embeddings[label].append(emb)
 
             # Concatenate embeddings for each method
