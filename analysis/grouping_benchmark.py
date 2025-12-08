@@ -73,7 +73,13 @@ def print_all_results(df):
 
     sort_cols = [
         col
-        for col in ["analysis_type", "task_id", "features_per_group", "duplicate_factor", "mask_injected"]
+        for col in [
+            "analysis_type",
+            "task_id",
+            "features_per_group",
+            "duplicate_factor",
+            "mask_injected",
+        ]
         if col in df.columns
     ]
     df_sorted = df.sort_values(sort_cols).reset_index(drop=True)
@@ -85,7 +91,9 @@ def print_all_results(df):
     available_metrics = [m for m in metrics if m in df.columns]
     if available_metrics:
         summary = (
-            df_sorted.groupby(["analysis_type", "features_per_group", "duplicate_factor", "mask_injected"])[available_metrics]
+            df_sorted.groupby(
+                ["analysis_type", "features_per_group", "duplicate_factor", "mask_injected"]
+            )[available_metrics]
             .agg(["mean", "std", "count"])
             .reset_index()
         )
@@ -108,13 +116,13 @@ def plot_combined_results(df, output_plot):
     def _combo_label(row):
         analysis = row.get("analysis_type", "analysis").capitalize()
         mask = "mask" if row.get("mask_injected", False) else "no-mask"
-        return f"{analysis} | grp={row['features_per_group']} | dup={row['duplicate_factor']} | {mask}"
+        return (
+            f"{analysis} | grp={row['features_per_group']} | dup={row['duplicate_factor']} | {mask}"
+        )
 
     plot_df["combo_label"] = plot_df.apply(_combo_label, axis=1)
 
-    summary = (
-        plot_df.groupby("combo_label")["accuracy"].mean().reset_index()
-    )
+    summary = plot_df.groupby("combo_label")["accuracy"].mean().reset_index()
     fig, ax = plt.subplots(figsize=(max(10, len(summary) * 0.45), 6))
     sns.barplot(data=summary, x="combo_label", y="accuracy", ax=ax, ci="sd", palette="Set2")
     ax.set_title("Average Accuracy per Combination")
@@ -126,6 +134,7 @@ def plot_combined_results(df, output_plot):
     plt.savefig(output_plot, dpi=300, bbox_inches="tight")
     plt.close()
     print(f"Combined plot saved to {output_plot}")
+
 
 def register_embedding_hook(model, embeddings_list):
     """
@@ -615,7 +624,9 @@ def main(
 
                 exists = False
                 if not res_df.empty:
-                    cond = (res_df["task_id"] == task_id) & (res_df["features_per_group"] == grouping)
+                    cond = (res_df["task_id"] == task_id) & (
+                        res_df["features_per_group"] == grouping
+                    )
                     if "duplicate_factor" in res_df.columns:
                         cond &= res_df["duplicate_factor"] == 1
                     if "mask_injected" in res_df.columns:
