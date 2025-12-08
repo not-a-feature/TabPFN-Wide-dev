@@ -414,7 +414,11 @@ def evaluate_task(
 
     clf = TabPFNClassifier(device=device, n_estimators=1, ignore_pretraining_limits=True)
 
-    skf = RepeatedStratifiedKFold(n_splits=3, n_repeats=3, random_state=42)
+    skf = RepeatedStratifiedKFold(
+        n_splits=3,
+        n_repeats=10 if X.shape[0] < 2500 else 3,
+        random_state=42,
+    )
 
     model.features_per_group = grouping
 
