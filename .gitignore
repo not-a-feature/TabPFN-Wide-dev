@@ -1,3 +1,5 @@
+analysis_results/embeddings/embeddings.pkl
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

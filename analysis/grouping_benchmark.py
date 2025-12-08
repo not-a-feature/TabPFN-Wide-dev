@@ -102,7 +102,7 @@ def print_all_results(df):
 
 
 def plot_combined_results(df, output_plot):
-    """Create a bar plot that compares each combination across all metrics."""
+    """Create a box plot that compares each combination across all metrics."""
 
     if df.empty:
         print("No results available for plotting.")
@@ -122,10 +122,12 @@ def plot_combined_results(df, output_plot):
 
     plot_df["combo_label"] = plot_df.apply(_combo_label, axis=1)
 
-    summary = plot_df.groupby("combo_label")["accuracy"].mean().reset_index()
-    fig, ax = plt.subplots(figsize=(max(10, len(summary) * 0.45), 6))
-    sns.barplot(data=summary, x="combo_label", y="accuracy", ax=ax, ci="sd", palette="Set2")
-    ax.set_title("Average Accuracy per Combination")
+    # Determine order
+    unique_labels = sorted(plot_df["combo_label"].unique())
+
+    fig, ax = plt.subplots(figsize=(max(10, len(unique_labels) * 0.45), 6))
+    sns.boxplot(data=plot_df, x="combo_label", y="accuracy", ax=ax, palette="Set2", order=unique_labels)
+    ax.set_title("Accuracy Distribution per Combination")
     ax.set_xlabel("Combination")
     ax.set_ylabel("Accuracy")
     ax.set_ylim(0, 1)
