@@ -34,7 +34,9 @@ MULTIOMICS_OUTPUT_FILE="${OUTPUT_DIR}/multiomics_feature_reduction_results.csv"
 MULTIOMICS_OMICS_LIST="mRNA cnv"  # Space-separated list of omics types
 
 # OpenML Benchmark Configuration
-OPENML_SUITE_ID=337  # OpenML suite ID
+# (a) 54 (b) 188 (c) 1049 (d) 1067 (e) 1468 (f) 1494
+# (g) 40982 (h) 40984 (i) 41157 (j) 46921 (k) 46930 (l) 46940 (m) 46980
+OPENML_SUITE_ID=457  # OpenML suite ID
 OPENML_OUTPUT_FILE="${OUTPUT_DIR}/openml_benchmark_results.csv"
 OPENML_MAX_FEATURES=500
 OPENML_MIN_FEATURES=0

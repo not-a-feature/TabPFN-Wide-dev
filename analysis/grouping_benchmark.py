@@ -101,6 +101,12 @@ def print_all_results(df):
         print(summary.to_string(index=False))
 
 
+def get_combo_label(row):
+    analysis = row.get("analysis_type", "analysis").capitalize()
+    mask = "mask" if row.get("mask_injected", False) else "no-mask"
+    return f"{analysis} | grp={row['features_per_group']} | dup={row['duplicate_factor']} | {mask}"
+
+
 def plot_combined_results(df, output_plot):
     """Create a box plot that compares each combination across all metrics."""
 
@@ -113,14 +119,7 @@ def plot_combined_results(df, output_plot):
     plot_df["mask_injected"] = plot_df.get("mask_injected", False).astype(bool)
     plot_df["features_per_group"] = plot_df.get("features_per_group", 1).fillna(1).astype(int)
 
-    def _combo_label(row):
-        analysis = row.get("analysis_type", "analysis").capitalize()
-        mask = "mask" if row.get("mask_injected", False) else "no-mask"
-        return (
-            f"{analysis} | grp={row['features_per_group']} | dup={row['duplicate_factor']} | {mask}"
-        )
-
-    plot_df["combo_label"] = plot_df.apply(_combo_label, axis=1)
+    plot_df["combo_label"] = plot_df.apply(get_combo_label, axis=1)
 
     # Determine order
     unique_labels = sorted(plot_df["combo_label"].unique())
@@ -198,13 +197,14 @@ def extract_embeddings_with_model(model, X_train, y_train, X_test, clf, device):
     return embeddings, pred_probs
 
 
-def analyze_embeddings(embeddings_dict, output_dir):
+def analyze_embeddings(embeddings_dict, output_dir, all_labels_order=None):
     """
     Analyze and visualize embeddings from different methods.
 
     Args:
         embeddings_dict: Dict mapping method name -> embeddings array
         output_dir: Directory to save visualizations
+        all_labels_order: Optional list of all possible labels to ensure consistent coloring
     """
     import umap
     from sklearn.preprocessing import StandardScaler
@@ -251,15 +251,24 @@ def analyze_embeddings(embeddings_dict, output_dir):
     # Plot UMAP
     fig, ax = plt.subplots(figsize=(10, 8))
 
-    unique_methods = list(embeddings_dict.keys())
-    colors = plt.cm.Set2(np.linspace(0, 1, len(unique_methods)))
+    unique_methods = sorted(list(embeddings_dict.keys()))
+
+    if all_labels_order:
+        # Use consistent palette based on provided order
+        palette = sns.color_palette("Set2", len(all_labels_order))
+        color_map = dict(zip(all_labels_order, palette))
+    else:
+        # Fallback to local palette
+        palette = sns.color_palette("Set2", len(unique_methods))
+        color_map = dict(zip(unique_methods, palette))
 
     for i, method in enumerate(unique_methods):
         mask = np.array(all_labels) == method
+        color = color_map.get(method, (0.5, 0.5, 0.5))  # Default to gray if not found
         ax.scatter(
             embedding_2d[mask, 0],
             embedding_2d[mask, 1],
-            c=[colors[i]],
+            c=[color],
             label=method,
             alpha=0.6,
             s=50,
@@ -468,9 +477,6 @@ def main(
     masking_output_file=None,
     extract_embeddings=False,
     embedding_tasks_limit=3,
-    run_duplication=True,
-    run_masking=True,
-    run_grouping=True,
 ):
     """
     Benchmark TabPFN base model.
@@ -512,155 +518,104 @@ def main(
 
     all_results_dfs = []
 
-    # --- Feature Duplication Benchmark ---
-    if run_duplication:
-        print(f"Running Feature Duplication Benchmark")
-
-        dup_output = duplication_output_file or output_file.replace(".csv", "_duplication.csv")
-
-        if os.path.exists(dup_output):
-            dup_df = pd.read_csv(dup_output)
-        else:
-            dup_df = pd.DataFrame(columns=RESULT_COLUMNS)
-
-        duplication_factors = [1, 2, 3]
-
-        for dup in duplication_factors:
-            grouping = dup
-            print(f"\nTraining with Duplication={dup}, Grouping={grouping}")
-
-            for task_id in openml_df["tid"].values:
-                task_id = int(task_id)
-                if (
-                    not dup_df.empty
-                    and (
-                        (dup_df["task_id"] == task_id)
-                        & (dup_df["duplicate_factor"] == dup)
-                        & (dup_df.get("mask_injected", False) == False)
-                    ).any()
-                ):
-                    continue
-
-                t = openml.tasks.get_task(task_id)
-                dup_df, _ = evaluate_task(
-                    task_id,
-                    grouping,
-                    model,
-                    device,
-                    t,
-                    dup_df,
-                    duplicate_features=dup,
-                    inject_masks=False,
-                    analysis_type="duplication",
-                )
-
-                os.makedirs(os.path.dirname(os.path.abspath(dup_output)) or ".", exist_ok=True)
-                dup_df.to_csv(dup_output, index=False)
-
-        print(f"Duplication results saved to {dup_output}")
-        all_results_dfs.append(dup_df)
-
     # --- Masking Benchmark ---
-    if run_masking:
-        print(f"\nRunning Masking Benchmark")
+    print(f"\nRunning Masking Benchmark")
 
-        mask_output = masking_output_file or output_file.replace(".csv", "_masking.csv")
+    mask_output = masking_output_file or output_file.replace(".csv", "_masking.csv")
 
-        if os.path.exists(mask_output):
-            mask_df = pd.read_csv(mask_output)
-        else:
-            mask_df = pd.DataFrame(columns=RESULT_COLUMNS)
+    if os.path.exists(mask_output):
+        mask_df = pd.read_csv(mask_output)
+    else:
+        mask_df = pd.DataFrame(columns=RESULT_COLUMNS)
 
-        masking_grouping_values = [1, 2, 3]
+    masking_grouping_values = [1, 2, 3]
 
-        for grouping in masking_grouping_values:
-            print(f"\nTraining with Masking, Grouping={grouping}")
+    for grouping in masking_grouping_values:
+        print(f"\nTraining with Masking, Grouping={grouping}")
 
-            for task_id in openml_df["tid"].values:
-                task_id = int(task_id)
-                if (
-                    not mask_df.empty
-                    and (
-                        (mask_df["task_id"] == task_id)
-                        & (mask_df["features_per_group"] == grouping)
-                        & (mask_df.get("mask_injected", True) == True)
-                    ).any()
-                ):
-                    continue
+        for task_id in openml_df["tid"].values:
+            task_id = int(task_id)
+            if (
+                not mask_df.empty
+                and (
+                    (mask_df["task_id"] == task_id)
+                    & (mask_df["features_per_group"] == grouping)
+                    & (mask_df.get("mask_injected", True) == True)
+                ).any()
+            ):
+                continue
 
-                t = openml.tasks.get_task(task_id)
-                mask_df, _ = evaluate_task(
-                    task_id,
-                    grouping,
-                    model,
-                    device,
-                    t,
-                    mask_df,
-                    duplicate_features=1,
-                    inject_masks=True,
-                    analysis_type="masking",
-                )
+            t = openml.tasks.get_task(task_id)
+            mask_df, _ = evaluate_task(
+                task_id,
+                grouping,
+                model,
+                device,
+                t,
+                mask_df,
+                duplicate_features=1,
+                inject_masks=True,
+                analysis_type="masking",
+            )
 
-                os.makedirs(os.path.dirname(os.path.abspath(mask_output)) or ".", exist_ok=True)
-                mask_df.to_csv(mask_output, index=False)
+            os.makedirs(os.path.dirname(os.path.abspath(mask_output)) or ".", exist_ok=True)
+            mask_df.to_csv(mask_output, index=False)
 
-        print(f"Masking results saved to {mask_output}")
-        all_results_dfs.append(mask_df)
+    print(f"Masking results saved to {mask_output}")
+    all_results_dfs.append(mask_df)
 
     # --- Standard Grouping Benchmark ---
-    if run_grouping:
-        print(f"\nRunning Standard Grouping Benchmark")
-        print(f"Testing features_per_group values: {grouping_values}")
+    print(f"\nRunning Standard Grouping Benchmark")
+    print(f"Testing features_per_group values: {grouping_values}")
 
-        if os.path.exists(output_file):
-            res_df = pd.read_csv(output_file)
-            if "duplicate_factor" not in res_df.columns:
-                res_df["duplicate_factor"] = 1
-            if "mask_injected" not in res_df.columns:
-                res_df["mask_injected"] = False
-        else:
-            res_df = pd.DataFrame(columns=RESULT_COLUMNS)
+    if os.path.exists(output_file):
+        res_df = pd.read_csv(output_file)
+        if "duplicate_factor" not in res_df.columns:
+            res_df["duplicate_factor"] = 1
+        if "mask_injected" not in res_df.columns:
+            res_df["mask_injected"] = False
+    else:
+        res_df = pd.DataFrame(columns=RESULT_COLUMNS)
 
-        for grouping in grouping_values:
-            print(f"\nProcessing Grouping: {grouping}")
-            for task_id in openml_df["tid"].values:
-                task_id = int(task_id)
+    for grouping in grouping_values:
+        print(f"\nProcessing Grouping: {grouping}")
+        for task_id in openml_df["tid"].values:
+            task_id = int(task_id)
 
-                exists = False
-                if not res_df.empty:
-                    cond = (res_df["task_id"] == task_id) & (
-                        res_df["features_per_group"] == grouping
-                    )
-                    if "duplicate_factor" in res_df.columns:
-                        cond &= res_df["duplicate_factor"] == 1
-                    if "mask_injected" in res_df.columns:
-                        cond &= res_df["mask_injected"] == False
-                    if cond.any():
-                        exists = True
+            exists = False
+            if not res_df.empty:
+                cond = (res_df["task_id"] == task_id) & (res_df["features_per_group"] == grouping)
+                if "duplicate_factor" in res_df.columns:
+                    cond &= res_df["duplicate_factor"] == 1
+                if "mask_injected" in res_df.columns:
+                    cond &= res_df["mask_injected"] == False
+                if cond.any():
+                    exists = True
 
-                if exists:
-                    continue
+            if exists:
+                continue
 
-                t = openml.tasks.get_task(task_id)
-                res_df, _ = evaluate_task(
-                    task_id,
-                    grouping,
-                    model,
-                    device,
-                    t,
-                    res_df,
-                    duplicate_features=1,
-                    inject_masks=False,
-                    analysis_type="grouping",
-                )
+            t = openml.tasks.get_task(task_id)
+            res_df, _ = evaluate_task(
+                task_id,
+                grouping,
+                model,
+                device,
+                t,
+                res_df,
+                duplicate_features=1,
+                inject_masks=False,
+                analysis_type="grouping",
+            )
 
-                os.makedirs(os.path.dirname(os.path.abspath(output_file)) or ".", exist_ok=True)
-                res_df.to_csv(output_file, index=False)
+            os.makedirs(os.path.dirname(os.path.abspath(output_file)) or ".", exist_ok=True)
+            res_df.to_csv(output_file, index=False)
 
-        print(f"Results saved to {output_file}")
-        all_results_dfs.append(res_df)
+    print(f"Results saved to {output_file}")
+    all_results_dfs.append(res_df)
 
     # Combine all results for plotting and printing
+    all_labels_order = None
     if all_results_dfs:
         final_df = pd.concat(all_results_dfs, ignore_index=True)
         print_all_results(final_df)
@@ -668,6 +623,11 @@ def main(
         if generate_plot:
             plot_output = output_file.replace(".csv", "_combined_plot.png")
             plot_combined_results(final_df, plot_output)
+
+        # Get all unique labels for consistent coloring
+        if "combo_label" not in final_df.columns:
+            final_df["combo_label"] = final_df.apply(get_combo_label, axis=1)
+        all_labels_order = sorted(final_df["combo_label"].unique())
 
     # --- Embedding Extraction and Analysis ---
     if extract_embeddings:
@@ -709,23 +669,6 @@ def main(
                 key = f"t{task_id}_direct"
                 embeddings_dict[key] = emb_direct
 
-            # Duplication method
-            print("  Method: Duplication")
-            _, emb_dup = evaluate_task(
-                task_id,
-                grouping_for_comparison,
-                model,
-                device,
-                t,
-                pd.DataFrame(columns=RESULT_COLUMNS),
-                duplicate_features=grouping_for_comparison,
-                inject_masks=False,
-                extract_embeddings=True,
-            )
-            if emb_dup is not None:
-                key = f"t{task_id}_duplication"
-                embeddings_dict[key] = emb_dup
-
             # Masking method
             print("  Method: Masking")
             _, emb_mask = evaluate_task(
@@ -746,15 +689,36 @@ def main(
         # Analyze
         if len(embeddings_dict) > 0:
             # Group by method type for visualization
-            method_embeddings = {"Direct": [], "Duplication": [], "Masking": []}
+            # Use labels consistent with boxplot
+
+            # Construct labels for the methods we extracted
+            # Direct: Grouping | grp=2 | dup=1 | no-mask
+            direct_label = get_combo_label(
+                {
+                    "analysis_type": "grouping",
+                    "features_per_group": grouping_for_comparison,
+                    "duplicate_factor": 1,
+                    "mask_injected": False,
+                }
+            )
+
+            # Masking: Masking | grp=2 | dup=1 | mask
+            masking_label = get_combo_label(
+                {
+                    "analysis_type": "masking",
+                    "features_per_group": grouping_for_comparison,
+                    "duplicate_factor": 1,
+                    "mask_injected": True,
+                }
+            )
+
+            method_embeddings = {direct_label: [], masking_label: []}
 
             for key, emb in embeddings_dict.items():
                 if "direct" in key:
-                    method_embeddings["Direct"].append(emb)
-                elif "duplication" in key:
-                    method_embeddings["Duplication"].append(emb)
+                    method_embeddings[direct_label].append(emb)
                 elif "masking" in key:
-                    method_embeddings["Masking"].append(emb)
+                    method_embeddings[masking_label].append(emb)
 
             # Concatenate embeddings for each method
             method_embeddings_concat = {}
@@ -767,7 +731,7 @@ def main(
                         # If shapes differ, take the first one
                         method_embeddings_concat[method] = emb_list[0]
 
-            analyze_embeddings(method_embeddings_concat, embedding_output_dir)
+            analyze_embeddings(method_embeddings_concat, embedding_output_dir, all_labels_order)
         else:
             print("No embeddings were extracted")
 
@@ -801,13 +765,6 @@ if __name__ == "__main__":
         default=20,
         help="Number of tasks to analyze embeddings for",
     )
-    parser.add_argument(
-        "--no_duplication", action="store_true", help="Disable duplication benchmark"
-    )
-    parser.add_argument("--no_masking", action="store_true", help="Disable masking benchmark")
-    parser.add_argument(
-        "--no_grouping", action="store_true", help="Disable standard grouping benchmark"
-    )
 
     args = parser.parse_args()
 
@@ -824,7 +781,4 @@ if __name__ == "__main__":
         masking_output_file=args.masking_output_file,
         extract_embeddings=args.extract_embeddings,
         embedding_tasks_limit=args.embedding_tasks_limit,
-        run_duplication=not args.no_duplication,
-        run_masking=not args.no_masking,
-        run_grouping=not args.no_grouping,
     )
