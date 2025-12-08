@@ -648,105 +648,63 @@ def main(
 
             print(f"\n--- Extracting embeddings for task {task_id} ---")
 
-            # Direct method (Scenario B: Grouping 2, Dup 1, Mask 0)
-            print("  Method: Direct (Scenario B)")
-            _, emb_direct = evaluate_task(
-                task_id,
-                grouping_for_comparison,
-                model,
-                device,
-                t,
-                pd.DataFrame(columns=RESULT_COLUMNS),
-                duplicate_factor=1,
-                masks_injected=0,
-                extract_embeddings=True,
-                analysis_type="grouping",
-            )
-            if emb_direct is not None:
-                key = f"t{task_id}_direct"
-                embeddings_dict[key] = emb_direct
-
-            # Masking method (Scenario F: Grouping 2, Dup 1, Mask 1)
-            print("  Method: Masking (Scenario F)")
-            _, emb_mask = evaluate_task(
-                task_id,
-                grouping_for_comparison,
-                model,
-                device,
-                t,
-                pd.DataFrame(columns=RESULT_COLUMNS),
-                duplicate_factor=1,
-                masks_injected=1,
-                extract_embeddings=True,
-                analysis_type="masking",
-            )
-            if emb_mask is not None:
-                key = f"t{task_id}_masking"
-                embeddings_dict[key] = emb_mask
-
-            # Duplication method (Scenario D: Grouping 2, Dup 2, Mask 0)
-            print("  Method: Duplication (Scenario D)")
-            _, emb_dup = evaluate_task(
-                task_id,
-                grouping_for_comparison,
-                model,
-                device,
-                t,
-                pd.DataFrame(columns=RESULT_COLUMNS),
-                duplicate_factor=2,
-                masks_injected=0,
-                extract_embeddings=True,
-                analysis_type="duplication",
-            )
-            if emb_dup is not None:
-                key = f"t{task_id}_duplication"
-                embeddings_dict[key] = emb_dup
+            for scenario in scenarios:
+                name = scenario["name"]
+                grp = scenario["grouping"]
+                dup = scenario["dup"]
+                mask = scenario["mask"]
+                ana_type = scenario["type"]
+                
+                print(f"  Method: {name} ({ana_type})")
+                _, emb = evaluate_task(
+                    task_id,
+                    grp,
+                    model,
+                    device,
+                    t,
+                    pd.DataFrame(columns=RESULT_COLUMNS),
+                    duplicate_factor=dup,
+                    masks_injected=mask,
+                    extract_embeddings=True,
+                    analysis_type=ana_type,
+                )
+                
+                if emb is not None:
+                    key = f"t{task_id}_{name}"
+                    embeddings_dict[key] = emb
 
         # Analyze
         if len(embeddings_dict) > 0:
             # Group by method type for visualization
-            # Use labels consistent with boxplot
+            method_embeddings = {}
+            
+            # Initialize lists for all scenarios
+            for scenario in scenarios:
+                label = get_combo_label({
+                    "analysis_type": scenario["type"],
+                    "features_per_group": scenario["grouping"],
+                    "duplicate_factor": scenario["dup"],
+                    "masks_injected": scenario["mask"],
+                })
+                method_embeddings[label] = []
 
-            # Construct labels for the methods we extracted
-            # Direct: Grouping | grp=2 | dup=1 | masks=0
-            direct_label = get_combo_label(
-                {
-                    "analysis_type": "grouping",
-                    "features_per_group": grouping_for_comparison,
-                    "duplicate_factor": 1,
-                    "masks_injected": 0,
-                }
-            )
-
-            # Masking: Masking | grp=2 | dup=1 | masks=1
-            masking_label = get_combo_label(
-                {
-                    "analysis_type": "masking",
-                    "features_per_group": grouping_for_comparison,
-                    "duplicate_factor": 1,
-                    "masks_injected": 1,
-                }
-            )
-
-            # Duplication: Duplication | grp=2 | dup=2 | masks=0
-            duplication_label = get_combo_label(
-                {
-                    "analysis_type": "duplication",
-                    "features_per_group": grouping_for_comparison,
-                    "duplicate_factor": 2,
-                    "masks_injected": 0,
-                }
-            )
-
-            method_embeddings = {direct_label: [], masking_label: [], duplication_label: []}
-
+            # Sort embeddings into the correct lists
             for key, emb in embeddings_dict.items():
-                if "direct" in key:
-                    method_embeddings[direct_label].append(emb)
-                elif "masking" in key:
-                    method_embeddings[masking_label].append(emb)
-                elif "duplication" in key:
-                    method_embeddings[duplication_label].append(emb)
+                # key format: t{task_id}_{name}
+                # Extract name (last part after underscore)
+                scenario_name = key.split("_")[-1]
+                
+                # Find matching scenario
+                matched_scenario = next((s for s in scenarios if s["name"] == scenario_name), None)
+                
+                if matched_scenario:
+                    label = get_combo_label({
+                        "analysis_type": matched_scenario["type"],
+                        "features_per_group": matched_scenario["grouping"],
+                        "duplicate_factor": matched_scenario["dup"],
+                        "masks_injected": matched_scenario["mask"],
+                    })
+                    method_embeddings[label].append(emb)
 
             # Concatenate embeddings for each method
             method_embeddings_concat = {}
