@@ -38,10 +38,10 @@ RESULT_COLUMNS = [
     "fold",
     "features_per_group",
     "duplicate_factor",
+    "masks_injected",
     "accuracy",
     "f1_weighted",
     "roc_auc_score",
-    "mask_injected",
     "analysis_type",
 ]
 
@@ -78,7 +78,7 @@ def print_all_results(df):
             "task_id",
             "features_per_group",
             "duplicate_factor",
-            "mask_injected",
+            "masks_injected",
         ]
         if col in df.columns
     ]
@@ -92,7 +92,7 @@ def print_all_results(df):
     if available_metrics:
         summary = (
             df_sorted.groupby(
-                ["analysis_type", "features_per_group", "duplicate_factor", "mask_injected"]
+                ["analysis_type", "features_per_group", "duplicate_factor", "masks_injected"]
             )[available_metrics]
             .agg(["mean", "std", "count"])
             .reset_index()
@@ -103,8 +103,8 @@ def print_all_results(df):
 
 def get_combo_label(row):
     analysis = row.get("analysis_type", "analysis").capitalize()
-    mask = "mask" if row.get("mask_injected", False) else "no-mask"
-    return f"{analysis} | grp={row['features_per_group']} | dup={row['duplicate_factor']} | {mask}"
+    masks = row.get("masks_injected", 0)
+    return f"{analysis} | grp={row['features_per_group']} | dup={row['duplicate_factor']} | masks={masks}"
 
 
 def plot_combined_results(df, output_plot):
@@ -116,7 +116,7 @@ def plot_combined_results(df, output_plot):
 
     plot_df = df.copy()
     plot_df["duplicate_factor"] = plot_df.get("duplicate_factor", 1).fillna(1).astype(int)
-    plot_df["mask_injected"] = plot_df.get("mask_injected", False).astype(bool)
+    plot_df["masks_injected"] = plot_df.get("masks_injected", 0).fillna(0).astype(int)
     plot_df["features_per_group"] = plot_df.get("features_per_group", 1).fillna(1).astype(int)
 
     plot_df["combo_label"] = plot_df.apply(get_combo_label, axis=1)
@@ -338,13 +338,17 @@ def evaluate_task(
     device,
     openml_task,
     res_df,
-    duplicate_features=1,
-    inject_masks=False,
+    duplicate_factor=1,
+    masks_injected=0,
     extract_embeddings=False,
     analysis_type="grouping",
 ):
     """
     Evaluates a single task with specific grouping and feature duplication settings.
+
+    Args:
+        duplicate_factor: Total number of copies of each feature (1 = no duplication).
+        masks_injected: Number of mask columns to inject after the feature copies.
 
     Returns:
         res_df: Updated results dataframe
@@ -360,22 +364,28 @@ def evaluate_task(
         X = X.to_numpy()
     X = np.asarray(X)
 
-    # Handle feature duplication
-    # e.g. [f1, f1, f2, f2] corresponds to groups [f1, f1], [f2, f2].
-    if duplicate_features > 1:
-        assert not inject_masks, "Cannot duplicate features and inject masks simultaneously"
-        X = np.repeat(X, duplicate_features, axis=1)
+    # Transformation logic
+    # We want for each feature f: [f, f... (duplicate_factor), mask... (masks_injected)]
 
-    # Handle mask injection
-    # e.g. grouping=2 -> [f1, mask], [f2, mask]
-    # e.g. grouping=3 -> [f1, mask, mask], [f2, mask, mask]
-    if inject_masks:
-        assert duplicate_features == 1, "Cannot inject masks with feature duplication"
-        if grouping > 1:
-            n_samples, n_features = X.shape
-            X_new = np.full((n_samples, n_features * grouping), np.nan, dtype=X.dtype)
-            X_new[:, 0::grouping] = X
-            X = X_new
+    expansion_size = duplicate_factor + masks_injected
+
+    if expansion_size > 1:
+        n_samples, n_features = X.shape
+
+        # Reshape X to (N, F, 1)
+        X_expanded = np.expand_dims(X, axis=2)
+
+        # Repeat for duplication: (N, F, duplicate_factor)
+        X_duplicated = np.repeat(X_expanded, duplicate_factor, axis=2)
+
+        # Create the full array with NaNs
+        X_new_reshaped = np.full((n_samples, n_features, expansion_size), np.nan, dtype=X.dtype)
+
+        # Fill the first duplicate_factor slots
+        X_new_reshaped[:, :, :duplicate_factor] = X_duplicated
+
+        # Flatten back to (N, F * expansion_size)
+        X = X_new_reshaped.reshape(n_samples, n_features * expansion_size)
 
     df_sample = pd.DataFrame(X)
     print("Sample of processed X (first 3 rows, up to 10 cols):")
@@ -383,7 +393,7 @@ def evaluate_task(
 
     # Assertions for validity
     assert len(X) == len(y), "X and y must have same number of instances"
-    assert duplicate_features >= 1, "Duplicate features must be >= 1"
+    assert duplicate_factor >= 1, "Duplicate factor must be >= 1"
 
     num_features = X.shape[1]
     num_instances = X.shape[0]
@@ -391,7 +401,7 @@ def evaluate_task(
     dataset_name = dataset.name
 
     print(
-        f"\nTask: {task_id} (Dataset: {dataset_name}) - Grouping: {grouping}, Dup: {duplicate_features}, Masking: {inject_masks}"
+        f"\nTask: {task_id} (Dataset: {dataset_name}) - Grouping: {grouping}, Dup: {duplicate_factor}, Masks: {masks_injected}"
     )
     print(f"  Features: {num_features}, Instances: {num_instances}, Classes: {num_classes}")
 
@@ -454,11 +464,11 @@ def evaluate_task(
                 "num_classes": [num_classes],
                 "fold": [fold],
                 "features_per_group": [grouping],
-                "duplicate_factor": [duplicate_features],
+                "duplicate_factor": [duplicate_factor],
+                "masks_injected": [masks_injected],
                 "accuracy": [accuracy],
                 "f1_weighted": [f1_weighted],
                 "roc_auc_score": [roc_auc],
-                "mask_injected": [inject_masks],
                 "analysis_type": [analysis_type],
             }
 
@@ -530,92 +540,64 @@ def main(
 
     all_results_dfs = []
 
-    # --- Masking Benchmark ---
-    print(f"\nRunning Masking Benchmark")
+    # Define scenarios
+    scenarios = [
+        {"name": "A", "grouping": 1, "dup": 1, "mask": 0, "type": "grouping"},
+        {"name": "B", "grouping": 2, "dup": 1, "mask": 0, "type": "grouping"},
+        {"name": "C", "grouping": 3, "dup": 1, "mask": 0, "type": "grouping"},
+        {"name": "D", "grouping": 2, "dup": 2, "mask": 0, "type": "duplication"},
+        {"name": "E", "grouping": 3, "dup": 3, "mask": 0, "type": "duplication"},
+        {"name": "F", "grouping": 2, "dup": 1, "mask": 1, "type": "masking"},
+        {"name": "G", "grouping": 3, "dup": 1, "mask": 2, "type": "masking"},
+        {"name": "H", "grouping": 3, "dup": 2, "mask": 1, "type": "mixed"},
+    ]
 
-    mask_output = masking_output_file or output_file.replace(".csv", "_masking.csv")
-
-    if os.path.exists(mask_output):
-        mask_df = pd.read_csv(mask_output)
-    else:
-        mask_df = pd.DataFrame(columns=RESULT_COLUMNS)
-
-    for grouping in grouping_values:
-        print(f"\nTraining with Masking, Grouping={grouping}")
-
-        for task_id in openml_df["tid"].values:
-            task_id = int(task_id)
-            if (
-                not mask_df.empty
-                and (
-                    (mask_df["task_id"] == task_id)
-                    & (mask_df["features_per_group"] == grouping)
-                    & (mask_df.get("mask_injected", True) == True)
-                ).any()
-            ):
-                continue
-
-            t = openml.tasks.get_task(task_id)
-            mask_df, _ = evaluate_task(
-                task_id,
-                grouping,
-                model,
-                device,
-                t,
-                mask_df,
-                duplicate_features=1,
-                inject_masks=True,
-                analysis_type="masking",
-            )
-
-            os.makedirs(os.path.dirname(os.path.abspath(mask_output)) or ".", exist_ok=True)
-            mask_df.to_csv(mask_output, index=False)
-
-    print(f"Masking results saved to {mask_output}")
-    all_results_dfs.append(mask_df)
-
-    # --- Standard Grouping Benchmark ---
-    print(f"\nRunning Standard Grouping Benchmark")
-    print(f"Testing features_per_group values: {grouping_values}")
+    print(f"\nRunning Benchmark Scenarios A-H")
 
     if os.path.exists(output_file):
         res_df = pd.read_csv(output_file)
+        # Ensure new columns exist
+        if "masks_injected" not in res_df.columns:
+            res_df["masks_injected"] = 0
         if "duplicate_factor" not in res_df.columns:
             res_df["duplicate_factor"] = 1
-        if "mask_injected" not in res_df.columns:
-            res_df["mask_injected"] = False
     else:
         res_df = pd.DataFrame(columns=RESULT_COLUMNS)
 
-    for grouping in grouping_values:
-        print(f"\nProcessing Grouping: {grouping}")
+    for scenario in scenarios:
+        name = scenario["name"]
+        grp = scenario["grouping"]
+        dup = scenario["dup"]
+        mask = scenario["mask"]
+        ana_type = scenario["type"]
+
+        print(f"\nRunning Scenario {name}: Grouping={grp}, Dup={dup}, Mask={mask}")
+
         for task_id in openml_df["tid"].values:
             task_id = int(task_id)
 
-            exists = False
+            # Check if already exists
             if not res_df.empty:
-                cond = (res_df["task_id"] == task_id) & (res_df["features_per_group"] == grouping)
-                if "duplicate_factor" in res_df.columns:
-                    cond &= res_df["duplicate_factor"] == 1
-                if "mask_injected" in res_df.columns:
-                    cond &= res_df["mask_injected"] == False
+                cond = (
+                    (res_df["task_id"] == task_id)
+                    & (res_df["features_per_group"] == grp)
+                    & (res_df["duplicate_factor"] == dup)
+                    & (res_df["masks_injected"] == mask)
+                )
                 if cond.any():
-                    exists = True
-
-            if exists:
-                continue
+                    continue
 
             t = openml.tasks.get_task(task_id)
             res_df, _ = evaluate_task(
                 task_id,
-                grouping,
+                grp,
                 model,
                 device,
                 t,
                 res_df,
-                duplicate_features=1,
-                inject_masks=False,
-                analysis_type="grouping",
+                duplicate_factor=dup,
+                masks_injected=mask,
+                analysis_type=ana_type,
             )
 
             os.makedirs(os.path.dirname(os.path.abspath(output_file)) or ".", exist_ok=True)
@@ -662,8 +644,8 @@ def main(
 
             print(f"\n--- Extracting embeddings for task {task_id} ---")
 
-            # Direct method (no duplication, no masking)
-            print("  Method: Direct")
+            # Direct method (Scenario B: Grouping 2, Dup 1, Mask 0)
+            print("  Method: Direct (Scenario B)")
             _, emb_direct = evaluate_task(
                 task_id,
                 grouping_for_comparison,
@@ -671,16 +653,17 @@ def main(
                 device,
                 t,
                 pd.DataFrame(columns=RESULT_COLUMNS),
-                duplicate_features=1,
-                inject_masks=False,
+                duplicate_factor=1,
+                masks_injected=0,
                 extract_embeddings=True,
+                analysis_type="grouping",
             )
             if emb_direct is not None:
                 key = f"t{task_id}_direct"
                 embeddings_dict[key] = emb_direct
 
-            # Masking method
-            print("  Method: Masking")
+            # Masking method (Scenario F: Grouping 2, Dup 1, Mask 1)
+            print("  Method: Masking (Scenario F)")
             _, emb_mask = evaluate_task(
                 task_id,
                 grouping_for_comparison,
@@ -688,13 +671,32 @@ def main(
                 device,
                 t,
                 pd.DataFrame(columns=RESULT_COLUMNS),
-                duplicate_features=1,
-                inject_masks=True,
+                duplicate_factor=1,
+                masks_injected=1,
                 extract_embeddings=True,
+                analysis_type="masking",
             )
             if emb_mask is not None:
                 key = f"t{task_id}_masking"
                 embeddings_dict[key] = emb_mask
+
+            # Duplication method (Scenario D: Grouping 2, Dup 2, Mask 0)
+            print("  Method: Duplication (Scenario D)")
+            _, emb_dup = evaluate_task(
+                task_id,
+                grouping_for_comparison,
+                model,
+                device,
+                t,
+                pd.DataFrame(columns=RESULT_COLUMNS),
+                duplicate_factor=2,
+                masks_injected=0,
+                extract_embeddings=True,
+                analysis_type="duplication",
+            )
+            if emb_dup is not None:
+                key = f"t{task_id}_duplication"
+                embeddings_dict[key] = emb_dup
 
         # Analyze
         if len(embeddings_dict) > 0:
@@ -702,33 +704,49 @@ def main(
             # Use labels consistent with boxplot
 
             # Construct labels for the methods we extracted
-            # Direct: Grouping | grp=2 | dup=1 | no-mask
+            # Direct: Grouping | grp=2 | dup=1 | masks=0
             direct_label = get_combo_label(
                 {
                     "analysis_type": "grouping",
                     "features_per_group": grouping_for_comparison,
                     "duplicate_factor": 1,
-                    "mask_injected": False,
+                    "masks_injected": 0,
                 }
             )
 
-            # Masking: Masking | grp=2 | dup=1 | mask
+            # Masking: Masking | grp=2 | dup=1 | masks=1
             masking_label = get_combo_label(
                 {
                     "analysis_type": "masking",
                     "features_per_group": grouping_for_comparison,
                     "duplicate_factor": 1,
-                    "mask_injected": True,
+                    "masks_injected": 1,
                 }
             )
 
-            method_embeddings = {direct_label: [], masking_label: []}
+            # Duplication: Duplication | grp=2 | dup=2 | masks=0
+            duplication_label = get_combo_label(
+                {
+                    "analysis_type": "duplication",
+                    "features_per_group": grouping_for_comparison,
+                    "duplicate_factor": 2,
+                    "masks_injected": 0,
+                }
+            )
+
+            method_embeddings = {
+                direct_label: [], 
+                masking_label: [],
+                duplication_label: []
+            }
 
             for key, emb in embeddings_dict.items():
                 if "direct" in key:
                     method_embeddings[direct_label].append(emb)
                 elif "masking" in key:
                     method_embeddings[masking_label].append(emb)
+                elif "duplication" in key:
+                    method_embeddings[duplication_label].append(emb)
 
             # Concatenate embeddings for each method
             method_embeddings_concat = {}
