@@ -426,6 +426,7 @@ def main(
     # Fetch OpenML suite
     suite = openml.study.get_suite(suite_id=suite_id)
     openml_df = tasks.list_tasks(output_format="dataframe", task_id=suite.tasks)
+    print(f"Loaded tasks dataframe shape: {openml_df.shape}")
 
     assert not openml_df.empty, f"No tasks found for suite {suite_id}"
 
