@@ -1,0 +1,9 @@
+method,mean,std,min,max,shape
+A: grouping | grp=1 | dup=1 | masks=0,-1e-06,inf,-22.7,28.61,"(898, 39, 192)"
+B: grouping | grp=2 | dup=1 | masks=0,-1.395e-05,inf,-17.19,26.56,"(898, 20, 192)"
+C: grouping | grp=3 | dup=1 | masks=0,1.967e-05,inf,-18.9,23.72,"(898, 13, 192)"
+D: duplication | grp=2 | dup=2 | masks=0,2.015e-05,inf,-17.2,25.4,"(898, 39, 192)"
+E: duplication | grp=3 | dup=3 | masks=0,1.675e-05,inf,-19.94,21.28,"(898, 39, 192)"
+F: masking | grp=2 | dup=1 | masks=1,0.00375,inf,-17.45,26.86,"(898, 44, 192)"
+G: masking | grp=3 | dup=1 | masks=2,0.009384,inf,-19.92,26.0,"(898, 45, 192)"
+H: mixed | grp=3 | dup=2 | masks=1,0.00593,inf,-24.9,25.2,"(898, 42, 192)"
