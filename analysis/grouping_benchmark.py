@@ -199,6 +199,52 @@ def plot_combined_results(df, output_plot):
     print(f"Combined plot saved to {output_plot}")
 
 
+def plot_combined_auroc_results(df, output_plot):
+    """Create a box plot that compares each combination across AUROC."""
+
+    if df.empty:
+        print("No results available for plotting.")
+        return
+
+    plot_df = df.copy()
+    plot_df["duplicate_factor"] = plot_df.get("duplicate_factor", 1).fillna(1).astype(int)
+    plot_df["masks_injected"] = plot_df.get("masks_injected", 0).fillna(0).astype(int)
+    plot_df["features_per_group"] = plot_df.get("features_per_group", 1).fillna(1).astype(int)
+
+    plot_df["combo_label"] = plot_df.apply(get_combo_label, axis=1)
+
+    # Determine order
+    unique_labels = sorted(plot_df["combo_label"].unique())
+
+    fig, ax = plt.subplots(figsize=(max(10, len(unique_labels) * 0.45), 6))
+    sns.boxplot(
+        data=plot_df, x="combo_label", y="roc_auc_score", ax=ax, palette="Set2", order=unique_labels
+    )
+    ax.set_title("AUROC Distribution per Combination")
+    ax.set_xlabel("Combination")
+    ax.set_ylabel("AUROC")
+    ax.set_ylim(0.5, 1.1)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+
+    # Calculate and annotate the mean on the box plot
+    means = plot_df.groupby("combo_label")["roc_auc_score"].mean()
+    for i, label in enumerate(unique_labels):
+        mean_value = means[label]
+        ax.text(
+            i,
+            mean_value + 0.01,
+            f"{mean_value:.4f}",
+            horizontalalignment="center",
+            color="black",
+            fontsize=9,
+        )
+
+    plt.tight_layout()
+    plt.savefig(output_plot, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"AUROC plot saved to {output_plot}")
+
+
 def register_embedding_hook(model, embeddings_list):
     """
     Register a forward hook on the input encoder to capture embeddings.
