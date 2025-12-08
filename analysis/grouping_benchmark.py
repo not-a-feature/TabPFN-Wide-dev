@@ -536,9 +536,7 @@ def main(
     else:
         mask_df = pd.DataFrame(columns=RESULT_COLUMNS)
 
-    masking_grouping_values = [1, 2, 3]
-
-    for grouping in masking_grouping_values:
+    for grouping in grouping_values:
         print(f"\nTraining with Masking, Grouping={grouping}")
 
         for task_id in openml_df["tid"].values:
@@ -753,7 +751,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output_file", type=str, default="analysis_results/grouping_benchmark_results.csv"
     )
-    parser.add_argument("--grouping_values", type=int, nargs="+", default=[1, 2, 3])
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--no_plot", action="store_true")
     parser.add_argument(
@@ -782,7 +779,6 @@ if __name__ == "__main__":
         max_features=args.max_features,
         min_features=args.min_features,
         max_instances=args.max_instances,
-        grouping_values=args.grouping_values,
         device=args.device,
         generate_plot=not args.no_plot,
         duplication_output_file=args.duplication_output_file,
