@@ -187,7 +187,7 @@ def plot_combined_results(df, output_plot):
         ax.text(
             i,
             mean_value - 0.02,
-            f"{mean_value:.2f}",
+            f"{mean_value:.4f}",
             horizontalalignment="center",
             color="black",
             fontsize=9,
