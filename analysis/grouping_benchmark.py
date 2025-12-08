@@ -126,7 +126,9 @@ def plot_combined_results(df, output_plot):
     unique_labels = sorted(plot_df["combo_label"].unique())
 
     fig, ax = plt.subplots(figsize=(max(10, len(unique_labels) * 0.45), 6))
-    sns.boxplot(data=plot_df, x="combo_label", y="accuracy", ax=ax, palette="Set2", order=unique_labels)
+    sns.boxplot(
+        data=plot_df, x="combo_label", y="accuracy", ax=ax, palette="Set2", order=unique_labels
+    )
     ax.set_title("Accuracy Distribution per Combination")
     ax.set_xlabel("Combination")
     ax.set_ylabel("Accuracy")
@@ -741,12 +743,6 @@ def main(
                 key = f"t{task_id}_masking"
                 embeddings_dict[key] = emb_mask
 
-        # Save embeddings
-        embeddings_file = os.path.join(embedding_output_dir, "embeddings.pkl")
-        with open(embeddings_file, "wb") as f:
-            pickle.dump(embeddings_dict, f)
-        print(f"\nEmbeddings saved to {embeddings_file}")
-
         # Analyze
         if len(embeddings_dict) > 0:
             # Group by method type for visualization
@@ -802,7 +798,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--embedding_tasks_limit",
         type=int,
-        default=3,
+        default=20,
         help="Number of tasks to analyze embeddings for",
     )
     parser.add_argument(
