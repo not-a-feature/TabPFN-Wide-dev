@@ -734,11 +734,7 @@ def main(
                 }
             )
 
-            method_embeddings = {
-                direct_label: [], 
-                masking_label: [],
-                duplication_label: []
-            }
+            method_embeddings = {direct_label: [], masking_label: [], duplication_label: []}
 
             for key, emb in embeddings_dict.items():
                 if "direct" in key:
