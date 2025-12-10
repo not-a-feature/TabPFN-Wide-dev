@@ -18,4 +18,4 @@
 #SBATCH --mail-user=jules.kreuer@uni-tuebingen.de 
 
 source /weka/pfeifer/ppu738/TabPFN-Wide/training/init.sh
-python /weka/pfeifer/ppu738/TabPFN-Wide/analysis/grouping_benchmark.py 457
+python /weka/pfeifer/ppu738/TabPFN-Wide/analysis/grouping_benchmark.py 457 --extract_embeddings

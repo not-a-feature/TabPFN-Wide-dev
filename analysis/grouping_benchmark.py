@@ -144,7 +144,7 @@ def print_all_results(df):
 
 
 def get_combo_label(row):
-    s_name = f"Group {row['features_per_group']} Dup {row['duplicate_factor']} Mask{row['masks_injected']} NEst {row['n_estimators']}"
+    s_name = f"Gr:{row['features_per_group']} Du:{row['duplicate_factor']} Ma:{row['masks_injected']} NEst:{row['n_estimators']}"
     return s_name
 
 
