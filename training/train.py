@@ -4,6 +4,7 @@ import datetime
 import os
 from tabpfn.model_loading import load_model_criterion_config
 from tabpfn.architectures.base.config import ModelConfig
+from tabpfn import TabPFNClassifier
 
 # MemoryUsageEstimator class removed in TabPFN V2.5
 import torch
@@ -12,6 +13,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import AdamW
 import numpy as np
 from torch import nn
+import torch.nn.functional as F
 from tabicl.prior.dataset import PriorDataset
 from tabicl.train.optim import get_cosine_with_restarts
 from tabicl.train.run import Timer
@@ -43,6 +45,7 @@ class Trainer:
 
     def __init__(self, parsed_args=defaultdict(dict)):
         self.train_config = TrainConfig(**parsed_args["train_config"])
+        self.n_estimators = self.train_config.n_estimators
         self.batch_size = self.train_config.batch_size
         model_config_args = parsed_args["model_config"]
 
@@ -175,8 +178,10 @@ class Trainer:
             model_ = DDP(
                 model, device_ids=[int(self.device.split(":")[-1])], broadcast_buffers=False
             )
+            self.base_model = model
         else:
             model_ = model.to(self.device)
+            self.base_model = model_
 
         self.model = model_
         self.model.train()
@@ -230,29 +235,46 @@ class Trainer:
         return new_features, sparsity, noise
 
     def validate(self):
+        # Use TabPFNClassifier for validation to respect n_estimators and grouping.
         self.model.eval()
+        self.base_model.eval()
+
         pred_res = []
         val_losses = []
+
+        clf = TabPFNClassifier(
+            device=self.device,
+            n_estimators=self.n_estimators,
+            ignore_pretraining_limits=True,
+        )
+
+        # Ensure grouping is set on the underlying model used for ensembling
+        try:
+            self.base_model.features_per_group = self.model_config.features_per_group
+        except Exception:
+            pass
+
         for dataset in get_wide_validation_data(
             self.device, self.train_config.validation_datasets, self.train_config.omic_combinations
         ):
             X_train_tensor, y_train_tensor, X_test_tensor, y_test_tensor = dataset
 
-            with torch.inference_mode():
-                with self.amp_ctx:
-                    pred_logits = self.model(
-                        train_x=X_train_tensor,
-                        train_y=y_train_tensor,
-                        test_x=X_test_tensor,
-                    )
-                    n_classes = len(np.unique(y_train_tensor.cpu()))
-                    pred_logits = pred_logits[..., :n_classes].float()
-                    pred_probs = torch.softmax(pred_logits, dim=-1)[:, 0, :].detach().cpu().numpy()
-                val_loss = self.criterion(
-                    pred_logits.reshape(-1, n_classes), y_test_tensor.flatten().long()
-                )
-                val_losses.append(val_loss.item())
-            pred_res.append(PredictionResults(y_test_tensor.flatten().cpu().numpy(), pred_probs))
+            X_train_np = X_train_tensor.cpu().numpy()
+            X_test_np = X_test_tensor.cpu().numpy()
+            y_train_np = y_train_tensor.cpu().numpy().flatten()
+            y_test_np = y_test_tensor.cpu().numpy().flatten()
+
+            # Fit classifier with provided pretrained model (no further training of weights)
+            clf.fit(X_train_np, y_train_np, model=self.base_model)
+            pred_probs = clf.predict_proba(X_test_np)
+
+            n_classes = pred_probs.shape[1]
+            prob_tensor = torch.from_numpy(pred_probs).float()
+            target_tensor = torch.from_numpy(y_test_np).long()
+            val_loss = F.nll_loss(torch.log(prob_tensor + 1e-12), target_tensor)
+            val_losses.append(val_loss.item())
+
+            pred_res.append(PredictionResults(y_test_np, pred_probs))
 
         if self.train_config.use_wandb:
             mean_val_loss = np.mean(val_losses)

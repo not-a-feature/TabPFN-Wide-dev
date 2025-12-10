@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class TrainConfig:
     batch_size: int = 8
@@ -10,6 +11,7 @@ class TrainConfig:
     d_type: str = "float16"  # Options: "float16", "float32"
     warmup_proportion: int = 0.02
     num_cycles: int = 10
+    n_estimators: int = 1
     gradient_clipping: float = 1.0
     validation_interval: int = 200
     validation_interval_wide: int = 200
@@ -19,6 +21,7 @@ class TrainConfig:
     feature_order: str = None
     use_original_model: bool = False
     model_path: str = None
+    grouping: int | None = None
     validation_datasets = ["COAD", "gbm"]
     omic_combinations = [["mrna"], ["methylation"], ["mrna", "methylation", "mirna"]]
 
@@ -34,6 +37,7 @@ class FeatureAddingConfig:
     max_noise: float = 0.1
     use_mlp: bool = False
     include_original: bool = True
+
 
 @dataclass
 class PriorDatasetConfig:
@@ -52,8 +56,8 @@ class PriorDatasetConfig:
     replay_small: bool = False
     prior_type: str = "mlp_scm"  # default
     n_jobs: int = 1  # Set to 1 to avoid nested parallelism
-    
-    
+
+
 @dataclass
 class PriorDataLoaderConfig:
     batch_size: int = None

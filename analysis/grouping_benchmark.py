@@ -144,26 +144,8 @@ def print_all_results(df):
 
 
 def get_combo_label(row):
-    s_name = row.get("scenario_name")
-
-    if pd.isna(s_name) or s_name is None:
-        # Lookup in SCENARIOS
-        grp = row.get("features_per_group")
-        dup = row.get("duplicate_factor")
-        mask = row.get("masks_injected")
-        n_est = row.get("n_estimators", 8)
-
-        for s in SCENARIOS:
-            if (
-                (s["grouping"] == grp)
-                and (s["dup"] == dup)
-                and (s["mask"] == mask)
-                and (s["n_estimators"] == n_est)
-            ):
-                s_name = s["name"]
-                break
-
-    return s_name if s_name else "Unknown"
+    s_name = f"Group {row['features_per_group']} Dup {row['duplicate_factor']} Mask{row['masks_injected']} NEst {row['n_estimators']}"
+    return s_name
 
 
 def plot_combined_results(df, output_plot):

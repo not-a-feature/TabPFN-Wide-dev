@@ -38,6 +38,12 @@ def get_parser():
         help="Number of cycles for the cosine learning rate scheduler.",
     )
     parser.add_argument(
+        "--n_estimators",
+        type=int,
+        default=1,
+        help="Number of TabPFN estimators to use during validation (ensembling).",
+    )
+    parser.add_argument(
         "--gradient_clipping", type=float, default=1.0, help="Gradient clipping value."
     )
     parser.add_argument(
@@ -134,6 +140,12 @@ def get_parser():
     )
     parser.add_argument(
         "--model_features_per_group", type=int, default=1, help="Number of features per group."
+    )
+    parser.add_argument(
+        "--grouping",
+        type=int,
+        default=None,
+        help="Alias for --model_features_per_group to match SLURM grid configs.",
     )
     parser.add_argument(
         "--model_max_num_classes",
@@ -311,6 +323,8 @@ def parse_args():
     parser = get_parser()
     args = parser.parse_args()
 
+    grouping_value = args.grouping if args.grouping is not None else args.model_features_per_group
+
     # Convert the parsed arguments to a dictionary for easier access
     parsed_args = {
         "train_config": {
@@ -322,6 +336,7 @@ def parse_args():
             "d_type": args.d_type,
             "warmup_proportion": args.warmup_proportion,
             "num_cycles": args.num_cycles,
+            "n_estimators": args.n_estimators,
             "gradient_clipping": args.gradient_clipping,
             "validation_interval": args.validation_interval,
             "validation_interval_wide": args.validation_interval_wide,
@@ -331,6 +346,7 @@ def parse_args():
             "feature_order": args.feature_order,
             "use_original_model": args.use_original_model,
             "model_path": args.model_path,
+            "grouping": grouping_value,
         },
         "feature_adding_config": {
             "add_features_min": args.add_features_min,
@@ -343,7 +359,7 @@ def parse_args():
         },
         "model_config": {
             "emsize": args.model_emsize,
-            "features_per_group": args.model_features_per_group,
+            "features_per_group": grouping_value,
             "max_num_classes": args.model_max_num_classes,
             "nlayers": args.model_nlayers,
             "nhead": args.model_nhead,
