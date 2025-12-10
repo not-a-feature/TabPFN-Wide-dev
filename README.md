@@ -1,3 +1,25 @@
+# TODO
+explore n_estimators
+- werden alle fetures genommen, oder nur random subsampling?
+- eval grouping 
+
+train 
+Think about pipeline / automated evaluation / reproduce.
+Parralele --> pipelines
+
+- 1.5, 5, 8 Or maybe 5, 7.5, 10?
+- n_estimators = 1
+- grouping = 1
+
+AND
+- 1.5, 5, 8
+- n_estimators = 8
+- grouping = 3
+ 
+update eval pipeline
+- ask chris
+
+
 
 # TabPFN-Wide
 

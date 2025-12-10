@@ -16,6 +16,7 @@ from tabicl.prior.dataset import PriorDataset
 from tabicl.train.optim import get_cosine_with_restarts
 from tabicl.train.run import Timer
 from training_parser import parse_args
+
 from tabpfnwide.data import (
     get_wide_validation_data,
     load_prior_dataloader,
@@ -27,6 +28,7 @@ from tabpfnwide.config import (
     PriorDataLoaderConfig,
 )
 from tabpfnwide.utils import PredictionResults, get_new_features
+
 import wandb
 import tqdm
 from dataclasses import dataclass, asdict, fields
