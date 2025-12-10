@@ -40,6 +40,7 @@ RESULT_COLUMNS = [
     "features_per_group",
     "duplicate_factor",
     "masks_injected",
+    "n_estimators",
     "accuracy",
     "f1_weighted",
     "roc_auc_score",
@@ -48,14 +49,22 @@ RESULT_COLUMNS = [
 
 # Define scenarios configuration
 SCENARIOS = [
-    {"name": "A", "grouping": 1, "dup": 1, "mask": 0, "type": "grouping"},
-    {"name": "B", "grouping": 2, "dup": 1, "mask": 0, "type": "grouping"},
-    {"name": "C", "grouping": 3, "dup": 1, "mask": 0, "type": "grouping"},
-    {"name": "D", "grouping": 2, "dup": 2, "mask": 0, "type": "duplication"},
-    {"name": "E", "grouping": 3, "dup": 3, "mask": 0, "type": "duplication"},
-    {"name": "F", "grouping": 2, "dup": 1, "mask": 1, "type": "masking"},
-    {"name": "G", "grouping": 3, "dup": 1, "mask": 2, "type": "masking"},
-    {"name": "H", "grouping": 3, "dup": 2, "mask": 1, "type": "mixed"},
+    {"name": "A_n1", "grouping": 1, "dup": 1, "mask": 0, "type": "grouping", "n_estimators": 1},
+    {"name": "A_n8", "grouping": 1, "dup": 1, "mask": 0, "type": "grouping", "n_estimators": 8},
+    {"name": "B_n1", "grouping": 2, "dup": 1, "mask": 0, "type": "grouping", "n_estimators": 1},
+    {"name": "B_n8", "grouping": 2, "dup": 1, "mask": 0, "type": "grouping", "n_estimators": 8},
+    {"name": "C_n1", "grouping": 3, "dup": 1, "mask": 0, "type": "grouping", "n_estimators": 1},
+    {"name": "C_n8", "grouping": 3, "dup": 1, "mask": 0, "type": "grouping", "n_estimators": 8},
+    {"name": "D_n1", "grouping": 2, "dup": 2, "mask": 0, "type": "duplication", "n_estimators": 1},
+    {"name": "D_n8", "grouping": 2, "dup": 2, "mask": 0, "type": "duplication", "n_estimators": 8},
+    {"name": "E_n1", "grouping": 3, "dup": 3, "mask": 0, "type": "duplication", "n_estimators": 1},
+    {"name": "E_n8", "grouping": 3, "dup": 3, "mask": 0, "type": "duplication", "n_estimators": 8},
+    {"name": "F_n1", "grouping": 2, "dup": 1, "mask": 1, "type": "masking", "n_estimators": 1},
+    {"name": "F_n8", "grouping": 2, "dup": 1, "mask": 1, "type": "masking", "n_estimators": 8},
+    {"name": "G_n1", "grouping": 3, "dup": 1, "mask": 2, "type": "masking", "n_estimators": 1},
+    {"name": "G_n8", "grouping": 3, "dup": 1, "mask": 2, "type": "masking", "n_estimators": 8},
+    {"name": "H_n1", "grouping": 3, "dup": 2, "mask": 1, "type": "mixed", "n_estimators": 1},
+    {"name": "H_n8", "grouping": 3, "dup": 2, "mask": 1, "type": "mixed", "n_estimators": 8},
 ]
 
 
@@ -94,11 +103,13 @@ def print_all_results(df):
     def fill_scenario(row):
         if pd.notna(row.get("scenario_name")):
             return row["scenario_name"]
+        n_est = row.get("n_estimators", 8)  # Default to 8 if not present
         for s in SCENARIOS:
             if (
                 (s["grouping"] == row["features_per_group"])
                 and (s["dup"] == row["duplicate_factor"])
                 and (s["mask"] == row["masks_injected"])
+                and (s["n_estimators"] == n_est)
             ):
                 return s["name"]
         return "Z"  # End of list
@@ -122,6 +133,7 @@ def print_all_results(df):
                     "features_per_group",
                     "duplicate_factor",
                     "masks_injected",
+                    "n_estimators",
                 ]
             )[available_metrics]
             .agg(["mean", "std", "count"])
@@ -132,25 +144,26 @@ def print_all_results(df):
 
 
 def get_combo_label(row):
-    # Try to find scenario name if not present
     s_name = row.get("scenario_name")
+
     if pd.isna(s_name) or s_name is None:
         # Lookup in SCENARIOS
         grp = row.get("features_per_group")
         dup = row.get("duplicate_factor")
         mask = row.get("masks_injected")
+        n_est = row.get("n_estimators", 8)
 
         for s in SCENARIOS:
-            if (s["grouping"] == grp) and (s["dup"] == dup) and (s["mask"] == mask):
+            if (
+                (s["grouping"] == grp)
+                and (s["dup"] == dup)
+                and (s["mask"] == mask)
+                and (s["n_estimators"] == n_est)
+            ):
                 s_name = s["name"]
                 break
 
-    if s_name:
-        return f"{s_name}: {row['analysis_type']} | grp={row['features_per_group']} | dup={row['duplicate_factor']} | masks={row['masks_injected']}"
-
-    analysis = row.get("analysis_type", "analysis").capitalize()
-    masks = row.get("masks_injected", 0)
-    return f"{analysis} | grp={row['features_per_group']} | dup={row['duplicate_factor']} | masks={masks}"
+    return s_name if s_name else "Unknown"
 
 
 def plot_combined_results(df, output_plot):
@@ -210,6 +223,7 @@ def plot_combined_auroc_results(df, output_plot):
     plot_df["duplicate_factor"] = plot_df.get("duplicate_factor", 1).fillna(1).astype(int)
     plot_df["masks_injected"] = plot_df.get("masks_injected", 0).fillna(0).astype(int)
     plot_df["features_per_group"] = plot_df.get("features_per_group", 1).fillna(1).astype(int)
+    plot_df["n_estimators"] = plot_df.get("n_estimators", 8).fillna(8).astype(int)
 
     plot_df["combo_label"] = plot_df.apply(get_combo_label, axis=1)
 
@@ -354,8 +368,8 @@ def analyze_embeddings(embeddings_dict, output_dir, all_labels_order=None):
     reducer = umap.UMAP(n_components=2, random_state=42, n_neighbors=15, min_dist=0.1)
     embedding_2d = reducer.fit_transform(all_embeddings_scaled)
 
-    # Plot UMAP
-    fig, ax = plt.subplots(figsize=(10, 8))
+    # Plot UMAP with different markers for different feature types
+    fig, ax = plt.subplots(figsize=(12, 9))
 
     unique_methods = sorted(list(embeddings_dict.keys()))
 
@@ -368,22 +382,42 @@ def analyze_embeddings(embeddings_dict, output_dir, all_labels_order=None):
         palette = sns.color_palette("Set2", len(unique_methods))
         color_map = dict(zip(unique_methods, palette))
 
+    # Define marker mapping based on feature type
+    def get_marker_for_method(method_name):
+        """Determine marker based on method characteristics."""
+        # Parse method name to extract features
+        if "mask" in method_name.lower() or any(s in method_name for s in ["F_", "G_"]):
+            return "X"  # X for masking
+        elif "dup" in method_name.lower() or any(s in method_name for s in ["D_", "E_"]):
+            return "s"  # square for duplication
+        elif "mixed" in method_name.lower() or "H_" in method_name:
+            return "D"  # diamond for mixed
+        else:
+            return "o"  # circle for grouping only
+
     for i, method in enumerate(unique_methods):
         mask = np.array(all_labels) == method
         color = color_map.get(method, (0.5, 0.5, 0.5))  # Default to gray if not found
+        marker = get_marker_for_method(method)
+
         ax.scatter(
             embedding_2d[mask, 0],
             embedding_2d[mask, 1],
             c=[color],
+            marker=marker,
             label=method,
             alpha=0.6,
-            s=50,
+            s=80,
+            edgecolors="black",
+            linewidth=0.5,
         )
 
     ax.set_xlabel("UMAP 1")
     ax.set_ylabel("UMAP 2")
-    ax.set_title("UMAP Projection of Embeddings by Method")
-    ax.legend()
+    ax.set_title(
+        "UMAP Projection of Embeddings by Method\n(○:grouping, □:duplication, ×:masking, ◇:mixed)"
+    )
+    ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=8)
     ax.grid(True, alpha=0.3)
 
     umap_path = os.path.join(output_dir, "umap_embeddings.png")
@@ -446,6 +480,7 @@ def evaluate_task(
     res_df,
     duplicate_factor=1,
     masks_injected=0,
+    n_estimators=8,
     extract_embeddings=False,
     analysis_type="grouping",
     scenario_name=None,
@@ -456,6 +491,7 @@ def evaluate_task(
     Args:
         duplicate_factor: Total number of copies of each feature (1 = no duplication).
         masks_injected: Number of mask columns to inject after the feature copies.
+        n_estimators: Number of estimators for TabPFNClassifier.
 
     Returns:
         res_df: Updated results dataframe
@@ -508,7 +544,7 @@ def evaluate_task(
     dataset_name = dataset.name
 
     print(
-        f"\nTask: {task_id} (Dataset: {dataset_name}) - Grouping: {grouping}, Dup: {duplicate_factor}, Masks: {masks_injected}"
+        f"\nTask: {task_id} (Dataset: {dataset_name}) - Grouping: {grouping}, Dup: {duplicate_factor}, Masks: {masks_injected}, N_est: {n_estimators}"
     )
     print(f"  Features: {num_features}, Instances: {num_instances}, Classes: {num_classes}")
 
@@ -519,7 +555,7 @@ def evaluate_task(
     le = LabelEncoder()
     y = le.fit_transform(y)
 
-    clf = TabPFNClassifier(device=device, n_estimators=8, ignore_pretraining_limits=True)
+    clf = TabPFNClassifier(device=device, n_estimators=n_estimators, ignore_pretraining_limits=True)
 
     skf = RepeatedStratifiedKFold(
         n_splits=3,
@@ -578,6 +614,7 @@ def evaluate_task(
                 "features_per_group": [grouping],
                 "duplicate_factor": [duplicate_factor],
                 "masks_injected": [masks_injected],
+                "n_estimators": [n_estimators],
                 "accuracy": [accuracy],
                 "f1_weighted": [f1_weighted],
                 "roc_auc_score": [roc_auc],
@@ -666,6 +703,8 @@ def main(
             res_df["duplicate_factor"] = 1
         if "scenario_name" not in res_df.columns:
             res_df["scenario_name"] = None
+        if "n_estimators" not in res_df.columns:
+            res_df["n_estimators"] = 8
     else:
         res_df = pd.DataFrame(columns=RESULT_COLUMNS)
 
@@ -674,9 +713,10 @@ def main(
         grp = scenario["grouping"]
         dup = scenario["dup"]
         mask = scenario["mask"]
+        n_est = scenario["n_estimators"]
         ana_type = scenario["type"]
 
-        print(f"\nRunning Scenario {name}: Grouping={grp}, Dup={dup}, Mask={mask}")
+        print(f"\nRunning Scenario {name}: Grouping={grp}, Dup={dup}, Mask={mask}, N_est={n_est}")
 
         for task_id in openml_df["tid"].values:
             task_id = int(task_id)
@@ -688,6 +728,7 @@ def main(
                     & (res_df["features_per_group"] == grp)
                     & (res_df["duplicate_factor"] == dup)
                     & (res_df["masks_injected"] == mask)
+                    & (res_df["n_estimators"] == n_est)
                 )
                 if cond.any():
                     continue
@@ -702,6 +743,7 @@ def main(
                 res_df,
                 duplicate_factor=dup,
                 masks_injected=mask,
+                n_estimators=n_est,
                 analysis_type=ana_type,
                 scenario_name=name,
             )
@@ -756,6 +798,7 @@ def main(
                 grp = scenario["grouping"]
                 dup = scenario["dup"]
                 mask = scenario["mask"]
+                n_est = scenario["n_estimators"]
                 ana_type = scenario["type"]
 
                 print(f"  Method: {name} ({ana_type})")
@@ -768,6 +811,7 @@ def main(
                     pd.DataFrame(columns=RESULT_COLUMNS),
                     duplicate_factor=dup,
                     masks_injected=mask,
+                    n_estimators=n_est,
                     extract_embeddings=True,
                     analysis_type=ana_type,
                     scenario_name=name,
@@ -836,7 +880,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("suite_id", type=int, help="OpenML suite ID")
     parser.add_argument("--max_features", type=int, default=5000)
-    parser.add_argument("--min_features", type=int, default=0)
+    parser.add_argument("--min_features", type=int, default=100)
     parser.add_argument("--max_instances", type=int, default=10000)
     parser.add_argument(
         "--output_file", type=str, default="analysis_results/grouping_benchmark_results.csv"
