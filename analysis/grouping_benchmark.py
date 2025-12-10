@@ -101,9 +101,9 @@ def print_all_results(df):
         df_work["scenario_name"] = None
 
     def fill_scenario(row):
-        if pd.notna(row.get("scenario_name")):
+        if pd.notna(row["scenario_name"]):
             return row["scenario_name"]
-        n_est = row.get("n_estimators", 8)  # Default to 8 if not present
+        n_est = row["n_estimators"]
         for s in SCENARIOS:
             if (
                 (s["grouping"] == row["features_per_group"])
@@ -156,9 +156,10 @@ def plot_combined_results(df, output_plot):
         return
 
     plot_df = df.copy()
-    plot_df["duplicate_factor"] = plot_df.get("duplicate_factor", 1).fillna(1).astype(int)
-    plot_df["masks_injected"] = plot_df.get("masks_injected", 0).fillna(0).astype(int)
-    plot_df["features_per_group"] = plot_df.get("features_per_group", 1).fillna(1).astype(int)
+    plot_df["duplicate_factor"] = plot_df["duplicate_factor"].fillna(1).astype(int)
+    plot_df["masks_injected"] = plot_df["masks_injected"].fillna(0).astype(int)
+    plot_df["features_per_group"] = plot_df["features_per_group"].fillna(1).astype(int)
+    plot_df["n_estimators"] = plot_df["n_estimators"].fillna(8).astype(int)
 
     plot_df["combo_label"] = plot_df.apply(get_combo_label, axis=1)
 
@@ -202,10 +203,10 @@ def plot_combined_auroc_results(df, output_plot):
         return
 
     plot_df = df.copy()
-    plot_df["duplicate_factor"] = plot_df.get("duplicate_factor", 1).fillna(1).astype(int)
-    plot_df["masks_injected"] = plot_df.get("masks_injected", 0).fillna(0).astype(int)
-    plot_df["features_per_group"] = plot_df.get("features_per_group", 1).fillna(1).astype(int)
-    plot_df["n_estimators"] = plot_df.get("n_estimators", 8).fillna(8).astype(int)
+    plot_df["duplicate_factor"] = plot_df["duplicate_factor"].fillna(1).astype(int)
+    plot_df["masks_injected"] = plot_df["masks_injected"].fillna(0).astype(int)
+    plot_df["features_per_group"] = plot_df["features_per_group"].fillna(1).astype(int)
+    plot_df["n_estimators"] = plot_df["n_estimators"].fillna(8).astype(int)
 
     plot_df["combo_label"] = plot_df.apply(get_combo_label, axis=1)
 
@@ -379,7 +380,7 @@ def analyze_embeddings(embeddings_dict, output_dir, all_labels_order=None):
 
     for i, method in enumerate(unique_methods):
         mask = np.array(all_labels) == method
-        color = color_map.get(method, (0.5, 0.5, 0.5))  # Default to gray if not found
+        color = color_map[method]
         marker = get_marker_for_method(method)
 
         ax.scatter(
@@ -817,6 +818,7 @@ def main(
                         "features_per_group": scenario["grouping"],
                         "duplicate_factor": scenario["dup"],
                         "masks_injected": scenario["mask"],
+                        "n_estimators": scenario["n_estimators"],
                     }
                 )
                 method_embeddings[label] = []
@@ -838,6 +840,7 @@ def main(
                             "features_per_group": matched_scenario["grouping"],
                             "duplicate_factor": matched_scenario["dup"],
                             "masks_injected": matched_scenario["mask"],
+                            "n_estimators": matched_scenario["n_estimators"],
                         }
                     )
                     method_embeddings[label].append(emb)
