@@ -49,12 +49,13 @@ case "${TASK_ID}" in
         ;;
 esac
 
-CHECKPOINT_DIR="${BASE_DIR_LOCAL}/checkpoints/${TASK_ID}"
+CHECKPOINT_DIR="${BASE_DIR_LOCAL}/checkpoints/${TASK_ID}_AddFeat${ADD_FEATURES_MAX}_NEst${N_ESTIMATORS}_Group${GROUPING}"
 mkdir -p $CHECKPOINT_DIR
 
-MSG="Starting training with TASK_ID=${TASK_ID}, ADD_FEATURES_MAX=${ADD_FEATURES_MAX}, N_ESTIMATORS=${N_ESTIMATORS}, GROUPING=${GROUPING}"
+MSG="TASK_ID=${TASK_ID}, ADD_FEATURES_MAX=${ADD_FEATURES_MAX}, N_ESTIMATORS=${N_ESTIMATORS}, GROUPING=${GROUPING}"
 echo "${MSG}"
 echo "${MSG}" >> "${CHECKPOINT_DIR}/training.log"
+
 MASTER_PORT=${MASTER_PORT:-$((29501 + TASK_ID))}
 torchrun --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/training/train.py" \
     --batch_size 16 \
