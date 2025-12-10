@@ -60,7 +60,9 @@ class Trainer:
         self.curr_step = 0
         self.dataloader = iter(
             load_prior_dataloader(
-                PriorDataset, self.prior_dataset_config, self.prior_dataloader_config
+                PriorDataset,
+                self.prior_dataset_config,
+                self.prior_dataloader_config,
             )
         )
         if self.train_config.resume_checkpoint:
@@ -152,7 +154,7 @@ class Trainer:
             )
             model = models[0]
             config = configs[0]
-            
+
             model.features_per_group = self.model_config.features_per_group
             config.features_per_group = self.model_config.features_per_group
 
@@ -214,7 +216,8 @@ class Trainer:
         else:
             max_features_add = self.feature_adding_config.add_features_max
         new_features = np.random.randint(
-            self.feature_adding_config.add_features_min, max_features_add + 1
+            self.feature_adding_config.add_features_min,
+            max_features_add + 1,
         )
         sparsity = np.random.uniform(
             self.feature_adding_config.min_sparsity, self.feature_adding_config.max_sparsity
@@ -233,8 +236,6 @@ class Trainer:
         ):
             X_train_tensor, y_train_tensor, X_test_tensor, y_test_tensor = dataset
 
-
-
             with torch.inference_mode():
                 with self.amp_ctx:
                     pred_logits = self.model(
@@ -250,8 +251,6 @@ class Trainer:
                 )
                 val_losses.append(val_loss.item())
             pred_res.append(PredictionResults(y_test_tensor.flatten().cpu().numpy(), pred_probs))
-
-
 
         if self.train_config.use_wandb:
             mean_val_loss = np.mean(val_losses)
@@ -314,8 +313,6 @@ class Trainer:
                     noise_std=noise,
                     include_original=self.feature_adding_config.include_original,
                 )
-
-
 
             X_train = X[:, : trainsizes[0]].transpose(0, 1).to(self.device)
             X_test = X[:, trainsizes[0] :].transpose(0, 1).to(self.device)
@@ -390,8 +387,6 @@ class Trainer:
             self.save_checkpoint(
                 f"{self.start_time.strftime('%Y%m%d_%H%M%S')}_final_{self.wandb_obj.name if self.train_config.use_wandb else 'no_wandb'}.pt"
             )
-
-
 
 
 if __name__ == "__main__":

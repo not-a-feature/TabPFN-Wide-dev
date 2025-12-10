@@ -519,7 +519,7 @@ def evaluate_task(
     le = LabelEncoder()
     y = le.fit_transform(y)
 
-    clf = TabPFNClassifier(device=device, n_estimators=1, ignore_pretraining_limits=True)
+    clf = TabPFNClassifier(device=device, n_estimators=8, ignore_pretraining_limits=True)
 
     skf = RepeatedStratifiedKFold(
         n_splits=3,
