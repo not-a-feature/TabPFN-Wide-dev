@@ -19,13 +19,24 @@ class PredictionResults:
 
     def get_classification_report(self, print_report=True, **kwargs):
         if print_report:
-            print(classification_report(self.ground_truth,
-                  self.prediction_probas.argmax(axis=1), target_names=self.target_names, **kwargs))
-        return classification_report(self.ground_truth, self.prediction_probas.argmax(axis=1), target_names=self.target_names, 
-                                     output_dict=True, **kwargs)
+            print(
+                classification_report(
+                    self.ground_truth,
+                    self.prediction_probas.argmax(axis=1),
+                    target_names=self.target_names,
+                    **kwargs,
+                )
+            )
+        return classification_report(
+            self.ground_truth,
+            self.prediction_probas.argmax(axis=1),
+            target_names=self.target_names,
+            output_dict=True,
+            **kwargs,
+        )
 
     # def get_roc_auc_score(self, **kwargs):
-        # return roc_auc_score(self.ground_truth, self.prediction_probas, **kwargs)
+    # return roc_auc_score(self.ground_truth, self.prediction_probas, **kwargs)
     def get_roc_auc_score(self, **kwargs):
         # assume positive class is column 1
         if self.prediction_probas.ndim > 1 and self.prediction_probas.shape[1] == 2:
@@ -33,28 +44,28 @@ class PredictionResults:
         else:
             y_score = self.prediction_probas
         return roc_auc_score(self.ground_truth, y_score, **kwargs)
-    
-    def get_f1_score(self, average='weighted', **kwargs):
+
+    def get_f1_score(self, average="weighted", **kwargs):
         return f1_score(self.ground_truth, self.prediction_probas.argmax(axis=1), average=average)
 
-    def save_prediction_results(self, filename='prediction_results.pkl', directory=None):
+    def save_prediction_results(self, filename="prediction_results.pkl", directory=None):
         if directory:
             os.makedirs(directory, exist_ok=True)
             filepath = os.path.join(directory, filename)
         else:
             filepath = filename
 
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             pickle.dump(self, f)
 
     @classmethod
-    def load_prediction_results(cls, filename='prediction_results.pkl', directory=None):
+    def load_prediction_results(cls, filename="prediction_results.pkl", directory=None):
         filepath = os.path.join(directory, filename) if directory else filename
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
             return pickle.load(f)
 
 
-def feature_reduction_agglomeration(X : pd.DataFrame, n_features):
+def feature_reduction_agglomeration(X: pd.DataFrame, n_features):
     if X.shape[1] <= n_features:
         return X
     feature_agglomeration = FeatureAgglomeration(n_clusters=n_features)
@@ -70,12 +81,14 @@ def feature_reduction_agglomeration(X : pd.DataFrame, n_features):
     return reduced_df
 
 
-def feature_reduction_correlation(X : pd.DataFrame, n_features):
+def feature_reduction_correlation(X: pd.DataFrame, n_features):
     corr = np.abs(np.corrcoef(X.T))
     np.fill_diagonal(corr, 0)
     np.nan_to_num(corr, copy=False)
-    
-    clustering = FeatureAgglomeration(n_clusters=n_features, metric="precomputed", linkage="complete")
+
+    clustering = FeatureAgglomeration(
+        n_clusters=n_features, metric="precomputed", linkage="complete"
+    )
     clustering.fit(1 - corr)
     reduced = clustering.transform(X)
     # Build a DataFrame with the new feature names
@@ -87,7 +100,9 @@ def feature_reduction_correlation(X : pd.DataFrame, n_features):
     return reduced_df
 
 
-def feature_reduction_from_model(X_train, y_train, X_test, n_features, model=LogisticRegression(max_iter=1000)):
+def feature_reduction_from_model(
+    X_train, y_train, X_test, n_features, model=LogisticRegression(max_iter=1000)
+):
     if X_train.shape[1] <= n_features:
         return X_train, X_test
     fs = SelectFromModel(model, max_features=n_features)
@@ -101,15 +116,14 @@ def feature_reduction_from_model(X_train, y_train, X_test, n_features, model=Log
     reduced_df_test.index = X_test.index
     return reduced_df_train, reduced_df_test
 
-    
 
-def load_pytorch_tabpfn(device='cuda:0'):
+def load_pytorch_tabpfn(device="cuda:0"):
     model, _, _ = load_model_criterion_config(
         model_path=None,
         check_bar_distribution_criterion=False,
         cache_trainset_representation=False,
-        which='classifier',
-        version='v2',
+        which="classifier",
+        version="v2",
         download=True,
     )
     # Disable feature grouping
@@ -125,7 +139,7 @@ def get_feature_dependent_noise(x_tensor, std):
     if b > 1:
         stds = x_tensor.std(dim=0, keepdim=True)
     else:
-        stds = x_tensor.std(dim=0, keepdim=True, correction=0) # if batch size is 1
+        stds = x_tensor.std(dim=0, keepdim=True, correction=0)  # if batch size is 1
     stds[stds == 0] = 1  # Avoid division by zero
     noise = torch.randn_like(x_tensor) * (std * stds)
     return noise
@@ -135,24 +149,33 @@ def get_linear_added_features(x, features_to_be_added, sparsity, noise_std):
     """
     Adds new linear features to the input tensor with controlled sparsity and feature-dependent noise.
     """
-    W_sparse =  nn.Linear(x.shape[-1], features_to_be_added, bias=False)
+    W_sparse = nn.Linear(x.shape[-1], features_to_be_added, bias=False)
     W_sparse.weight.data *= (torch.rand_like(W_sparse.weight) < sparsity).float()
     x = W_sparse(x)
-    
+
     dependent_noise = get_feature_dependent_noise(x, noise_std)
     x += dependent_noise
     return x.detach()
 
 
+def get_new_features(
+    x_tensor,
+    features_to_be_added,
+    sparsity=0.01,
+    noise_std=3,
+    include_original=True,
+    include_original_prob=0.5,
+):
 
-def get_new_features(x_tensor, features_to_be_added, sparsity=0.01, noise_std=3, include_original=True, include_original_prob=0.5):
-    
-    x_new = get_linear_added_features(x_tensor, features_to_be_added, sparsity=sparsity, noise_std=noise_std)
+    x_new = get_linear_added_features(
+        x_tensor, features_to_be_added, sparsity=sparsity, noise_std=noise_std
+    )
     if np.random.rand() < include_original_prob and include_original:
         x_new = torch.cat([x_tensor, x_new], dim=-1)
         x_new = x_new[..., torch.randperm(x_new.shape[-1])]
     return x_new.detach()
-    
+
+
 # Jonas Huurdeman: 10.11.2025
 @torch.no_grad()
 def detect_categorical_features(x_tensor, max_unique_ratio=0.05, max_unique_abs=20):
@@ -168,7 +191,7 @@ def detect_categorical_features(x_tensor, max_unique_ratio=0.05, max_unique_abs=
         n_unique = torch.ones(D, device=x_tensor.device)
     else:
         # flatten to get category counts over all batches
-        x_flat = x_tensor.reshape(-1, D) # is now shape [B*T, D]
+        x_flat = x_tensor.reshape(-1, D)  # is now shape [B*T, D]
         n_unique = torch.empty(D, device=x_tensor.device, dtype=torch.int32)
         for d in range(D):
             n_unique[d] = torch.unique(x_flat[:, d]).numel()
@@ -225,13 +248,23 @@ def get_categorical_added_features(X_cat, n_cat, sparsity=0.05, max_cats=20):
     max_cats_values = sample_max_cats(size=n_cat, high=max_cats, lam=0.08, device=X_cat.device)
     for b in range(B):
         for i in range(n_cat):
-            new_feature = strat_partial_patch_sparse(X_cat[b], sparsity=sparsity, max_cats=max_cats_values[i])
+            new_feature = strat_partial_patch_sparse(
+                X_cat[b], sparsity=sparsity, max_cats=max_cats_values[i]
+            )
             X_new_cat[b, :, i] = new_feature
     return X_new_cat
 
 
 @torch.no_grad()
-def get_new_features_mixed_batched(x_tensor, features_to_be_added, sparsity=0.01, noise_std=3, max_cats=20, include_original=True, include_original_prob=0.5):
+def get_new_features_mixed_batched(
+    x_tensor,
+    features_to_be_added,
+    sparsity=0.01,
+    noise_std=3,
+    max_cats=20,
+    include_original=True,
+    include_original_prob=0.5,
+):
     """
     This version operates on the entire batch and has the downside,
     that the features between the datasets within the batch are not shared
@@ -250,8 +283,16 @@ def get_new_features_mixed_batched(x_tensor, features_to_be_added, sparsity=0.01
     n_cont = features_to_be_added - n_cat
 
     # add new features
-    X_new_cont = get_linear_added_features(X_cont, n_cont, sparsity, noise_std) if X_cont is not None and n_cont > 0 else None
-    X_new_cat  = get_categorical_added_features(X_cat, n_cat, sparsity=sparsity, max_cats=max_cats) if X_cat is not None and n_cat > 0 else None
+    X_new_cont = (
+        get_linear_added_features(X_cont, n_cont, sparsity, noise_std)
+        if X_cont is not None and n_cont > 0
+        else None
+    )
+    X_new_cat = (
+        get_categorical_added_features(X_cat, n_cat, sparsity=sparsity, max_cats=max_cats)
+        if X_cat is not None and n_cat > 0
+        else None
+    )
 
     # combine
     if X_new_cont is not None and X_new_cat is not None:
@@ -272,15 +313,29 @@ def get_new_features_mixed_batched(x_tensor, features_to_be_added, sparsity=0.01
 
 
 @torch.no_grad()
-def get_new_features_mixed(x_tensor, features_to_be_added, sparsity=0.01, noise_std=3, max_cats=20, include_original=True, include_original_prob=0.5):
-    
+def get_new_features_mixed(
+    x_tensor,
+    features_to_be_added,
+    sparsity=0.01,
+    noise_std=3,
+    max_cats=20,
+    include_original=True,
+    include_original_prob=0.5,
+):
+
     include_orig = np.random.rand() < include_original_prob and include_original
     b, t, d = x_tensor.shape
     x_widened = []
     for i in range(b):
         # for every dataset perform feature widening independently!
-        new_x = get_new_features_mixed_helper(x_tensor=x_tensor[i].unsqueeze(0),  features_to_be_added=features_to_be_added, 
-                                              sparsity=sparsity, noise_std=noise_std, max_cats=max_cats, include_original=include_orig)
+        new_x = get_new_features_mixed_helper(
+            x_tensor=x_tensor[i].unsqueeze(0),
+            features_to_be_added=features_to_be_added,
+            sparsity=sparsity,
+            noise_std=noise_std,
+            max_cats=max_cats,
+            include_original=include_orig,
+        )
         x_widened.append(new_x.squeeze(0))
         # print(new_x.shape)
     Ds = [xi.shape[-1] for xi in x_widened]
@@ -292,9 +347,13 @@ def get_new_features_mixed(x_tensor, features_to_be_added, sparsity=0.01, noise_
 
 
 @torch.no_grad()
-def get_new_features_mixed_helper(x_tensor, features_to_be_added, sparsity=0.01, noise_std=3, max_cats=20, include_original=True):
+def get_new_features_mixed_helper(
+    x_tensor, features_to_be_added, sparsity=0.01, noise_std=3, max_cats=20, include_original=True
+):
     # detect all categorical features
-    cat_mask = detect_categorical_features(x_tensor=x_tensor, max_unique_ratio=0.001, max_unique_abs=20)
+    cat_mask = detect_categorical_features(
+        x_tensor=x_tensor, max_unique_ratio=0.001, max_unique_abs=20
+    )
 
     X_cat = x_tensor[..., cat_mask] if cat_mask.any() else None
     X_cont = x_tensor[..., ~cat_mask] if (~cat_mask).any() else None
@@ -306,8 +365,16 @@ def get_new_features_mixed_helper(x_tensor, features_to_be_added, sparsity=0.01,
     # print(f"Cat ratio is: {cat_ratio}")
 
     # add new features
-    X_new_cont = get_linear_added_features(X_cont, n_cont, sparsity, noise_std) if X_cont is not None and n_cont > 0 else None
-    X_new_cat  = get_categorical_added_features(X_cat, n_cat, sparsity=sparsity, max_cats=max_cats) if X_cat is not None and n_cat > 0 else None
+    X_new_cont = (
+        get_linear_added_features(X_cont, n_cont, sparsity, noise_std)
+        if X_cont is not None and n_cont > 0
+        else None
+    )
+    X_new_cat = (
+        get_categorical_added_features(X_cat, n_cat, sparsity=sparsity, max_cats=max_cats)
+        if X_cat is not None and n_cat > 0
+        else None
+    )
 
     # combine
     if X_new_cont is not None and X_new_cat is not None:
@@ -326,6 +393,7 @@ def get_new_features_mixed_helper(x_tensor, features_to_be_added, sparsity=0.01,
 
     return X_new.detach()
 
+
 def sample_max_cats(low=3, high=20, size=1, lam=0.25, device="cuda"):
     """
     Sample integers between [low, high] (inclusive)
@@ -337,5 +405,3 @@ def sample_max_cats(low=3, high=20, size=1, lam=0.25, device="cuda"):
     probs = weights / weights.sum()
     samples = torch.multinomial(probs, num_samples=size, replacement=True)
     return values[samples]
-
-    
