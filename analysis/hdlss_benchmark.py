@@ -58,6 +58,7 @@ def main(
     min_features=0,
     max_instances=10000,
     checkpoints=[],
+    config_path=None,
     device="cuda:0",
 ):
     """
@@ -70,6 +71,7 @@ def main(
         min_features (int, optional): Minimum number of features required in a dataset. Defaults to 0.
         max_instances (int, optional): Maximum number of instances allowed in a dataset. Defaults to 10,000.
         checkpoints (list, optional): List of checkpoint file paths to evaluate. Use "default" for the base model. Defaults to [].
+        config_path (str, optional): Path to the config.json file. Defaults to None.
         device (str, optional): Device identifier for model computation (e.g., "cuda:0" or "cpu"). Defaults to "cuda:0".
 
     Description:
@@ -102,7 +104,18 @@ def main(
                 download_if_not_exists=True,
             )
             model = models[0]
-            model.features_per_group = 1
+
+            if config_path and os.path.exists(config_path):
+                import json
+
+                with open(config_path, "r") as f:
+                    config = json.load(f)
+                if "model_config" in config:
+                    model.features_per_group = config["model_config"].get("features_per_group", 1)
+                    print(f"Loaded features_per_group={model.features_per_group} from config")
+            else:
+                model.features_per_group = 1
+
             checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
 
             # Handle DDP-wrapped checkpoints
@@ -263,8 +276,20 @@ if __name__ == "__main__":
     parser.add_argument(
         "--checkpoint_dir",
         type=str,
-        required=True,
+        default=None,
         help="Path to directory containing checkpoint files",
+    )
+    parser.add_argument(
+        "--checkpoint_path",
+        type=str,
+        default=None,
+        help="Path to a specific checkpoint file",
+    )
+    parser.add_argument(
+        "--config_path",
+        type=str,
+        default=None,
+        help="Path to config.json file",
     )
     parser.add_argument(
         "--device", type=str, default="cuda:0", help="Device for computation (cuda:0 or cpu)"
@@ -273,12 +298,18 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Load all checkpoints from directory
-    checkpoints = [
-        os.path.join(args.checkpoint_dir, f)
-        for f in os.listdir(args.checkpoint_dir)
-        if f.endswith(".pt")
-    ]
-    checkpoints += ["default"]
+    checkpoints = []
+    if args.checkpoint_path:
+        checkpoints.append(args.checkpoint_path)
+    elif args.checkpoint_dir:
+        checkpoints = [
+            os.path.join(args.checkpoint_dir, f)
+            for f in os.listdir(args.checkpoint_dir)
+            if f.endswith(".pt")
+        ]
+
+    if not checkpoints:
+        checkpoints = ["default"]
 
     main(
         hdlss_data_dir=args.hdlss_data_dir,
@@ -287,5 +318,6 @@ if __name__ == "__main__":
         min_features=args.min_features,
         max_instances=args.max_instances,
         checkpoints=checkpoints,
+        config_path=args.config_path,
         device=args.device,
     )

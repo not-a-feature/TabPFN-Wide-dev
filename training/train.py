@@ -2,6 +2,7 @@
 from contextlib import nullcontext
 import datetime
 import os
+import json
 from tabpfn.model_loading import load_model_criterion_config
 from tabpfn.architectures.base.config import ModelConfig
 from tabpfn import TabPFNClassifier
@@ -59,6 +60,12 @@ class Trainer:
         self.prior_dataloader_config = PriorDataLoaderConfig(
             pin_memory_device=self.device, **parsed_args["prior_dataloader_config"]
         )
+
+        if self.is_main_process:
+            os.makedirs(self.train_config.checkpoint_dir, exist_ok=True)
+            with open(os.path.join(self.train_config.checkpoint_dir, "config.json"), "w") as f:
+                json.dump(parsed_args, f, indent=4)
+
         self.load_model()
         self.configure_amp()
         self.start_time = datetime.datetime.now()

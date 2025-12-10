@@ -27,6 +27,7 @@ def main(
     output_file,
     device,
     checkpoints,
+    config_path=None,
     sparsity=0.01,
     feature_numbers=[0, 50, 500, 2000, 5000, 10000, 20000, 30000],
 ):
@@ -37,6 +38,7 @@ def main(
         output_file (str): Path to the CSV file where results will be saved.
         device (str or torch.device): Device to use for model inference (e.g., 'cpu' or 'cuda').
         checkpoints (list of str): List of checkpoint paths or classifier names to evaluate.
+        config_path (str, optional): Path to the config.json file. Defaults to None.
         sparsity (float, optional): Sparsity level for added features. Default is 0.01.
         feature_numbers (list of int, optional): List of target feature counts for widening. Default is [0, 50, 500, 2000, 5000, 10000, 20000, 30000].
     Description:
@@ -91,7 +93,17 @@ def main(
                 download_if_not_exists=True,
             )
             model = models[0]
-            model.features_per_group = 1
+
+            if config_path and os.path.exists(config_path):
+                import json
+
+                with open(config_path, "r") as f:
+                    config = json.load(f)
+                if "model_config" in config:
+                    model.features_per_group = config["model_config"].get("features_per_group", 1)
+            else:
+                model.features_per_group = 1
+
             checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
             model.load_state_dict(checkpoint)
 
@@ -216,49 +228,51 @@ def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("output_folder", type=str)
+    parser.add_argument("--dataset_ids", type=int, nargs="+", required=True)
+    parser.add_argument("--checkpoints_dir", type=str)
+    parser.add_argument("--checkpoint_path", type=str)
+    parser.add_argument("--config_path", type=str)
+    parser.add_argument("--sparsity", type=float, default=0.01)
     parser.add_argument(
-        "dataset_ids", type=int, nargs="+", help="List of OpenML dataset IDs to process."
+        "--feature_numbers",
+        type=int,
+        nargs="+",
+        default=[0, 50, 500, 2000, 5000, 10000, 20000, 30000],
     )
-    parser.add_argument(
-        "--output_folder", type=str, required=True, help="Path to save the results."
-    )
-    parser.add_argument("--device", type=str, default="cuda:0", help="Device to use for training.")
-    parser.add_argument(
-        "--checkpoints_dir", type=str, default=None, help="Path to the model checkpoints."
-    )
-    parser.add_argument(
-        "--sparsity",
-        type=float,
-        default=0.01,
-        help="Sparsity level for feature addition. If 0 only noise is added.",
-    )
-    parser.add_argument(
-        "--feature_numbers", nargs="+", default=[0, 50, 500, 2000, 5000, 10000, 20000, 30000]
-    )
+    parser.add_argument("--device", type=str, default="cuda:0")
 
     args = parser.parse_args()
-    checkpoint_paths = [
-        os.path.join(args.checkpoints_dir, cp)
-        for cp in os.listdir(args.checkpoints_dir)
-        if cp.endswith(".pt")
-    ]
-    checkpoint_paths += ["default"]
-    checkpoint_paths += ["tabicl"]
-    checkpoint_paths += ["random_forest"]
+
+    checkpoint_paths = []
+    if args.checkpoint_path:
+        checkpoint_paths.append(args.checkpoint_path)
+    elif args.checkpoints_dir:
+        checkpoint_paths = [
+            os.path.join(args.checkpoints_dir, cp)
+            for cp in os.listdir(args.checkpoints_dir)
+            if cp.endswith(".pt")
+        ]
+
+    if not checkpoint_paths:
+        checkpoint_paths = ["default"]
+
+    if not args.checkpoint_path:
+        checkpoint_paths += ["tabicl", "random_forest"]
 
     for dataset_id in args.dataset_ids:
-        args.dataset_id = dataset_id
-        args.output_file = os.path.join(args.output_folder, f"{dataset_id}.csv")
+        output_file = os.path.join(args.output_folder, f"{dataset_id}.csv")
         if not os.path.exists(args.output_folder):
             os.makedirs(args.output_folder)
         try:
             main(
-                args.dataset_id,
-                args.output_file,
+                dataset_id,
+                output_file,
                 args.device,
                 checkpoint_paths,
-                args.sparsity,
-                args.feature_numbers,
+                config_path=args.config_path,
+                sparsity=args.sparsity,
+                feature_numbers=args.feature_numbers,
             )
         except Exception as e:
             print(f"Error processing dataset {dataset_id}: {e}")

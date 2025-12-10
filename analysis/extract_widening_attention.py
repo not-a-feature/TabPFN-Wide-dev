@@ -12,7 +12,7 @@ import argparse
 import pickle
 
 
-def main(device, openml_id, checkpoint_path, output):
+def main(device, openml_id, checkpoint_path, output, config_path=None):
     """
     Runs an analysis pipeline to evaluate attention patterns in a transformer-based model on tabular data with added noise and sparsity.
 
@@ -21,6 +21,7 @@ def main(device, openml_id, checkpoint_path, output):
         openml_id (int): The OpenML dataset ID to load.
         checkpoint_path (str): Path to the model checkpoint file.
         output (str): Path to save the output pickle file.
+        config_path (str, optional): Path to the config.json file. Defaults to None.
     Description:
         - Loads the specified OpenML dataset and preprocesses it (encoding, shuffling).
         - Adds new features using either feature smearing or needle-in-a-haystack approach.
@@ -49,7 +50,16 @@ def main(device, openml_id, checkpoint_path, output):
         download_if_not_exists=True,
     )
     model = models[0]
-    model.features_per_group = 1
+
+    if config_path and os.path.exists(config_path):
+        import json
+
+        with open(config_path, "r") as f:
+            config = json.load(f)
+        if "model_config" in config:
+            model.features_per_group = config["model_config"].get("features_per_group", 1)
+    else:
+        model.features_per_group = 1
 
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
 
@@ -119,16 +129,15 @@ def main(device, openml_id, checkpoint_path, output):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--device", type=str, default="cuda:1", help="Device to use for torch")
+    parser.add_argument("output", type=str, help="Output pickle file")
+    parser.add_argument("--device", type=str, default="cuda:0", help="Device to use for torch")
     parser.add_argument("--openml_id", type=int, default=1494, help="OpenML dataset ID")
     parser.add_argument(
         "--checkpoint_path", type=str, required=True, help="Path to model checkpoint"
     )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default="attentions_to_last_column_model_2000.pkl",
-        help="Output pickle file",
-    )
+    parser.add_argument("--config_path", type=str)
+
     args = parser.parse_args()
-    main(args.device, args.openml_id, args.checkpoint_path, args.output)
+    main(
+        args.device, args.openml_id, args.checkpoint_path, args.output, config_path=args.config_path
+    )
