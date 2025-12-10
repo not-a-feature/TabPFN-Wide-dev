@@ -100,5 +100,5 @@ torchrun --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/training/train.py" \
     --prior_dataloader_num_workers 1 \
     --prior_dataloader_prefetch_factor 4 \
     --prior_dataloader_pin_memory \
-    --checkpoint_dir "${BASE_DIR_LOCAL}/checkpoints/${TASK_ID}" \
+    --checkpoint_dir "${CHECKPOINT_DIR}" \
     --save_interval 10
