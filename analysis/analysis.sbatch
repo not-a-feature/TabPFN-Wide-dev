@@ -1,12 +1,22 @@
 #!/bin/bash
+
 #SBATCH --job-name=TabPFN-Wide-analysis
 #SBATCH --array=0-5
-#SBATCH --cpus-per-task=10
+
+#SBATCH --cpus-per-task=100
+#SBATCH --nodes=1
+#SBATCH --partition=h100-ferranti # --partition=h100-ferranti h100-preemptable-ferranti
 #SBATCH --mem=100G
-#SBATCH --gres=gpu:1
-#SBATCH --time=24:00:00
-#SBATCH --output=analysis_job_%A_%a.out
-#SBATCH --error=analysis_job_%A_%a.err
+
+#SBATCH --gres=gpu:2
+
+#SBATCH --time=72:00:00
+
+#SBATCH --error=job.%J.err 
+#SBATCH --output=job.%J.out 
+
+#SBATCH --mail-type=ALL 
+#SBATCH --mail-user=jules.kreuer@uni-tuebingen.de 
 
 # Source init script
 source training/init.sh
