@@ -20,7 +20,7 @@ from tabicl.train.optim import get_cosine_with_restarts
 from tabicl.train.run import Timer
 from training_parser import parse_args
 
-from tabpfnwide.data import (
+from analysis.data import (
     get_wide_validation_data,
     load_prior_dataloader,
 )

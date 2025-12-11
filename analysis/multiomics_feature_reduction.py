@@ -6,7 +6,7 @@ import os
 import torch
 import matplotlib.pyplot as plt
 from analysis.utils import PredictionResults
-from tabpfnwide.data import get_wide_validation_datasets
+from analysis.data import get_wide_validation_datasets
 from tabpfnwide.patches import fit
 from tabpfn.model_loading import load_model_criterion_config
 from tabpfn import TabPFNClassifier
