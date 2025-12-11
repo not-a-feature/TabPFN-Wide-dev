@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.metrics import roc_auc_score
-from tabpfnwide.utils import PredictionResults
+from analysis.utils import PredictionResults
 from tabpfnwide.classifier import TabPFNWideClassifier
 import argparse
 
