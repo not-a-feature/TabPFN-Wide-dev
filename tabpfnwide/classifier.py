@@ -35,12 +35,6 @@ class TabPFNWideClassifier(TabPFNClassifier):
         if model_name != "v2.5" and not os.path.isfile(model_path):
             raise ValueError(f"Model path {model_path} does not exist.")
 
-        self.model_path = model_path
-        self.model_name = model_name
-        self.features_per_group = features_per_group
-        self.n_estimators = n_estimators
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-
         # Initialize parent TabPFNClassifier
         # We pass ignore_pretraining_limits=True by default as in the example, but allow override
         if "ignore_pretraining_limits" not in kwargs:
@@ -50,6 +44,14 @@ class TabPFNWideClassifier(TabPFNClassifier):
         # kwargs["features_per_group"] = features_per_group
 
         super().__init__(device=device, **kwargs)
+
+        # Restore model_path after super().__init__ overwrites it with default "auto"
+        self.model_path = model_path
+        self.model_name = model_name
+        self.features_per_group = features_per_group
+        self.n_estimators = n_estimators
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+
         self.wide_model = self._load_wide_model()
 
     def _initialize_model_variables(self):
