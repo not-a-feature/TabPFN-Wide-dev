@@ -8,8 +8,11 @@ import torch
 import warnings
 import json
 import sys
+from tabpfn.architectures.base.config import ModelConfig
 
 warnings.filterwarnings("ignore")
+
+torch.serialization.add_safe_globals([ModelConfig])
 
 # Ensure the repository root is on sys.path so top-level packages (e.g. `tabpfnwide`)
 # can be imported when this script is executed directly (python analysis/hdlss_benchmark.py)

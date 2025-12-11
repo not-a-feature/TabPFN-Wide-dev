@@ -60,7 +60,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
                 checkpoint_path = os.path.join(f"{self.model_name}_submission.pt")
 
             checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
-            
+
             # Handle DDP-wrapped checkpoints
             if "state_dict" in checkpoint:
                 state_dict = checkpoint["state_dict"]
