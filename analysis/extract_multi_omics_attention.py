@@ -61,19 +61,21 @@ def main(
     else:
         model.features_per_group = 1
 
-    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    if checkpoint_path != "default":
+        checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
 
-    # Handle DDP-wrapped checkpoints
-    if "state_dict" in checkpoint:
-        state_dict = checkpoint["state_dict"]
-    else:
-        state_dict = checkpoint
+        # Handle DDP-wrapped checkpoints
+        if "state_dict" in checkpoint:
+            state_dict = checkpoint["state_dict"]
+        else:
+            state_dict = checkpoint
 
-    # Unwrap DDP prefix if present
-    if any(k.startswith("module.") for k in state_dict.keys()):
-        state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+        # Unwrap DDP prefix if present
+        if any(k.startswith("module.") for k in state_dict.keys()):
+            state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
 
-    model.load_state_dict(state_dict)
+        model.load_state_dict(state_dict)
+
     model.to(device)
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)

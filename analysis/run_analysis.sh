@@ -12,11 +12,17 @@ if [ -z "$CHECKPOINT_PATH" ] || [ -z "$OUTPUT_DIR" ]; then
 fi
 
 mkdir -p "$OUTPUT_DIR"
-CHECKPOINT_DIR=$(dirname "$CHECKPOINT_PATH")
-CONFIG_FILE="${CHECKPOINT_DIR}/config.json"
 
-echo "Using checkpoint: $CHECKPOINT_PATH"
-echo "Using config: $CONFIG_FILE"
+if [ "$CHECKPOINT_PATH" == "default" ]; then
+    echo "Using default TabPFN 2.5 model"
+    CONFIG_FILE=""
+else
+    CHECKPOINT_DIR=$(dirname "$CHECKPOINT_PATH")
+    CONFIG_FILE="${CHECKPOINT_DIR}/config.json"
+    echo "Using checkpoint: $CHECKPOINT_PATH"
+    echo "Using config: $CONFIG_FILE"
+fi
+
 echo "Output directory: $OUTPUT_DIR"
 
 # HDLSS Benchmark

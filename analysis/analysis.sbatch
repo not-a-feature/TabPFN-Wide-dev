@@ -54,3 +54,13 @@ echo "Output directory: $OUTPUT_DIR"
 RUN_HDLSS_ONLY=true
 #RUN_HDLSS_ONLY=${RUN_HDLSS_ONLY:-false}
 bash analysis/run_analysis.sh "$CHECKPOINT_PATH" "$OUTPUT_DIR" "$RUN_HDLSS_ONLY"
+
+# If this is the last task (assuming array 0-5), run the comparison script
+if [ "$SLURM_ARRAY_TASK_ID" -eq 5 ]; then
+    echo "Task ID 5: Running default model analysis..."
+    OUTPUT_DIR_DEFAULT="${BASE_DIR_LOCAL}/analysis_results/TabPFNv2.5_default"
+    bash analysis/run_analysis.sh "default" "$OUTPUT_DIR_DEFAULT" "$RUN_HDLSS_ONLY"
+
+    echo "Task ID 5: Running comparison plotting..."
+    bash analysis/compare_results.sh "${BASE_DIR_LOCAL}/analysis_results"
+fi
