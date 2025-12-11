@@ -28,8 +28,9 @@ class TabPFNWideClassifier(TabPFNClassifier):
                 raise ValueError(
                     f"Model name {model_name} not recognized. Choose from {valid_models}"
                 )
-            # TODO FIX LOCAL PATH
-            model_path = os.path.join(f"TODO FIX LOCAL PATH{model_name}.pt")
+            if model_name != "v2.5":
+                # TODO FIX LOCAL PATH
+                model_path = os.path.join(f"TODO FIX LOCAL PATH{model_name}.pt")
 
         if not os.path.isfile(model_path):
             raise ValueError(f"Model path {model_path} does not exist.")

@@ -94,6 +94,7 @@ def main(
             if checkpoint_path == "v2.5":
                 clf = TabPFNWideClassifier(
                     model_name="v2.5",
+                    model_path="",
                     device=device,
                     n_estimators=1,
                     ignore_pretraining_limits=True,
