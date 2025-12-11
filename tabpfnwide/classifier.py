@@ -45,26 +45,26 @@ class TabPFNWideClassifier(TabPFNClassifier):
         self.models_ = [self.wide_model]
 
         static_seed, rng = infer_random_state(self.random_state)
-        
+
         self.devices_ = infer_devices(self.device)
-        
+
         (
             self.use_autocast_,
             self.forced_inference_dtype_,
             byte_size,
-        ) = determine_precision(
-            self.inference_precision, self.devices_
-        )
-        
+        ) = determine_precision(self.inference_precision, self.devices_)
+
         # Handle inference config override
         if hasattr(self, "inference_config_"):
-             self.inference_config_ = self.inference_config_.override_with_user_input(
+            self.inference_config_ = self.inference_config_.override_with_user_input(
                 user_config=self.inference_config
             )
-             
-             outlier_removal_std = self.inference_config_.OUTLIER_REMOVAL_STD
-             if outlier_removal_std == "auto":
-                 outlier_removal_std = self.inference_config_._CLASSIFICATION_DEFAULT_OUTLIER_REMOVAL_STD
+
+            outlier_removal_std = self.inference_config_.OUTLIER_REMOVAL_STD
+            if outlier_removal_std == "auto":
+                outlier_removal_std = (
+                    self.inference_config_._CLASSIFICATION_DEFAULT_OUTLIER_REMOVAL_STD
+                )
         else:
             # Fallback if inference_config_ was not set (should not happen with updated _load_wide_model)
             outlier_removal_std = None
@@ -89,7 +89,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
             download_if_not_exists=self.model_name == "v2.5",
         )
         model = models[0]
-        
+
         self.configs_ = configs
         self.inference_config_ = inference_config
 
