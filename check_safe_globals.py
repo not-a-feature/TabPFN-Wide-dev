@@ -1,10 +1,10 @@
-
 import torch
 import sys
 import os
 
 try:
     from tabpfn.architectures.base.config import ModelConfig
+
     print("Successfully imported ModelConfig")
     torch.serialization.add_safe_globals([ModelConfig])
     print("Successfully added ModelConfig to safe globals")

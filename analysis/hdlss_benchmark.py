@@ -243,6 +243,8 @@ def main(
                 res_df.to_csv(output_file, index=False)
 
             except Exception as e:
+                import traceback
+                traceback.print_exc()
                 print(f"Error processing {dataset_name}: {e}")
 
 
