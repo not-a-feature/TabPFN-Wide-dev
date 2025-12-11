@@ -6,23 +6,35 @@ from tabpfnwide.patches import fit as patched_fit
 
 
 class TabPFNWideClassifier(TabPFNClassifier):
-    def __init__(self, model_name="TabPFN-Wide-8k", model_path="./models", device=None, **kwargs):
+    def __init__(
+        self,
+        model_name="TabPFN-Wide-8k",
+        model_path="./models",
+        device=None,
+        features_per_group=1,
+        n_estimators=1,
+        **kwargs,
+    ):
         # Initialize parent TabPFNClassifier
         # We pass ignore_pretraining_limits=True by default as in the example, but allow override
         if "ignore_pretraining_limits" not in kwargs:
             kwargs["ignore_pretraining_limits"] = True
 
+        kwargs["n_estimators"] = n_estimators
+
         super().__init__(device=device, **kwargs)
 
         self.model_name = model_name
         self.model_path = model_path
+        self.features_per_group = features_per_group
+        self.n_estimators = n_estimators
         # Ensure device is set (TabPFNClassifier might set it, but we need it for loading)
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
-        valid_models = ["v2.5-Wide-1.5k", "v2.5-Wide-5k", "v2.5-Wide-8k", "v2.5"]
-        assert (
-            model_name in valid_models
-        ), f"Model name {model_name} not recognized. Choose from {valid_models}"
+        # valid_models = ["v2.5-Wide-1.5k", "v2.5-Wide-5k", "v2.5-Wide-8k", "v2.5"]
+        # assert (
+        #    model_name in valid_models
+        # ), f"Model name {model_name} not recognized. Choose from {valid_models}"
 
         self.wide_model = self._load_wide_model()
 
@@ -38,9 +50,14 @@ class TabPFNWideClassifier(TabPFNClassifier):
         )
         model = models[0]
 
-        if self.model_name != "v2.5":
-            model.features_per_group = 1
-            checkpoint_path = os.path.join(self.model_path, f"{self.model_name}_submission.pt")
+        if self.model_name != "v2.5" or os.path.isfile(self.model_path):
+            model.features_per_group = self.features_per_group
+            model.n_estimators = self.n_estimators
+
+            if os.path.isfile(self.model_path):
+                checkpoint_path = self.model_path
+            else:
+                checkpoint_path = os.path.join(self.model_path, f"{self.model_name}_submission.pt")
 
             if not os.path.exists(checkpoint_path):
                 raise FileNotFoundError(
