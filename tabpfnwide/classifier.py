@@ -32,7 +32,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
                 # TODO FIX LOCAL PATH
                 model_path = os.path.join(f"TODO FIX LOCAL PATH{model_name}.pt")
 
-        if not os.path.isfile(model_path):
+        if model_name != "v2.5" and not os.path.isfile(model_path):
             raise ValueError(f"Model path {model_path} does not exist.")
 
         self.model_path = model_path
