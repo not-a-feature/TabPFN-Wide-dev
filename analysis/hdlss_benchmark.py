@@ -109,6 +109,7 @@ def main(
                         print(f"Loaded features_per_group={features_per_group} from config")
 
                 clf = TabPFNWideClassifier(
+                    model_name="",
                     model_path=checkpoint_path,
                     device=device,
                     n_estimators=1,
