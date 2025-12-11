@@ -128,14 +128,16 @@ def main(
                         f"Skipping {dataset_name} with {X_train_tensor.shape[-1]} features, already exists"
                     )
                     break
-                
+
                 # Convert tensors to numpy for TabPFNClassifier
                 X_train = X_train_tensor.cpu().numpy()
                 y_train = y_train_tensor.cpu().numpy().flatten()
                 X_test = X_test_tensor.cpu().numpy()
                 y_test = y_test_tensor.cpu().numpy().flatten()
 
-                clf = TabPFNClassifier(device=device, n_estimators=1, ignore_pretraining_limits=True)
+                clf = TabPFNClassifier(
+                    device=device, n_estimators=1, ignore_pretraining_limits=True
+                )
                 clf.fit(X_train, y_train, model=model)
                 pred_probs = clf.predict_proba(X_test)
 

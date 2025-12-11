@@ -93,12 +93,12 @@ def main(device, openml_id, checkpoint_path, output, config_path=None):
         X_train, X_test, y_train, y_test = train_test_split(
             X_new, y, test_size=0.2, random_state=42
         )
-        
+
         # Convert to numpy for TabPFNClassifier
         X_train_np = X_train.cpu().numpy()
         y_train_np = y_train
         X_test_np = X_test.cpu().numpy()
-        
+
         for layer in model.transformer_encoder.layers:
             layer.self_attn_between_features.attention_map = None
             layer.self_attn_between_features.save_att_map = True
