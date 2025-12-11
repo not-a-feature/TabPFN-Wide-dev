@@ -30,7 +30,7 @@ from tabpfnwide.config import (
     PriorDatasetConfig,
     PriorDataLoaderConfig,
 )
-from tabpfnwide.utils import PredictionResults, get_new_features
+from analysis.utils import PredictionResults, get_new_features
 
 import wandb
 import tqdm

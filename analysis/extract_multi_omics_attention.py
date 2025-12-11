@@ -3,7 +3,7 @@ import warnings
 import torch
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from tabpfnwide.load_mm_data import load_multiomics
+from analysis.load_mm_data import load_multiomics
 from tabpfnwide.patches import fit
 from tabpfn.model_loading import load_model_criterion_config
 from tabpfn import TabPFNClassifier

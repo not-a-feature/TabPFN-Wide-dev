@@ -20,7 +20,7 @@ from sklearn.preprocessing import LabelEncoder
 from tabpfn import TabPFNClassifier
 from tabpfn.model_loading import load_model_criterion_config
 from tabpfnwide.patches import fit
-from tabpfnwide.utils import PredictionResults
+from analysis.utils import PredictionResults
 
 # Apply patch
 setattr(TabPFNClassifier, "fit", fit)

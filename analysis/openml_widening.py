@@ -15,7 +15,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.utils import shuffle
 from tabpfn.model_loading import load_model_criterion_config
 from tabpfn import TabPFNClassifier
-from tabpfnwide.utils import PredictionResults, get_new_features
+from analysis.utils import PredictionResults, get_new_features
 from tabpfnwide.patches import fit
 
 setattr(TabPFNClassifier, "fit", fit)

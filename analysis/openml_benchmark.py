@@ -11,7 +11,7 @@ warnings.filterwarnings("ignore")
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.metrics import roc_auc_score
-from tabpfnwide.utils import PredictionResults
+from analysis.utils import PredictionResults
 from tabpfnwide.patches import fit
 from tabpfn.model_loading import load_model_criterion_config
 from tabpfn import TabPFNClassifier

@@ -5,25 +5,31 @@ import pandas as pd
 import torch
 from sklearn.preprocessing import LabelEncoder
 from dataclasses import dataclass
-from .load_mm_data import load_multiomics_benchmark_shamir, load_multiomics_benchmark_ds, ALL_MULTIOMICS_DATASETS, ALL_MULTIOMICS_DATASETS_SHAMIR
+from ..analysis.load_mm_data import (
+    load_multiomics_benchmark_shamir,
+    load_multiomics_benchmark_ds,
+    ALL_MULTIOMICS_DATASETS,
+    ALL_MULTIOMICS_DATASETS_SHAMIR,
+)
 from torch.utils.data import DataLoader
 from sklearn.datasets import fetch_openml
 
-from .utils import feature_reduction_agglomeration
+from ..analysis.utils import feature_reduction_agglomeration
 
 from .config import PriorDatasetConfig, PriorDataLoaderConfig
 
 
 def load_prior_dataloader(
     dataset: PriorDataset,
-    config_dataset : PriorDatasetConfig,
-    config_dataloader: PriorDataLoaderConfig
+    config_dataset: PriorDatasetConfig,
+    config_dataloader: PriorDataLoaderConfig,
 ):
     return DataLoader(dataset(**config_dataset.__dict__), **config_dataloader.__dict__)
 
-            
-            
-def get_wide_validation_datasets(device, dataset_name="gbm", n_splits=5, n_repeats=1, reduced_features=0, omics=["mrna"]):
+
+def get_wide_validation_datasets(
+    device, dataset_name="gbm", n_splits=5, n_repeats=1, reduced_features=0, omics=["mrna"]
+):
     """
     Returns a generator that yields validation datasets the specified dataset.
     """
@@ -38,7 +44,9 @@ def get_wide_validation_datasets(device, dataset_name="gbm", n_splits=5, n_repea
     X, y = pd.concat(x_list, axis=1), ds["labels"]
 
     if reduced_features > X.shape[-1]:
-        print(f"Skipping {dataset_name} with {reduced_features} features, not enough features in dataset")
+        print(
+            f"Skipping {dataset_name} with {reduced_features} features, not enough features in dataset"
+        )
         yield from ()
     else:
         if reduced_features > 0:
@@ -53,7 +61,9 @@ def get_wide_validation_datasets(device, dataset_name="gbm", n_splits=5, n_repea
 
 
 def generate_tensor_folds(X, y, device, n_splits=5, n_repeats=1):
-    for train_idx, test_idx in RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=42).split(X, y):
+    for train_idx, test_idx in RepeatedStratifiedKFold(
+        n_splits=n_splits, n_repeats=n_repeats, random_state=42
+    ).split(X, y):
         X_train, X_test = X[train_idx], X[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
         X_train_tensor = torch.tensor(X_train, dtype=torch.float32).unsqueeze(1).to(device)
@@ -63,9 +73,10 @@ def generate_tensor_folds(X, y, device, n_splits=5, n_repeats=1):
         yield X_train_tensor, y_train_tensor, X_test_tensor, y_test_tensor
 
 
-
 def get_wide_validation_data(device, validation_datasets, omics_combinations):
     for dataset_name in validation_datasets:
         for omic_list in omics_combinations:
             print(f"Using omics: {omic_list} for dataset {dataset_name}")
-            yield from get_wide_validation_datasets(device, dataset_name=dataset_name, omics=omic_list)
+            yield from get_wide_validation_datasets(
+                device, dataset_name=dataset_name, omics=omic_list
+            )
