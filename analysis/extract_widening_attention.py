@@ -1,7 +1,11 @@
 import numpy as np
 import torch
 from tabpfnwide.utils import get_new_features
+from tabpfnwide.patches import fit
 from tabpfn.model_loading import load_model_criterion_config
+from tabpfn import TabPFNClassifier
+
+setattr(TabPFNClassifier, "fit", fit)
 import matplotlib.pyplot as plt
 import openml
 import seaborn as sns
@@ -89,25 +93,20 @@ def main(device, openml_id, checkpoint_path, output, config_path=None):
         X_train, X_test, y_train, y_test = train_test_split(
             X_new, y, test_size=0.2, random_state=42
         )
-        X_train_tensor = X_train.unsqueeze(1).to(device)
-        X_test_tensor = X_test.unsqueeze(1).to(device)
-        y_train_tensor = torch.tensor(y_train, dtype=torch.int8).unsqueeze(1).to(device)
-        y_test_tensor = torch.tensor(y_test, dtype=torch.int8).unsqueeze(1).to(device)
+        
+        # Convert to numpy for TabPFNClassifier
+        X_train_np = X_train.cpu().numpy()
+        y_train_np = y_train
+        X_test_np = X_test.cpu().numpy()
+        
         for layer in model.transformer_encoder.layers:
             layer.self_attn_between_features.attention_map = None
             layer.self_attn_between_features.save_att_map = True
-            layer.self_attn_between_features.number_of_samples = X_train_tensor.shape[0]
+            layer.self_attn_between_features.number_of_samples = X_train.shape[0]
 
-        with torch.inference_mode():
-            with torch.autocast(device_type="cuda", dtype=torch.float16):
-                pred_logits = model(
-                    train_x=X_train_tensor,
-                    train_y=y_train_tensor,
-                    test_x=X_test_tensor,
-                )
-                n_classes = len(np.unique(y_train_tensor.cpu()))
-                pred_logits = pred_logits[..., :n_classes].float()
-                pred_probs = torch.softmax(pred_logits, dim=-1)[:, 0, :].detach().cpu().numpy()
+        clf = TabPFNClassifier(device=device, n_estimators=1, ignore_pretraining_limits=True)
+        clf.fit(X_train_np, y_train_np, model=model)
+        pred_probs = clf.predict_proba(X_test_np)
 
         try:
             print("Accuracy:", (pred_probs.argmax(axis=-1) == y_test).mean())

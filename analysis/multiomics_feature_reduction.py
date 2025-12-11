@@ -7,7 +7,11 @@ import torch
 import matplotlib.pyplot as plt
 from tabpfnwide.utils import PredictionResults
 from tabpfnwide.data import get_wide_validation_datasets
+from tabpfnwide.patches import fit
 from tabpfn.model_loading import load_model_criterion_config
+from tabpfn import TabPFNClassifier
+
+setattr(TabPFNClassifier, "fit", fit)
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -124,29 +128,18 @@ def main(
                         f"Skipping {dataset_name} with {X_train_tensor.shape[-1]} features, already exists"
                     )
                     break
-                MemoryUsageEstimator.reset_peak_memory_if_required(
-                    save_peak_mem=True,
-                    model=model,
-                    X=torch.cat([X_train_tensor, X_test_tensor], dim=0),
-                    cache_kv=False,
-                    dtype_byte_size=2,
-                    device=torch.device(device),
-                    safety_factor=4,
-                )
+                
+                # Convert tensors to numpy for TabPFNClassifier
+                X_train = X_train_tensor.cpu().numpy()
+                y_train = y_train_tensor.cpu().numpy().flatten()
+                X_test = X_test_tensor.cpu().numpy()
+                y_test = y_test_tensor.cpu().numpy().flatten()
 
-                with torch.inference_mode():
-                    with torch.autocast(device_type="cuda", dtype=torch.float16):
-                        pred_logits = model(
-                            train_x=X_train_tensor,
-                            train_y=y_train_tensor,
-                            test_x=X_test_tensor,
-                        )
-                        n_classes = len(np.unique(y_train_tensor.cpu()))
-                        pred_logits = pred_logits[..., :n_classes].float()
-                        pred_probs = (
-                            torch.softmax(pred_logits, dim=-1)[:, 0, :].detach().cpu().numpy()
-                        )
-                pred_res = PredictionResults(y_test_tensor.flatten().cpu().numpy(), pred_probs)
+                clf = TabPFNClassifier(device=device, n_estimators=1, ignore_pretraining_limits=True)
+                clf.fit(X_train, y_train, model=model)
+                pred_probs = clf.predict_proba(X_test)
+
+                pred_res = PredictionResults(y_test, pred_probs)
                 accuracy = pred_res.get_classification_report(print_report=False)["accuracy"]
                 f1_weighted = pred_res.get_f1_score(average="weighted")
                 results = pd.concat(

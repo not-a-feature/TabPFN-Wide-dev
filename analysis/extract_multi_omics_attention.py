@@ -4,7 +4,11 @@ import torch
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from tabpfnwide.load_mm_data import load_multiomics
+from tabpfnwide.patches import fit
 from tabpfn.model_loading import load_model_criterion_config
+from tabpfn import TabPFNClassifier
+
+setattr(TabPFNClassifier, "fit", fit)
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -74,25 +78,14 @@ def main(
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    X_train_tensor = torch.tensor(X_train, dtype=torch.float32).unsqueeze(1).to(device)
-    X_test_tensor = torch.tensor(X_test, dtype=torch.float32).unsqueeze(1).to(device)
-    y_train_tensor = torch.tensor(y_train, dtype=torch.int8).unsqueeze(1).to(device)
-    y_test_tensor = torch.tensor(y_test, dtype=torch.int8).unsqueeze(1).to(device)
-
+    # Configure model for attention extraction
     for layer in model.transformer_encoder.layers:
         layer.self_attn_between_features.save_att_map = True
-        layer.self_attn_between_features.number_of_samples = X_train_tensor.shape[0]
+        layer.self_attn_between_features.number_of_samples = X_train.shape[0]
 
-    with torch.inference_mode():
-        with torch.autocast(device_type="cuda", dtype=torch.float16):
-            pred_logits = model(
-                train_x=X_train_tensor,
-                train_y=y_train_tensor,
-                test_x=X_test_tensor,
-            )
-            n_classes = len(np.unique(y_train_tensor.cpu()))
-            pred_logits = pred_logits[..., :n_classes].float()
-            pred_probs = torch.softmax(pred_logits, dim=-1)[:, 0, :].detach().cpu().numpy()
+    clf = TabPFNClassifier(device=device, n_estimators=1, ignore_pretraining_limits=True)
+    clf.fit(X_train, y_train, model=model)
+    clf.predict_proba(X_test)
 
     atts = [
         getattr(layer.get_submodule("self_attn_between_features"), "attention_map")
