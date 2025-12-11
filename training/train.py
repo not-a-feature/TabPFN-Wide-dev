@@ -1,3 +1,8 @@
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 # Partly taken from TabICL run.py script https://github.com/soda-inria/tabicl/blob/main/src/tabicl/train/run.py
 from contextlib import nullcontext
 import datetime

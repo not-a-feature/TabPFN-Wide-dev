@@ -16,7 +16,7 @@ from sklearn.datasets import fetch_openml
 
 from .utils import feature_reduction_agglomeration
 
-from ..tabpfnwide.config import PriorDatasetConfig, PriorDataLoaderConfig
+from tabpfnwide.config import PriorDatasetConfig, PriorDataLoaderConfig
 
 
 def load_prior_dataloader(
