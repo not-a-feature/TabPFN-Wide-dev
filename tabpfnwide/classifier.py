@@ -19,7 +19,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
         # Ensure device is set (TabPFNClassifier might set it, but we need it for loading)
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
-        valid_models = ["TabPFN-Wide-1.5k", "TabPFN-Wide-5k", "TabPFN-Wide-8k", "TabPFNv2.5"]
+        valid_models = ["v2.5-Wide-1.5k", "v2.5-Wide-5k", "v2.5-Wide-8k", "v2.5"]
         assert (
             model_name in valid_models
         ), f"Model name {model_name} not recognized. Choose from {valid_models}"
@@ -28,16 +28,17 @@ class TabPFNWideClassifier(TabPFNClassifier):
 
     def _load_wide_model(self):
         # Load the base model structure
-        model, _, _ = load_model_criterion_config(
+        models, _, configs, _ = load_model_criterion_config(
             model_path=None,
             check_bar_distribution_criterion=False,
             cache_trainset_representation=False,
             which="classifier",
             version="v2.5",
-            download=True,
+            download_if_not_exists=self.model_name == "v2.5",
         )
+        model = models[0]
 
-        if self.model_name != "TabPFNv2.5":
+        if self.model_name != "v2.5":
             model.features_per_group = 1
             checkpoint_path = os.path.join(self.model_path, f"{self.model_name}_submission.pt")
 

@@ -30,7 +30,7 @@ from tabpfnwide.config import (
     PriorDatasetConfig,
     PriorDataLoaderConfig,
 )
-from utils import PredictionResults, get_new_features
+from utils import PredictionResults, get_new_features_mixed
 
 import wandb
 import tqdm
@@ -337,7 +337,7 @@ class Trainer:
             new_features = 0
             if self.feature_adding_config.add_features_max > 0:
                 new_features, sparsity, noise = self.get_feature_adding_parameters()
-                X = get_new_features(
+                X = get_new_features_mixed(
                     X,
                     new_features,
                     sparsity=sparsity,
