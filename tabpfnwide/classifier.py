@@ -8,8 +8,8 @@ from tabpfnwide.patches import fit as patched_fit
 class TabPFNWideClassifier(TabPFNClassifier):
     def __init__(
         self,
-        model_name="TabPFN-Wide-8k",
-        model_path="./models",
+        model_name="v2.5-Wide-1.5k",
+        model_path="",
         device=None,
         features_per_group=1,
         n_estimators=1,
@@ -50,19 +50,14 @@ class TabPFNWideClassifier(TabPFNClassifier):
         )
         model = models[0]
 
-        if self.model_name != "v2.5" or os.path.isfile(self.model_path):
+        if self.model_name != "v2.5":
             model.features_per_group = self.features_per_group
             model.n_estimators = self.n_estimators
 
             if os.path.isfile(self.model_path):
                 checkpoint_path = self.model_path
             else:
-                checkpoint_path = os.path.join(self.model_path, f"{self.model_name}_submission.pt")
-
-            if not os.path.exists(checkpoint_path):
-                raise FileNotFoundError(
-                    f"Checkpoint not found at {checkpoint_path}. Please ensure the model is downloaded."
-                )
+                checkpoint_path = os.path.join(f"{self.model_name}_submission.pt")
 
             checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
             model.load_state_dict(checkpoint)
