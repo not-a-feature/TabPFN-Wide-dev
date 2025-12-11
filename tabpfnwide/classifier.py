@@ -12,32 +12,43 @@ class TabPFNWideClassifier(TabPFNClassifier):
         self,
         model_name="v2.5-Wide-1.5k",
         model_path="",
-        device=None,
+        device="cuda",
         features_per_group=1,
         n_estimators=1,
         **kwargs,
     ):
+
+        # Check arguments
+        if (model_name and model_path) or (not model_name and not model_path):
+            raise ValueError("Either model_name or model_path must be specified, but not both.")
+
+        if model_name:
+            valid_models = ["v2.5-Wide-1.5k", "v2.5-Wide-5k", "v2.5-Wide-8k", "v2.5"]
+            if model_name not in valid_models:
+                raise ValueError(
+                    f"Model name {model_name} not recognized. Choose from {valid_models}"
+                )
+            # TODO FIX LOCAL PATH
+            model_path = os.path.join(f"TODO FIX LOCAL PATH{model_name}.pt")
+
+        if not os.path.isfile(model_path):
+            raise ValueError(f"Model path {model_path} does not exist.")
+
+        self.model_path = model_path
+        self.model_name = model_name
+        self.features_per_group = features_per_group
+        self.n_estimators = n_estimators
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+
         # Initialize parent TabPFNClassifier
         # We pass ignore_pretraining_limits=True by default as in the example, but allow override
         if "ignore_pretraining_limits" not in kwargs:
             kwargs["ignore_pretraining_limits"] = True
 
         kwargs["n_estimators"] = n_estimators
+        kwargs["features_per_group"] = features_per_group
 
         super().__init__(device=device, **kwargs)
-
-        self.model_name = model_name
-        self.model_path = model_path
-        self.features_per_group = features_per_group
-        self.n_estimators = n_estimators
-        # Ensure device is set (TabPFNClassifier might set it, but we need it for loading)
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-
-        # valid_models = ["v2.5-Wide-1.5k", "v2.5-Wide-5k", "v2.5-Wide-8k", "v2.5"]
-        # assert (
-        #    model_name in valid_models
-        # ), f"Model name {model_name} not recognized. Choose from {valid_models}"
-
         self.wide_model = self._load_wide_model()
 
     def _initialize_model_variables(self):
@@ -96,15 +107,10 @@ class TabPFNWideClassifier(TabPFNClassifier):
         if self.model_name != "v2.5":
             model.features_per_group = self.features_per_group
             model.n_estimators = self.n_estimators
-
-            if os.path.isfile(self.model_path):
-                checkpoint_path = self.model_path
-            else:
-                checkpoint_path = os.path.join(f"{self.model_name}_submission.pt")
-
-            checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
+            checkpoint = torch.load(self.model_path, map_location=self.device, weights_only=False)
 
             # Handle DDP-wrapped checkpoints
+            # TODO fix this during training / saving
             if "state_dict" in checkpoint:
                 state_dict = checkpoint["state_dict"]
             else:
