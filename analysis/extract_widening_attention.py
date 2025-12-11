@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from tabpfnwide.utils import get_new_features
+from analysis.utils import get_new_features
 from tabpfnwide.patches import fit
 from tabpfn.model_loading import load_model_criterion_config
 from tabpfn import TabPFNClassifier
