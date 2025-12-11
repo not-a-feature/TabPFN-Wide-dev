@@ -13,7 +13,7 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
-if [ "$CHECKPOINT_PATH" == "default" ]; then
+if [ "$CHECKPOINT_PATH" == "v2.5" ]; then
     echo "Using default TabPFN 2.5 model"
     CONFIG_FILE=""
 else

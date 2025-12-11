@@ -12,11 +12,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.metrics import roc_auc_score
 from analysis.utils import PredictionResults
-from tabpfnwide.patches import fit
-from tabpfn.model_loading import load_model_criterion_config
-from tabpfn import TabPFNClassifier
-
-setattr(TabPFNClassifier, "fit", fit)
+from tabpfnwide.classifier import TabPFNWideClassifier
 import argparse
 
 
@@ -60,40 +56,25 @@ def main(
     openml_df = openml_df[openml_df["NumberOfClasses"] > 1]
 
     for checkpoint_path in checkpoints:
-        if checkpoint_path != "default":
-            models, _, _, _ = load_model_criterion_config(
-                model_path=None,
-                check_bar_distribution_criterion=False,
-                cache_trainset_representation=False,
-                which="classifier",
-                version="v2.5",
-                download_if_not_exists=True,
-            )
-            model = models[0]
-
-            if config_path and os.path.exists(config_path):
-                import json
-
-                with open(config_path, "r") as f:
-                    config = json.load(f)
-                if "model_config" in config:
-                    model.features_per_group = config["model_config"].get("features_per_group", 1)
+        print(f"Initializing model from {checkpoint_path}")
+        try:
+            if checkpoint_path == "v2.5":
+                clf = TabPFNWideClassifier(
+                    model_name="v2.5",
+                    device=device,
+                    n_estimators=1,
+                    ignore_pretraining_limits=True,
+                )
             else:
-                model.features_per_group = 1
-
-            checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-
-            # Handle DDP-wrapped checkpoints
-            if "state_dict" in checkpoint:
-                state_dict = checkpoint["state_dict"]
-            else:
-                state_dict = checkpoint
-
-            # Unwrap DDP prefix if present
-            if any(k.startswith("module.") for k in state_dict.keys()):
-                state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
-
-            model.load_state_dict(state_dict)
+                clf = TabPFNWideClassifier(
+                    model_path=checkpoint_path,
+                    device=device,
+                    n_estimators=1,
+                    ignore_pretraining_limits=True,
+                )
+        except Exception as e:
+            print(f"Failed to initialize model {checkpoint_path}: {e}")
+            continue
 
         res_df = pd.DataFrame(
             columns=[
@@ -127,9 +108,6 @@ def main(
                 le = LabelEncoder()
                 y = le.fit_transform(y)
 
-                clf = TabPFNClassifier(
-                    device=device, n_estimators=1, ignore_pretraining_limits=True
-                )
                 skf = RepeatedStratifiedKFold(
                     n_splits=3, n_repeats=10 if X.shape[0] < 2500 else 3, random_state=42
                 )
@@ -137,7 +115,7 @@ def main(
                 for fold, (train_idx, test_idx) in enumerate(skf.split(X, y)):
                     X_train, X_test = X[train_idx], X[test_idx]
                     y_train, y_test = y[train_idx], y[test_idx]
-                    clf.fit(X_train, y_train, model=model if checkpoint_path != "default" else None)
+                    clf.fit(X_train, y_train)
                     pred_probs = clf.predict_proba(X_test)
 
                     pred_res = PredictionResults(y_test, pred_probs)
@@ -213,7 +191,7 @@ if __name__ == "__main__":
         ]
 
     if not checkpoints:
-        checkpoints = ["default"]
+        checkpoints = ["v2.5"]
 
     main(
         suite_id=args.suite_id,

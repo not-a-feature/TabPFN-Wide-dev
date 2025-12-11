@@ -87,27 +87,25 @@ def main(
     print(f"Found {len(mat_files)} datasets to process")
 
     for checkpoint_path in checkpoints:
-        if checkpoint_path == "default":
-            model_name = "TabPFNv2.5"
-            model_dir = "."
-        else:
-            model_dir = os.path.dirname(checkpoint_path)
-            filename = os.path.basename(checkpoint_path)
-            # Assuming the file follows the naming convention required by TabPFNWideClassifier
-            model_name = filename.replace("_submission.pt", "")
-
-        print(f"Initializing model: {model_name} from {model_dir}")
+        print(f"Initializing model from {checkpoint_path}")
 
         try:
-            clf = TabPFNWideClassifier(
-                model_name=model_name,
-                model_path=model_dir,
-                device=device,
-                n_estimators=1,
-                ignore_pretraining_limits=True,
-            )
+            if checkpoint_path == "v2.5":
+                clf = TabPFNWideClassifier(
+                    model_name="v2.5",
+                    device=device,
+                    n_estimators=1,
+                    ignore_pretraining_limits=True,
+                )
+            else:
+                clf = TabPFNWideClassifier(
+                    model_path=checkpoint_path,
+                    device=device,
+                    n_estimators=1,
+                    ignore_pretraining_limits=True,
+                )
         except Exception as e:
-            print(f"Failed to initialize model {model_name}: {e}")
+            print(f"Failed to initialize model {checkpoint_path}: {e}")
             continue
 
         res_df = pd.DataFrame(
@@ -284,7 +282,7 @@ if __name__ == "__main__":
         ]
 
     if not checkpoints:
-        checkpoints = ["default"]
+        checkpoints = ["v2.5"]
 
     main(
         hdlss_data_dir=args.hdlss_data_dir,
