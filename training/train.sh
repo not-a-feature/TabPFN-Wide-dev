@@ -61,7 +61,8 @@ torchrun --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/training/train.py" \
     --batch_size 16 \
     --learning_rate 1e-5 \
     --weight_decay 1e-4 \
-    --num_steps 100 \
+    --num_steps 100000 \
+    --use_wandb \
     --d_type float16 \
     --warmup_proportion 0.02 \
     --num_cycles 10 \
@@ -101,4 +102,4 @@ torchrun --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/training/train.py" \
     --prior_dataloader_prefetch_factor 4 \
     --prior_dataloader_pin_memory \
     --checkpoint_dir "${CHECKPOINT_DIR}" \
-    --save_interval 10
+    --save_interval 100
