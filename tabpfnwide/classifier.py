@@ -47,7 +47,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
             kwargs["ignore_pretraining_limits"] = True
 
         kwargs["n_estimators"] = n_estimators
-        kwargs["features_per_group"] = features_per_group
+        # kwargs["features_per_group"] = features_per_group
 
         super().__init__(device=device, **kwargs)
         self.wide_model = self._load_wide_model()
