@@ -116,7 +116,7 @@ class Trainer:
         if self.train_config.use_wandb and self.is_main_process:
             self.wandb_obj = wandb.init(
                 project="tabpfn",
-                entity="modexta",
+                entity="jules-kreuer-university-of-t-bingen",
                 config=asdict(self.model_config)
                 | asdict(self.prior_dataset_config)
                 | asdict(self.train_config),
