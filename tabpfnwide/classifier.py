@@ -38,6 +38,11 @@ class TabPFNWideClassifier(TabPFNClassifier):
 
         self.wide_model = self._load_wide_model()
 
+        # Reset model_path to avoid TabPFNClassifier trying to load it again in fit()
+        # which can fail if the checkpoint config is an object instead of a dict
+        if self.model_name != "v2.5":
+            self.model_path = ""
+
     def _load_wide_model(self):
         # Load the base model structure
         models, _, configs, _ = load_model_criterion_config(
