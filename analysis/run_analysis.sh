@@ -34,7 +34,8 @@ if [ ! -f "${OUTPUT_DIR}/hdlss_benchmark_results.csv" ]; then
         "benchmark_data/hdlss_new_data" \
         "${OUTPUT_DIR}/hdlss_benchmark_results.csv" \
         --checkpoint_path "$CHECKPOINT_PATH" \
-        --config_path "$CONFIG_FILE"
+        --config_path "$CONFIG_FILE" \
+        --min_features 500
 else
     echo "HDLSS Benchmark results exist. Skipping."
 fi
