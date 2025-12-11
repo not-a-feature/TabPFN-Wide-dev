@@ -19,6 +19,7 @@ from sklearn.preprocessing import LabelEncoder
 
 from tabpfn import TabPFNClassifier
 from tabpfn.model_loading import load_model_criterion_config
+from tabpfnwide.classifier import TabPFNWideClassifier
 from tabpfnwide.patches import fit
 from analysis.utils import PredictionResults
 
@@ -279,7 +280,7 @@ def extract_embeddings_with_model(model, X_train, y_train, X_test, clf, device):
 
     try:
         # Run forward pass
-        clf.fit(X_train, y_train, model=model)
+        clf.fit(X_train, y_train)
         pred_probs = clf.predict_proba(X_test)
 
         # Extract embeddings
@@ -457,7 +458,7 @@ def analyze_embeddings(embeddings_dict, output_dir, all_labels_order=None):
 def evaluate_task(
     task_id,
     grouping,
-    model,
+    clf,
     device,
     openml_task,
     res_df,
@@ -538,15 +539,11 @@ def evaluate_task(
     le = LabelEncoder()
     y = le.fit_transform(y)
 
-    clf = TabPFNClassifier(device=device, n_estimators=n_estimators, ignore_pretraining_limits=True)
-
     skf = RepeatedStratifiedKFold(
         n_splits=3,
         n_repeats=10 if X.shape[0] < 2500 else 3,
         random_state=42,
     )
-
-    model.features_per_group = grouping
 
     embeddings_collected = [] if extract_embeddings else None
 
@@ -557,12 +554,12 @@ def evaluate_task(
         try:
             if extract_embeddings and fold == 0:  # Only extract for first fold
                 embeddings, pred_probs = extract_embeddings_with_model(
-                    model, X_train, y_train, X_test, clf, device
+                    clf.wide_model, X_train, y_train, X_test, clf, device
                 )
                 if embeddings is not None:
                     embeddings_collected.append(embeddings)
             else:
-                clf.fit(X_train, y_train, model=model)
+                clf.fit(X_train, y_train)
                 pred_probs = clf.predict_proba(X_test)
 
             # Verify predictions shape
@@ -659,16 +656,7 @@ def main(
         print("No tasks meet the criteria. Exiting.")
         return
 
-    # Load model once
-    models, _, _, _ = load_model_criterion_config(
-        model_path=None,
-        check_bar_distribution_criterion=False,
-        cache_trainset_representation=False,
-        which="classifier",
-        version="v2.5",
-        download_if_not_exists=True,
-    )
-    model = models[0]
+    # Model will be loaded via TabPFNWideClassifier
 
     all_results_dfs = []
 
@@ -701,6 +689,15 @@ def main(
 
         print(f"\nRunning Scenario {name}: Grouping={grp}, Dup={dup}, Mask={mask}, N_est={n_est}")
 
+        # Initialize classifier for this scenario
+        clf = TabPFNWideClassifier(
+            model_name="v2.5",
+            device=device,
+            n_estimators=n_est,
+            ignore_pretraining_limits=True,
+            features_per_group=grp,
+        )
+
         for task_id in openml_df["tid"].values:
             task_id = int(task_id)
 
@@ -720,7 +717,7 @@ def main(
             res_df, _ = evaluate_task(
                 task_id,
                 grp,
-                model,
+                clf,
                 device,
                 t,
                 res_df,
@@ -785,10 +782,19 @@ def main(
                 ana_type = scenario["type"]
 
                 print(f"  Method: {name} ({ana_type})")
+
+                clf = TabPFNWideClassifier(
+                    model_name="v2.5",
+                    device=device,
+                    n_estimators=n_est,
+                    ignore_pretraining_limits=True,
+                    features_per_group=grp,
+                )
+
                 _, emb = evaluate_task(
                     task_id,
                     grp,
-                    model,
+                    clf,
                     device,
                     t,
                     pd.DataFrame(columns=RESULT_COLUMNS),

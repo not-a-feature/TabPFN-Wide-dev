@@ -16,9 +16,8 @@ from sklearn.utils import shuffle
 from tabpfn.model_loading import load_model_criterion_config
 from tabpfn import TabPFNClassifier
 from analysis.utils import PredictionResults, get_new_features
-from tabpfnwide.patches import fit
+from tabpfnwide.classifier import TabPFNWideClassifier
 
-setattr(TabPFNClassifier, "fit", fit)
 import argparse
 
 
@@ -81,31 +80,39 @@ def main(
             ]
         )
 
-    other_classifiers = ["default", "tabicl", "random_forest"]
+    other_classifiers = ["tabicl", "random_forest"]
     for checkpoint_path in checkpoints:
-        if checkpoint_path not in other_classifiers:
-            models, _, _, _ = load_model_criterion_config(
-                model_path=None,
-                check_bar_distribution_criterion=False,
-                cache_trainset_representation=False,
-                which="classifier",
-                version="v2.5",
-                download_if_not_exists=True,
+        clf = None
+        if checkpoint_path == "tabicl":
+            pass  # Will be created in loop
+        elif checkpoint_path == "random_forest":
+            pass  # Will be created in loop
+        elif checkpoint_path == "default":
+            clf = TabPFNWideClassifier(
+                model_name="v2.5",
+                model_path="",
+                device=device,
+                n_estimators=1,
+                ignore_pretraining_limits=True,
             )
-            model = models[0]
-
+        else:
+            features_per_group = 1
             if config_path and os.path.exists(config_path):
                 import json
 
                 with open(config_path, "r") as f:
                     config = json.load(f)
                 if "model_config" in config:
-                    model.features_per_group = config["model_config"].get("features_per_group", 1)
-            else:
-                model.features_per_group = 1
+                    features_per_group = config["model_config"].get("features_per_group", 1)
 
-            checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-            model.load_state_dict(checkpoint)
+            clf = TabPFNWideClassifier(
+                model_name="",
+                model_path=checkpoint_path,
+                device=device,
+                n_estimators=1,
+                ignore_pretraining_limits=True,
+                features_per_group=features_per_group,
+            )
 
         if checkpoint_path in ["tabicl", "random_forest"]:
             if X.isnull().values.any():
@@ -122,15 +129,10 @@ def main(
             print(
                 f"Validating {dataset.name} ({dataset.id}) with {feature_number} features and checkpoint {checkpoint_path}"
             )
-            match checkpoint_path:
-                case "tabicl":
-                    clf = TabICLClassifier(device=device, n_estimators=1)
-                case "random_forest":
-                    clf = RandomForestClassifier(n_jobs=4)
-                case _:
-                    clf = TabPFNClassifier(
-                        device=device, ignore_pretraining_limits=True, n_estimators=1
-                    )
+            if checkpoint_path == "tabicl":
+                clf = TabICLClassifier(device=device, n_estimators=1)
+            elif checkpoint_path == "random_forest":
+                clf = RandomForestClassifier(n_jobs=4)
 
             if feature_number != 0 and feature_number < X.shape[1]:
                 print(
@@ -178,10 +180,7 @@ def main(
             ):
                 X_train, X_test = X_new[train_idx], X_new[test_idx]
                 y_train, y_test = y[train_idx], y[test_idx]
-                if checkpoint_path in other_classifiers:
-                    clf.fit(X_train, y_train)
-                else:
-                    clf.fit(X_train, y_train, model=model)
+                clf.fit(X_train, y_train)
                 pred_probs = clf.predict_proba(X_test)
                 pred_res = PredictionResults(y_test, pred_probs)
                 accuracy = pred_res.get_classification_report(print_report=False)["accuracy"]
