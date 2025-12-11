@@ -2,7 +2,7 @@
 #SBATCH --job-name=TabPFN-Wide-analysis
 #SBATCH --array=0-5
 #SBATCH --cpus-per-task=10
-#SBATCH --mem=32G
+#SBATCH --mem=100G
 #SBATCH --gres=gpu:1
 #SBATCH --time=24:00:00
 #SBATCH --output=analysis_job_%A_%a.out
