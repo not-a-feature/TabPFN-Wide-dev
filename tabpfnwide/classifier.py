@@ -3,6 +3,8 @@ import os
 from tabpfn import TabPFNClassifier
 from tabpfn.model.loading import load_model_criterion_config
 from tabpfnwide.patches import fit as patched_fit
+from tabpfn.base import determine_precision
+from tabpfn.utils import infer_random_state
 
 
 class TabPFNWideClassifier(TabPFNClassifier):
@@ -38,10 +40,15 @@ class TabPFNWideClassifier(TabPFNClassifier):
 
         self.wide_model = self._load_wide_model()
 
-        # Reset model_path to avoid TabPFNClassifier trying to load it again in fit()
-        # which can fail if the checkpoint config is an object instead of a dict
-        if self.model_name != "v2.5":
-            self.model_path = ""
+    def _initialize_model_variables(self):
+        # We already loaded the model in __init__
+        self.models_ = [self.wide_model]
+        
+        # Determine precision and random state as in the original method
+        _, rng = infer_random_state(self.random_state)
+        _, _, byte_size = determine_precision(self.inference_precision, self.devices_)
+        
+        return byte_size, rng
 
     def _load_wide_model(self):
         # Load the base model structure
