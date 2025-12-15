@@ -14,7 +14,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
         model_path="",
         device="cuda",
         features_per_group=1,
-        n_estimators=1,
+        n_estimators=8,
         **kwargs,
     ):
 
@@ -40,10 +40,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
         if "ignore_pretraining_limits" not in kwargs:
             kwargs["ignore_pretraining_limits"] = True
 
-        kwargs["n_estimators"] = n_estimators
-        # kwargs["features_per_group"] = features_per_group
-
-        super().__init__(device=device, **kwargs)
+        super().__init__(device=device, n_estimators=n_estimators, **kwargs)
 
         # Restore model_path after super().__init__ overwrites it with default "auto"
         self.model_path = model_path
@@ -52,11 +49,11 @@ class TabPFNWideClassifier(TabPFNClassifier):
         self.n_estimators = n_estimators
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.wide_model = self._load_wide_model()
+        self.model = self._load_model()
 
     def _initialize_model_variables(self):
         # We already loaded the model in __init__
-        self.models_ = [self.wide_model]
+        self.models_ = [self.model]
 
         static_seed, rng = infer_random_state(self.random_state)
 
@@ -92,7 +89,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
 
         return byte_size, rng
 
-    def _load_wide_model(self):
+    def _load_model(self):
         # Load the base model structure
         models, _, configs, inference_config = load_model_criterion_config(
             model_path=None,
@@ -109,7 +106,6 @@ class TabPFNWideClassifier(TabPFNClassifier):
 
         if self.model_name != "v2.5":
             model.features_per_group = self.features_per_group
-            model.n_estimators = self.n_estimators
             checkpoint = torch.load(self.model_path, map_location=self.device, weights_only=False)
 
             # Handle DDP-wrapped checkpoints
@@ -129,4 +125,4 @@ class TabPFNWideClassifier(TabPFNClassifier):
 
     def fit(self, X, y):
         # Use the patched fit function, passing the loaded model
-        return patched_fit(self, X, y, model=self.wide_model)
+        return patched_fit(self, X, y, model=self.model)

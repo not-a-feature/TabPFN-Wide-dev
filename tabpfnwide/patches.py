@@ -35,7 +35,7 @@ def fit(self, X: XType, y: YType, model=None) -> Self:
 
     # Initialize tuning attributes to defaults, as the original fit does
     self.tuned_classification_thresholds_ = None
-    self.softmax_temperature_ = getattr(self, "softmax_temperature", 1.0)
+    self.softmax_temperature_ = getattr(self, "softmax_temperature", 0.9)
 
     # Create the inference engine
     self.executor_ = create_inference_engine(
