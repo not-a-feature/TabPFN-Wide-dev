@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=TabPFN-Wide-analysis
-#SBATCH --array=0-5
+#SBATCH --array=0-4
 
 #SBATCH --cpus-per-task=100
 #SBATCH --nodes=1
