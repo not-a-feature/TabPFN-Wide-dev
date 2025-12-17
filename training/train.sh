@@ -49,6 +49,12 @@ case "${TASK_ID}" in
         ;;
 esac
 
+## DEBUG only run no 5
+if [[ "${TASK_ID}" -ne 5 ]]; then
+    echo "Skipping TASK_ID ${TASK_ID} (DEBUG mode)." >&2
+    exit 0
+fi
+
 CHECKPOINT_DIR="${BASE_DIR_LOCAL}/checkpoints/${TASK_ID}_AddFeat${ADD_FEATURES_MAX}_NEst${N_ESTIMATORS}_Group${GROUPING}"
 mkdir -p $CHECKPOINT_DIR
 
