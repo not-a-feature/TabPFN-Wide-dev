@@ -2,6 +2,8 @@
 
 set -e
 
+export PYTHONPATH=$PYTHONPATH:.
+
 CHECKPOINT_PATH="$1"
 OUTPUT_DIR="$2"
 RUN_HDLSS_ONLY="${3:-false}"
