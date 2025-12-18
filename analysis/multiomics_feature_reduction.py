@@ -80,9 +80,7 @@ def main(
                 with open(config_path, "r") as f:
                     config = json.load(f)
                 if "model_config" in config:
-                    features_per_group = config["model_config"]["features_per_group"].get(
-                        "features_per_group", 1
-                    )
+                    features_per_group = config["model_config"]["features_per_group"]
                 if "n_estimators" in config:
                     n_estimators = config["train_config"]["n_estimators"]
             else:
