@@ -5,7 +5,7 @@ from sklearn.decomposition import SparsePCA
 from sklearn.preprocessing import scale
 from functools import lru_cache
 
-ALL_MULTIOMICS_DATASETS = set(["BRCA", "COAD", "GBM", "LGG", "OV", "SARC"])
+ALL_MULTIOMICS_DATASETS = set(["BRCA", "COAD", "GBM", "LGG", "OV"])
 ALL_MULTIOMICS_DATASETS_SHAMIR = set(
     ["aml", "breast", "colon", "gbm", "kidney", "liver", "lung", "melanoma", "ovarian", "sarcoma"]
 )

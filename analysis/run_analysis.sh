@@ -56,7 +56,7 @@ if [ ! -f "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" ]; then
     echo "----------------------------------------"
     echo "Running Multi-omics Feature Reduction..."
     echo "----------------------------------------"
-    for dataset in LGG OV BRCA SARC; do
+    for dataset in BRCA COAD GBM LGG OV; do
         echo "Processing dataset: $dataset"
         python analysis/multiomics_feature_reduction.py \
             "benchmark_data/multiomics_benchmark_data" \
