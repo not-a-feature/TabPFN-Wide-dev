@@ -57,6 +57,7 @@ def main(device, openml_id, checkpoint_path, output, config_path=None):
             n_estimators=1,
             features_per_group=features_per_group,
             ignore_pretraining_limits=True,
+            save_attention_maps=True,
         )
     else:
         clf = TabPFNWideClassifier(
@@ -64,6 +65,7 @@ def main(device, openml_id, checkpoint_path, output, config_path=None):
             device=device,
             n_estimators=1,
             ignore_pretraining_limits=True,
+            save_attention_maps=True,
         )
 
     model = clf.model
@@ -87,11 +89,6 @@ def main(device, openml_id, checkpoint_path, output, config_path=None):
         y_train_np = y_train
         X_test_np = X_test.cpu().numpy()
 
-        for layer in model.transformer_encoder.layers:
-            layer.self_attn_between_features.attention_map = None
-            layer.self_attn_between_features.save_att_map = True
-            layer.self_attn_between_features.number_of_samples = X_train.shape[0]
-
         clf.fit(X_train_np, y_train_np)
         pred_probs = clf.predict_proba(X_test_np)
 
@@ -100,10 +97,9 @@ def main(device, openml_id, checkpoint_path, output, config_path=None):
         except Exception as e:
             print(e)
 
-        atts = [
-            getattr(layer.get_submodule("self_attn_between_features"), "attention_map")
-            for layer in model.transformer_encoder.layers
-        ]
+        atts = clf.get_attention_maps()
+        # Convert numpy arrays back to tensors
+        atts = [torch.from_numpy(att) for att in atts]
         atts = torch.stack(atts, dim=0)
         att_to_last_column = atts.mean(dim=0)[-1, :-1]
 

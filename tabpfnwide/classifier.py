@@ -15,6 +15,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
         device="cuda",
         features_per_group=1,
         n_estimators=8,
+        save_attention_maps=False,
         **kwargs,
     ):
 
@@ -30,10 +31,15 @@ class TabPFNWideClassifier(TabPFNClassifier):
                 )
             if model_name != "v2.5":
                 # TODO FIX LOCAL PATH
-                model_path = os.path.join(f"TODO FIX LOCAL PATH{model_name}.pt")
+                model_path = os.path.join(f"TODO FIX LOCAL PATH {model_name}.pt")
 
         if model_name != "v2.5" and not os.path.isfile(model_path):
             raise ValueError(f"Model path {model_path} does not exist.")
+
+        if save_attention_maps and (n_estimators != 1 or features_per_group != 1):
+            raise ValueError(
+                "save_attention_maps can only be True when n_estimators=1 and features_per_group=1"
+            )
 
         # Initialize parent TabPFNClassifier
         # We pass ignore_pretraining_limits=True by default as in the example, but allow override
@@ -47,6 +53,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
         self.model_name = model_name
         self.features_per_group = features_per_group
         self.n_estimators = n_estimators
+        self.save_attention_maps = save_attention_maps
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
         self.model = self._load_model()
@@ -124,5 +131,21 @@ class TabPFNWideClassifier(TabPFNClassifier):
         return model
 
     def fit(self, X, y):
+        if self.save_attention_maps:
+            for layer in self.model.transformer_encoder.layers:
+                if hasattr(layer, "self_attn_between_features"):
+                    layer.self_attn_between_features.save_att_map = True
+                    layer.self_attn_between_features.number_of_samples = X.shape[0]
+                    layer.self_attn_between_features.attention_map = None
+
         # Use the patched fit function, passing the loaded model
         return patched_fit(self, X, y, model=self.model)
+
+    def get_attention_maps(self):
+        maps = []
+        for layer in self.model.transformer_encoder.layers:
+            if hasattr(layer, "self_attn_between_features"):
+                attn = getattr(layer.self_attn_between_features, "attention_map", None)
+                if attn is not None:
+                    maps.append(attn.numpy())
+        return maps
