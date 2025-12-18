@@ -70,7 +70,7 @@ def _compute(
     cache_kv: bool,
     use_cached_kv: bool,
     reuse_first_head_kv: bool,
-    use_second_set_of_queries: bool,
+    use_second_set_of_queries: bool = False,
 ) -> torch.Tensor:
     """Attention computation.
     Called by 'forward', potentially on shards, once shapes have been normalized.
@@ -84,7 +84,7 @@ def _compute(
         cache_kv=cache_kv,
         use_cached_kv=use_cached_kv,
         reuse_first_head_kv=reuse_first_head_kv,
-        use_second_set_of_queries=use_second_set_of_queries,
+        # use_second_set_of_queries=use_second_set_of_queries,
     )
     attention_head_outputs = self.compute_attention_heads(
         q,
