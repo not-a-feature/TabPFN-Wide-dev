@@ -86,18 +86,50 @@ def main(
             pass  # Will be created in loop
         elif checkpoint_path == "random_forest":
             pass  # Will be created in loop
-        elif checkpoint_path == "default":
+        elif checkpoint_path == "default_n1g1":
             clf = TabPFNWideClassifier(
                 model_name="v2.5",
-                model_path="",
                 device=device,
                 n_estimators=1,
+                features_per_group=1,
+                ignore_pretraining_limits=True,
+            )
+        elif checkpoint_path == "default_n8g3":
+            clf = TabPFNWideClassifier(
+                model_name="v2.5",
+                device=device,
+                n_estimators=8,
+                features_per_group=3,
                 ignore_pretraining_limits=True,
             )
         else:
             features_per_group = 1
+            n_estimators = 1
             if config_path and os.path.exists(config_path):
                 import json
+                with open(config_path, "r") as f:
+                    config = json.load(f)
+                if "model_config" in config:
+                    features_per_group = config["model_config"].get("features_per_group", 1)
+                if "n_estimators" in config:
+                    n_estimators = config["n_estimators"]
+            else:
+                try:
+                    with open(checkpoint_path + "config.json", "r") as f:
+                        config = json.load(f)
+                        features_per_group = config["model_config"]
+                        n_estimators = config["n_estimators"]
+                except:
+                    pass
+
+            clf = TabPFNWideClassifier(
+                model_name="",
+                model_path=checkpoint_path,
+                device=device,
+                n_estimators=n_estimators,
+                ignore_pretraining_limits=True,
+                features_per_group=features_per_group,
+            )
 
                 with open(config_path, "r") as f:
                     config = json.load(f)

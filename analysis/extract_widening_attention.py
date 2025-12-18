@@ -9,9 +9,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 import argparse
 import pickle
+import json
 
 
-def main(device, openml_id, checkpoint_path, output, config_path=None):
+def main(device, openml_id, checkpoint_path, output, config_path):
     """
     Runs an analysis pipeline to evaluate attention patterns in a transformer-based model on tabular data with added noise and sparsity.
 
@@ -20,12 +21,28 @@ def main(device, openml_id, checkpoint_path, output, config_path=None):
         openml_id (int): The OpenML dataset ID to load.
         checkpoint_path (str): Path to the model checkpoint file.
         output (str): Path to save the output pickle file.
-        config_path (str, optional): Path to the config.json file. Defaults to None.
+        config_path (str): Path to the config.json file. Defaults to None.
     Description:
         - Loads the specified OpenML dataset and preprocesses it (encoding, shuffling).
         - Adds new features using either feature smearing or needle-in-a-haystack approach.
         - Saves attention maps from the model during inference to an output pickle file.
     """
+
+    if checkpoint_path == "default_n1g1":
+        n_estimators = 1
+        features_per_group = 1
+    elif checkpoint_path == "default_n8g3":
+        n_estimators = 8
+        features_per_group = 3
+    else:
+        with open(config_path, "r") as f:
+            config = json.load(f)
+            features_per_group = config["model_config"]
+            n_estimators = config["n_estimators"]
+
+    if features_per_group != 1 or n_estimators != 1:
+        return
+
     dataset = openml.datasets.get_dataset(openml_id)
     X, y, categorical_indicator, _ = dataset.get_data(target=dataset.default_target_attribute)
     X, y = shuffle(X, y, random_state=42)
@@ -41,33 +58,34 @@ def main(device, openml_id, checkpoint_path, output, config_path=None):
     )
 
     features_per_group = 1
-    if config_path and os.path.exists(config_path):
-        import json
 
-        with open(config_path, "r") as f:
-            config = json.load(f)
-        if "model_config" in config:
-            features_per_group = config["model_config"].get("features_per_group", 1)
-
-    if checkpoint_path != "default":
+    if checkpoint_path == "default_n1g1":
         clf = TabPFNWideClassifier(
-            model_path=checkpoint_path,
+            model_name="v2.5",
             device=device,
             n_estimators=1,
-            features_per_group=features_per_group,
+            features_per_group=1,
+            ignore_pretraining_limits=True,
+            save_attention_maps=True,
+        )
+    elif checkpoint_path == "default_n8g3":
+        clf = TabPFNWideClassifier(
+            model_name="v2.5",
+            device=device,
+            n_estimators=8,
+            features_per_group=3,
             ignore_pretraining_limits=True,
             save_attention_maps=True,
         )
     else:
         clf = TabPFNWideClassifier(
-            model_name="v2.5",
+            model_path=checkpoint_path,
             device=device,
-            n_estimators=1,
+            n_estimators=n_estimators,
+            features_per_group=features_per_group,
             ignore_pretraining_limits=True,
             save_attention_maps=True,
         )
-
-    model = clf.model
 
     permutation = None
     attentions_to_last_column = {}

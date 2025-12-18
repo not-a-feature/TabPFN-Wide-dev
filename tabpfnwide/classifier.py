@@ -13,7 +13,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
         model_name="",
         model_path="",
         device="cuda",
-        features_per_group=1,
+        features_per_group=3,
         n_estimators=8,
         save_attention_maps=False,
         **kwargs,

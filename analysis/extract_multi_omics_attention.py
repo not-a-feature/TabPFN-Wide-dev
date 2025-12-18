@@ -9,10 +9,16 @@ import warnings
 
 warnings.filterwarnings("ignore")
 import argparse
+import json
 
 
 def main(
-    dataset_name, output_file, checkpoint_path, device="cuda:0", omic="mrna", config_path=None
+    dataset_name,
+    output_file,
+    checkpoint_path,
+    config_path,
+    device="cuda:0",
+    omic="mrna",
 ):
     """
     Extracts and saves attention maps from a trained transformer-based model on multi-omics data.
@@ -20,9 +26,9 @@ def main(
         dataset_name (str): Name of the multi-omics dataset to use.
         output_file (str): Path to save the extracted attention maps (as a torch file).
         checkpoint_path (str): Path to the model checkpoint to load weights from.
+        config_path (str): Path to the config.json file.
         device (str, optional): Device to run the model on (default: "cuda:0").
         omic (str, optional): Omics data type to use from the dataset (default: "mrna").
-        config_path (str, optional): Path to the config.json file. Defaults to None.
     Description:
         - Loads multi-omics data and encodes labels.
         - Loads a TabPFN-Wide model.
@@ -30,6 +36,20 @@ def main(
         - Runs inference to obtain predictions and attention maps.
         - Saves the extracted attention maps to the specified output file.
     """
+    if checkpoint_path == "default_n1g1":
+        n_estimators = 1
+        features_per_group = 1
+    elif checkpoint_path == "default_n8g3":
+        n_estimators = 8
+        features_per_group = 3
+    else:
+        with open(config_path, "r") as f:
+            config = json.load(f)
+            features_per_group = config["model_config"]
+            n_estimators = config["n_estimators"]
+
+    if features_per_group != 1 or n_estimators != 1:
+        return
 
     ds_dict, labels = load_multiomics(dataset_name)
     mrna = ds_dict[omic]
@@ -37,29 +57,30 @@ def main(
     y = LabelEncoder().fit_transform(y)
     print(X.shape)
 
-    features_per_group = 1
-    if config_path and os.path.exists(config_path):
-        import json
-
-        with open(config_path, "r") as f:
-            config = json.load(f)
-        if "model_config" in config:
-            features_per_group = config["model_config"].get("features_per_group", 1)
-
-    if checkpoint_path != "default":
+    if checkpoint_path == "default_n1g1":
         clf = TabPFNWideClassifier(
-            model_path=checkpoint_path,
+            model_name="v2.5",
             device=device,
             n_estimators=1,
-            features_per_group=features_per_group,
+            features_per_group=1,
+            ignore_pretraining_limits=True,
+            save_attention_maps=True,
+        )
+    elif checkpoint_path == "default_n8g3":
+        clf = TabPFNWideClassifier(
+            model_name="v2.5",
+            device=device,
+            n_estimators=8,
+            features_per_group=3,
             ignore_pretraining_limits=True,
             save_attention_maps=True,
         )
     else:
         clf = TabPFNWideClassifier(
-            model_name="v2.5",
+            model_path=checkpoint_path,
             device=device,
-            n_estimators=1,
+            n_estimators=n_estimators,
+            features_per_group=features_per_group,
             ignore_pretraining_limits=True,
             save_attention_maps=True,
         )
@@ -102,7 +123,7 @@ if __name__ == "__main__":
         args.dataset_name,
         args.output_file,
         args.checkpoint_path,
+        args.config_path,
         args.device,
         args.omic,
-        config_path=args.config_path,
     )
