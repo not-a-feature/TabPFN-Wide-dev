@@ -56,14 +56,15 @@ def main(
     if os.path.exists(output_file):
         results = pd.read_csv(output_file)
     for checkpoint_path in checkpoint_paths:
-        model, _, _ = load_model_criterion_config(
+        models, _, _, _ = load_model_criterion_config(
             model_path=None,
             check_bar_distribution_criterion=False,
             cache_trainset_representation=False,
             which="classifier",
             version="v2.5",
-            download=True,
+            download_if_not_exists=True,
         )
+        model = models[0]
         if checkpoint_path != "default":
             if config_path and os.path.exists(config_path):
                 import json
