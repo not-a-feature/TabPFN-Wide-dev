@@ -129,33 +129,10 @@ def main(
                     break
 
                 # Convert tensors to numpy for TabPFNClassifier
-                print(f"\n=== DEBUG: Data shapes before conversion ===")
-                print(
-                    f"X_train_tensor shape: {X_train_tensor.shape}, dtype: {X_train_tensor.dtype}"
-                )
-                print(
-                    f"y_train_tensor shape: {y_train_tensor.shape}, dtype: {y_train_tensor.dtype}"
-                )
-                print(f"X_test_tensor shape: {X_test_tensor.shape}, dtype: {X_test_tensor.dtype}")
-                print(f"y_test_tensor shape: {y_test_tensor.shape}, dtype: {y_test_tensor.dtype}")
-
                 X_train = X_train_tensor.cpu().numpy()
                 y_train = y_train_tensor.cpu().numpy().flatten()
                 X_test = X_test_tensor.cpu().numpy()
                 y_test = y_test_tensor.cpu().numpy().flatten()
-
-                print(f"\n=== DEBUG: Data shapes after numpy conversion ===")
-                print(f"X_train shape: {X_train.shape}, dtype: {X_train.dtype}")
-                print(f"X_train ndim: {X_train.ndim}")
-                print(
-                    f"X_train first 3 values:\n{X_train[:3] if X_train.ndim >= 2 else X_train[:3]}"
-                )
-                print(f"y_train shape: {y_train.shape}, dtype: {y_train.dtype}")
-                print(f"X_test shape: {X_test.shape}, dtype: {X_test.dtype}")
-                print(f"y_test shape: {y_test.shape}, dtype: {y_test.dtype}")
-
-                print(f"\n=== DEBUG: Fold info ===")
-                print(f"Fold: {i}, Dataset: {dataset_name}, n_features (from arg): {n_features}")
 
                 clf.fit(X_train, y_train)
                 pred_probs = clf.predict_proba(X_test)

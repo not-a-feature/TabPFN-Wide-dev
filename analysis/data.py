@@ -46,8 +46,6 @@ def get_wide_validation_datasets(
     x_list = [ds[omic] for omic in omics]
     X, y = pd.concat(x_list, axis=1), ds["labels"]
 
-    print(f"Before feature reduction - X shape: {X.shape}, y shape: {y.shape}")
-
     if reduced_features > X.shape[-1]:
         print(
             f"Skipping {dataset_name} with {reduced_features} features, not enough features in dataset"
@@ -56,40 +54,25 @@ def get_wide_validation_datasets(
     else:
         if reduced_features > 0:
             X = feature_reduction_agglomeration(X, n_features=reduced_features).values
-            print(f"After feature reduction - X shape: {X.shape}")
         else:
             X = X.values
-            print(f"No feature reduction - X shape: {X.shape}")
 
         X = X.astype(np.float32)
         label_encoder = LabelEncoder()
         y = label_encoder.fit_transform(y)
-        print(f"After numpy conversion - X shape: {X.shape}, X dtype: {X.dtype}")
         yield from generate_tensor_folds(X, y, device, n_splits=n_splits, n_repeats=n_repeats)
 
 
 def generate_tensor_folds(X, y, device, n_splits=5, n_repeats=1):
-    print(f"\n=== DEBUG: generate_tensor_folds ===")
-    print(f"Input X shape: {X.shape}, dtype: {X.dtype}")
-    print(f"Input y shape: {y.shape}, dtype: {y.dtype}")
-
     for train_idx, test_idx in RepeatedStratifiedKFold(
         n_splits=n_splits, n_repeats=n_repeats, random_state=42
     ).split(X, y):
         X_train, X_test = X[train_idx], X[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
-
-        print(f"\nFold split - X_train shape: {X_train.shape}, X_test shape: {X_test.shape}")
-
-        X_train_tensor = torch.tensor(X_train, dtype=torch.float32).unsqueeze(1).to(device)
-        X_test_tensor = torch.tensor(X_test, dtype=torch.float32).unsqueeze(1).to(device)
-        y_train_tensor = torch.tensor(y_train, dtype=torch.int8).unsqueeze(1).to(device)
-        y_test_tensor = torch.tensor(y_test, dtype=torch.int8).unsqueeze(1).to(device)
-
-        print(f"After unsqueeze - X_train_tensor shape: {X_train_tensor.shape}")
-        print(f"After unsqueeze - y_train_tensor shape: {y_train_tensor.shape}")
-        print(f"WARNING: X_train_tensor is 3D! This will cause issues with sklearn/TabPFN")
-
+        X_train_tensor = torch.tensor(X_train, dtype=torch.float32).to(device)
+        X_test_tensor = torch.tensor(X_test, dtype=torch.float32).to(device)
+        y_train_tensor = torch.tensor(y_train, dtype=torch.int8).to(device)
+        y_test_tensor = torch.tensor(y_test, dtype=torch.int8).to(device)
         yield X_train_tensor, y_train_tensor, X_test_tensor, y_test_tensor
 
 
