@@ -2,9 +2,8 @@ import numpy as np
 import torch
 from analysis.utils import get_new_features
 from tabpfnwide.classifier import TabPFNWideClassifier
-import matplotlib.pyplot as plt
 import openml
-import seaborn as sns
+import os
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
