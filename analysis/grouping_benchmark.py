@@ -161,7 +161,9 @@ def plot_combined_results(df, output_plot):
     plot_df["combo_label"] = plot_df.apply(get_combo_label, axis=1)
 
     # Determine order
-    unique_labels = sorted(plot_df["combo_label"].unique())
+    unique_labels = (
+        plot_df.groupby("combo_label")["accuracy"].median().sort_values(ascending=False).index
+    )
 
     fig, ax = plt.subplots(figsize=(max(10, len(unique_labels) * 0.45), 6))
     sns.boxplot(
@@ -208,7 +210,9 @@ def plot_combined_auroc_results(df, output_plot):
     plot_df["combo_label"] = plot_df.apply(get_combo_label, axis=1)
 
     # Determine order
-    unique_labels = sorted(plot_df["combo_label"].unique())
+    unique_labels = (
+        plot_df.groupby("combo_label")["roc_auc_score"].median().sort_values(ascending=False).index
+    )
 
     fig, ax = plt.subplots(figsize=(max(10, len(unique_labels) * 0.45), 6))
     sns.boxplot(

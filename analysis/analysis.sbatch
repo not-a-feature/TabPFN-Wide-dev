@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=TabPFN-Wide-analysis
-#SBATCH --array=0-5
+#SBATCH --array=0-4
 
 #SBATCH --cpus-per-task=100
 #SBATCH --nodes=1
@@ -51,12 +51,12 @@ OUTPUT_DIR="${BASE_DIR_LOCAL}/analysis_results/$(basename "$CURRENT_CHECKPOINT_D
 echo "Running analysis for checkpoint: $CHECKPOINT_PATH"
 echo "Output directory: $OUTPUT_DIR"
 
-RUN_HDLSS_ONLY=true
+RUN_HDLSS_ONLY=false
 #RUN_HDLSS_ONLY=${RUN_HDLSS_ONLY:-false}
 bash analysis/run_analysis.sh "$CHECKPOINT_PATH" "$OUTPUT_DIR" "$RUN_HDLSS_ONLY"
 
 # If this is the last task (assuming array 0-5), run the comparison script
-if [ "$SLURM_ARRAY_TASK_ID" -eq 5 ]; then
+if [ "$SLURM_ARRAY_TASK_ID" -eq 4 ]; then
     echo "Task ID 5: Running default model analysis..."
     OUTPUT_DIR_DEFAULT="${BASE_DIR_LOCAL}/analysis_results/default"
     bash analysis/run_analysis.sh "v2.5" "$OUTPUT_DIR_DEFAULT" "$RUN_HDLSS_ONLY"

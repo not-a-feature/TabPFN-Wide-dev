@@ -36,7 +36,11 @@ def plot_metric_vs_categorical(
     if unique_x > 40:
         # If too many items, fall back to aggregated plot grouped by hue
         print(f"Comparison has {unique_x} categories for {x_col}, switching to aggregated view.")
-        sns.boxplot(data=df, x=hue_col, y=metric)
+
+        # Sort hue_col by median metric
+        hue_order = df.groupby(hue_col)[metric].median().sort_values(ascending=False).index
+
+        sns.boxplot(data=df, x=hue_col, y=metric, order=hue_order)
         plt.xlabel(hue_col.replace("_", " ").title() if not xlabel else xlabel)
         plt.ylabel(ylabel if ylabel else metric.replace("_", " ").title())
         plt.title(f"{title if title else basename} - Aggregated {metric}")
@@ -45,7 +49,10 @@ def plot_metric_vs_categorical(
         return
 
     # Standard detailed plot
-    sns.boxplot(data=df, x=x_col, y=metric, hue=hue_col)
+    # Sort x_col by median metric
+    order = df.groupby(x_col)[metric].median().sort_values(ascending=False).index
+
+    sns.boxplot(data=df, x=x_col, y=metric, hue=hue_col, order=order)
     plt.xticks(rotation=45, ha="right")
     plt.ylim(0, 1.05)
     plt.xlabel(xlabel if xlabel else x_col.replace("_", " ").title())
@@ -87,7 +94,8 @@ def plot_hdlss(df, output_dir, basename):
         # Plot 2: Aggregated Summary (if more than 1 dataset)
         if df["dataset_name"].nunique() > 1:
             plt.figure(figsize=(8, 6))
-            sns.barplot(data=df, x="checkpoint", y=metric, errorbar="sd", capsize=0.1)
+            order = df.groupby("checkpoint")[metric].mean().sort_values(ascending=False).index
+            sns.barplot(data=df, x="checkpoint", y=metric, errorbar="sd", capsize=0.1, order=order)
             plt.ylim(0, 1.05)
             plt.title(f"Aggregated {metric.replace('_', ' ').title()} - {basename}")
             plt.xlabel("Checkpoint")
@@ -108,7 +116,10 @@ def plot_hdlss(df, output_dir, basename):
                     continue
 
                 plt.figure(figsize=(8, 6))
-                sns.barplot(data=ds_df, x="checkpoint", y=metric)
+                order = (
+                    ds_df.groupby("checkpoint")[metric].mean().sort_values(ascending=False).index
+                )
+                sns.barplot(data=ds_df, x="checkpoint", y=metric, order=order)
                 plt.ylim(0, 1.05)
                 plt.title(f"{ds} - {metric.replace('_', ' ').title()}")
                 plt.xlabel("Checkpoint")
@@ -142,7 +153,8 @@ def plot_openml(df, output_dir, basename):
         # Aggregated
         if df["task_id"].nunique() > 1:
             plt.figure(figsize=(8, 6))
-            sns.barplot(data=df, x="checkpoint", y=metric, errorbar="sd", capsize=0.1)
+            order = df.groupby("checkpoint")[metric].mean().sort_values(ascending=False).index
+            sns.barplot(data=df, x="checkpoint", y=metric, errorbar="sd", capsize=0.1, order=order)
             plt.ylim(0, 1.05)
             plt.title(f"Aggregated {metric.replace('_', ' ').title()} - {basename}")
             plt.xlabel("Checkpoint")
@@ -162,7 +174,10 @@ def plot_openml(df, output_dir, basename):
                     continue
 
                 plt.figure(figsize=(8, 6))
-                sns.barplot(data=task_df, x="checkpoint", y=metric)
+                order = (
+                    task_df.groupby("checkpoint")[metric].mean().sort_values(ascending=False).index
+                )
+                sns.barplot(data=task_df, x="checkpoint", y=metric, order=order)
                 plt.ylim(0, 1.05)
                 plt.title(f"Task {task} - {metric.replace('_', ' ').title()}")
                 plt.xlabel("Checkpoint")
