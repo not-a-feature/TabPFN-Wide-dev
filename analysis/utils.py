@@ -2,7 +2,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, roc_auc_score, f1_score, average_precision_score
 from sklearn.cluster import FeatureAgglomeration
 from sklearn.feature_selection import SelectFromModel
-from tabpfn.model_loading import load_model_criterion_config
+from tabpfnwide.classifier import TabPFNWideClassifier
 import torch
 from torch import nn
 import pickle
@@ -24,7 +24,7 @@ class PredictionResults:
                     self.ground_truth,
                     self.prediction_probas.argmax(axis=1),
                     target_names=self.target_names,
-                    **kwargs
+                    **kwargs,
                 )
             )
         return classification_report(
@@ -32,7 +32,7 @@ class PredictionResults:
             self.prediction_probas.argmax(axis=1),
             target_names=self.target_names,
             output_dict=True,
-            **kwargs
+            **kwargs,
         )
 
     def get_roc_auc_score(self, **kwargs):
@@ -108,23 +108,6 @@ def feature_reduction_from_model(
     reduced_df_test = pd.DataFrame(X_test_reduced, columns=fs.get_feature_names_out())
     reduced_df_test.index = X_test.index
     return reduced_df_train, reduced_df_test
-
-
-def load_pytorch_tabpfn(device="cuda:0"):
-    models, _, _, _ = load_model_criterion_config(
-        model_path=None,
-        check_bar_distribution_criterion=False,
-        cache_trainset_representation=False,
-        which="classifier",
-        version="v2.5",
-        download_if_not_exists=True,
-    )
-    model = models[0]
-    # Disable feature grouping
-    model.features_per_group = 1
-    model = model.to(device)
-    model = model.eval()
-    return model
 
 
 def get_feature_dependent_noise(x_tensor, std):

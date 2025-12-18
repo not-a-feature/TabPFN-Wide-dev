@@ -13,7 +13,6 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import roc_auc_score
 from sklearn.utils import shuffle
-from tabpfn.model_loading import load_model_criterion_config
 from tabpfn import TabPFNClassifier
 from analysis.utils import PredictionResults, get_new_features
 from tabpfnwide.classifier import TabPFNWideClassifier

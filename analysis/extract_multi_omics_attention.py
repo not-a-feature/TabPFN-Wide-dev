@@ -4,11 +4,7 @@ import torch
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from analysis.load_mm_data import load_multiomics
-from tabpfnwide.patches import fit
-from tabpfn.model_loading import load_model_criterion_config
-from tabpfn import TabPFNClassifier
-
-setattr(TabPFNClassifier, "fit", fit)
+from tabpfnwide.classifier import TabPFNWideClassifier
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -41,42 +37,32 @@ def main(
     y = LabelEncoder().fit_transform(y)
     print(X.shape)
 
-    models, _, _, _ = load_model_criterion_config(
-        model_path=None,
-        check_bar_distribution_criterion=False,
-        cache_trainset_representation=False,
-        which="classifier",
-        version="v2.5",
-        download_if_not_exists=True,
-    )
-    model = models[0]
-
+    features_per_group = 1
     if config_path and os.path.exists(config_path):
         import json
 
         with open(config_path, "r") as f:
             config = json.load(f)
         if "model_config" in config:
-            model.features_per_group = config["model_config"].get("features_per_group", 1)
-    else:
-        model.features_per_group = 1
+            features_per_group = config["model_config"].get("features_per_group", 1)
 
     if checkpoint_path != "default":
-        checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+        clf = TabPFNWideClassifier(
+            model_path=checkpoint_path,
+            device=device,
+            n_estimators=1,
+            features_per_group=features_per_group,
+            ignore_pretraining_limits=True,
+        )
+    else:
+        clf = TabPFNWideClassifier(
+            model_name="v2.5",
+            device=device,
+            n_estimators=1,
+            ignore_pretraining_limits=True,
+        )
 
-        # Handle DDP-wrapped checkpoints
-        if "state_dict" in checkpoint:
-            state_dict = checkpoint["state_dict"]
-        else:
-            state_dict = checkpoint
-
-        # Unwrap DDP prefix if present
-        if any(k.startswith("module.") for k in state_dict.keys()):
-            state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
-
-        model.load_state_dict(state_dict)
-
-    model.to(device)
+    model = clf.model
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -85,8 +71,7 @@ def main(
         layer.self_attn_between_features.save_att_map = True
         layer.self_attn_between_features.number_of_samples = X_train.shape[0]
 
-    clf = TabPFNClassifier(device=device, n_estimators=1, ignore_pretraining_limits=True)
-    clf.fit(X_train, y_train, model=model)
+    clf.fit(X_train, y_train)
     clf.predict_proba(X_test)
 
     atts = [

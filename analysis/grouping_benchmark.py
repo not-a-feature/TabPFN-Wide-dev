@@ -18,7 +18,6 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 
 from tabpfn import TabPFNClassifier
-from tabpfn.model_loading import load_model_criterion_config
 from tabpfnwide.classifier import TabPFNWideClassifier
 from analysis.utils import PredictionResults
 

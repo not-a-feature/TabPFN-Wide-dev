@@ -7,11 +7,7 @@ import torch
 import matplotlib.pyplot as plt
 from analysis.utils import PredictionResults
 from analysis.data import get_wide_validation_datasets
-from tabpfnwide.patches import fit
-from tabpfn.model_loading import load_model_criterion_config
-from tabpfn import TabPFNClassifier
-
-setattr(TabPFNClassifier, "fit", fit)
+from tabpfnwide.classifier import TabPFNWideClassifier
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -56,15 +52,7 @@ def main(
     if os.path.exists(output_file):
         results = pd.read_csv(output_file)
     for checkpoint_path in checkpoint_paths:
-        models, _, _, _ = load_model_criterion_config(
-            model_path=None,
-            check_bar_distribution_criterion=False,
-            cache_trainset_representation=False,
-            which="classifier",
-            version="v2.5",
-            download_if_not_exists=True,
-        )
-        model = models[0]
+        features_per_group = 1
         if checkpoint_path != "default":
             if config_path and os.path.exists(config_path):
                 import json
@@ -72,13 +60,23 @@ def main(
                 with open(config_path, "r") as f:
                     config = json.load(f)
                 if "model_config" in config:
-                    model.features_per_group = config["model_config"].get("features_per_group", 1)
-            else:
-                model.features_per_group = 1
-            checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-            model.load_state_dict(checkpoint)
+                    features_per_group = config["model_config"].get("features_per_group", 1)
+
+            clf = TabPFNWideClassifier(
+                model_path=checkpoint_path,
+                device=device,
+                n_estimators=1,
+                features_per_group=features_per_group,
+                ignore_pretraining_limits=True,
+            )
             name = checkpoint_path.split("/")[-1]
         else:
+            clf = TabPFNWideClassifier(
+                model_name="v2.5",
+                device=device,
+                n_estimators=1,
+                ignore_pretraining_limits=True,
+            )
             name = "default"
 
         for n_features in [
@@ -136,10 +134,7 @@ def main(
                 X_test = X_test_tensor.cpu().numpy()
                 y_test = y_test_tensor.cpu().numpy().flatten()
 
-                clf = TabPFNClassifier(
-                    device=device, n_estimators=1, ignore_pretraining_limits=True
-                )
-                clf.fit(X_train, y_train, model=model)
+                clf.fit(X_train, y_train)
                 pred_probs = clf.predict_proba(X_test)
 
                 pred_res = PredictionResults(y_test, pred_probs)
