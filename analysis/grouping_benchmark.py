@@ -553,7 +553,7 @@ def evaluate_task(
         try:
             if extract_embeddings and fold == 0:  # Only extract for first fold
                 embeddings, pred_probs = extract_embeddings_with_model(
-                    clf.wide_model, X_train, y_train, X_test, clf, device
+                    clf.model, X_train, y_train, X_test, clf, device
                 )
                 if embeddings is not None:
                     embeddings_collected.append(embeddings)
