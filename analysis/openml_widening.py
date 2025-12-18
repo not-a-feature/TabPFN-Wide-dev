@@ -17,6 +17,7 @@ from tabpfn import TabPFNClassifier
 from analysis.utils import PredictionResults, get_new_features
 from tabpfnwide.classifier import TabPFNWideClassifier
 
+import json
 import argparse
 
 
@@ -105,32 +106,27 @@ def main(
         else:
             features_per_group = 1
             n_estimators = 1
-            if config_path and os.path.exists(config_path):
-                import json
 
-                with open(config_path, "r") as f:
-                    config = json.load(f)
+            config_file = (
+                config_path
+                if config_path and os.path.exists(config_path)
+                else os.path.join(os.path.dirname(checkpoint_path), "config.json")
+            )
+
+            with open(config_file, "r") as f:
+                config = json.load(f)
                 if "model_config" in config:
-                    features_per_group = config["model_config"].get("features_per_group", 1)
+                    features_per_group = config["model_config"]
                 if "n_estimators" in config:
                     n_estimators = config["n_estimators"]
-            else:
-                try:
-                    config_file = os.path.join(os.path.dirname(checkpoint_path), "config.json")
-                    with open(config_file, "r") as f:
-                        config = json.load(f)
-                        features_per_group = config["model_config"]
-                        n_estimators = config["n_estimators"]
-                except:
-                    pass
 
             clf = TabPFNWideClassifier(
                 model_name="",
                 model_path=checkpoint_path,
                 device=device,
                 n_estimators=n_estimators,
-                ignore_pretraining_limits=True,
                 features_per_group=features_per_group,
+                ignore_pretraining_limits=True,
             )
 
         if checkpoint_path in ["tabicl", "random_forest"]:
