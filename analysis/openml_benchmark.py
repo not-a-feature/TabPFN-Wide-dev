@@ -88,14 +88,14 @@ def main(
                         )
                         print(f"Loaded features_per_group={features_per_group} from config")
                     if "n_estimators" in config:
-                        n_estimators = config["train_config"]["n_estimators "]
+                        n_estimators = config["train_config"]["n_estimators"]
                 else:
                     try:
                         config_file = os.path.join(os.path.dirname(checkpoint_path), "config.json")
                         with open(config_file, "r") as f:
                             config = json.load(f)
                             features_per_group = config["model_config"]["features_per_group"]
-                            n_estimators = config["train_config"]["n_estimators "]
+                            n_estimators = config["train_config"]["n_estimators"]
                     except:
                         pass
 

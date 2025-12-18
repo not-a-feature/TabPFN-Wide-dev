@@ -117,7 +117,7 @@ def main(
             with open(config_file, "r") as f:
                 config = json.load(f)
                 features_per_group = config["model_config"]["features_per_group"]
-                n_estimators = config["train_config"]["n_estimators "]
+                n_estimators = config["train_config"]["n_estimators"]
 
             clf = TabPFNWideClassifier(
                 model_path=checkpoint_path,

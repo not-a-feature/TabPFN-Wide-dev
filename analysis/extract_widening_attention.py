@@ -38,7 +38,7 @@ def main(device, openml_id, checkpoint_path, output, config_path):
         with open(config_path, "r") as f:
             config = json.load(f)
             features_per_group = config["model_config"]["features_per_group"]
-            n_estimators = config["train_config"]["n_estimators "]
+            n_estimators = config["train_config"]["n_estimators"]
 
     if features_per_group != 1 or n_estimators != 1:
         return
