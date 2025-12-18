@@ -236,8 +236,7 @@ if __name__ == "__main__":
         "--feature_numbers",
         type=int,
         nargs="+",
-        # default=[0, 50, 500, 2000, 5000, 10000, 20000, 30000],
-        default=[0, 50, 500, 2000, 5000],
+        default=[0, 50, 500, 2000, 5000, 10000, 20000, 30000],
     )
     parser.add_argument("--device", type=str, default="cuda:0")
 
