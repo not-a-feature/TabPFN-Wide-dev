@@ -109,7 +109,12 @@ def main(
                 save_attention_maps=True,
             )
         else:
-            with open(checkpoint_path + "config.json", "r") as f:
+            config_file = (
+                config_path
+                if config_path
+                else os.path.join(os.path.dirname(checkpoint_path), "config.json")
+            )
+            with open(config_file, "r") as f:
                 config = json.load(f)
                 features_per_group = config["model_config"]
                 n_estimators = config["n_estimators"]

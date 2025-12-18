@@ -85,7 +85,8 @@ def main(
                     n_estimators = config["n_estimators"]
             else:
                 try:
-                    with open(checkpoint_path + "config.json", "r") as f:
+                    config_file = os.path.join(os.path.dirname(checkpoint_path), "config.json")
+                    with open(config_file, "r") as f:
                         config = json.load(f)
                         features_per_group = config["model_config"]
                         n_estimators = config["n_estimators"]
