@@ -64,7 +64,7 @@ if [ ! -f "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" ]; then
             --checkpoint_path "$CHECKPOINT_PATH" \
             --config_path "$CONFIG_FILE" \
             --dataset "$dataset" \
-            --omics "mRNA"
+            --omics "mrna"
     done
 else
     echo "Multi-omics Feature Reduction results exist. Skipping."
@@ -111,7 +111,7 @@ if [ ! -f "${OUTPUT_DIR}/multiomics_attention.pt" ]; then
             --checkpoint_path "$CHECKPOINT_PATH" \
             --config_path "$CONFIG_FILE" \
             --dataset "$dataset" \
-            --omic "mRNA"
+            --omic "mrna"
     done
 else
     echo "Multi-omics Attention Extraction results exist. Skipping."
