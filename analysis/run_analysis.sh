@@ -103,7 +103,7 @@ if [ ! -f "${OUTPUT_DIR}/multiomics_attention.pt" ]; then
     echo "----------------------------------------"
     echo "Running Multi-omics Attention Extraction..."
     echo "----------------------------------------"
-    for dataset in LGG OV BRCA SARC; do
+    for dataset in BRCA COAD GBM LGG OV; do
         echo "Processing dataset: $dataset"
         python analysis/extract_multi_omics_attention.py \
             "benchmark_data/multiomics_benchmark_data" \
