@@ -14,6 +14,7 @@ from sklearn.metrics import roc_auc_score
 from analysis.utils import PredictionResults
 from tabpfnwide.classifier import TabPFNWideClassifier
 import argparse
+import json
 
 
 def main(
@@ -75,37 +76,24 @@ def main(
                     ignore_pretraining_limits=True,
                 )
             else:
-                features_per_group = 1
-                n_estimators = 1
-                if config_path and os.path.exists(config_path):
-                    import json
 
-                    with open(config_path, "r") as f:
-                        config = json.load(f)
-                    if "model_config" in config:
-                        features_per_group = config["model_config"]["features_per_group"].get(
-                            "features_per_group", 1
-                        )
-                        print(f"Loaded features_per_group={features_per_group} from config")
-                    if "n_estimators" in config:
-                        n_estimators = config["train_config"]["n_estimators"]
-                else:
-                    try:
-                        config_file = os.path.join(os.path.dirname(checkpoint_path), "config.json")
-                        with open(config_file, "r") as f:
-                            config = json.load(f)
-                            features_per_group = config["model_config"]["features_per_group"]
-                            n_estimators = config["train_config"]["n_estimators"]
-                    except:
-                        pass
+                config_file = (
+                    config_path
+                    if config_path
+                    else os.path.join(os.path.dirname(checkpoint_path), "config.json")
+                )
+                with open(config_file, "r") as f:
+                    config = json.load(f)
+                    features_per_group = config["model_config"]
+                    n_estimators = config["n_estimators"]
 
                 clf = TabPFNWideClassifier(
                     model_name="",
                     model_path=checkpoint_path,
                     device=device,
                     n_estimators=n_estimators,
-                    ignore_pretraining_limits=True,
                     features_per_group=features_per_group,
+                    ignore_pretraining_limits=True,
                 )
         except Exception as e:
             print(f"Failed to initialize model {checkpoint_path}: {e}")

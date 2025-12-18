@@ -97,7 +97,7 @@ def main(
                 n_estimators=1,
                 features_per_group=1,
                 ignore_pretraining_limits=True,
-                save_attention_maps=True,
+                save_attention_maps=False,
             )
         elif checkpoint_path == "default_n8g3":
             clf = TabPFNWideClassifier(
@@ -106,7 +106,7 @@ def main(
                 n_estimators=8,
                 features_per_group=3,
                 ignore_pretraining_limits=True,
-                save_attention_maps=True,
+                save_attention_maps=False,
             )
         else:
             config_file = (
@@ -125,7 +125,7 @@ def main(
                 n_estimators=n_estimators,
                 features_per_group=features_per_group,
                 ignore_pretraining_limits=True,
-                save_attention_maps=True,
+                save_attention_maps=False,
             )
         res_df = pd.DataFrame(
             columns=[
