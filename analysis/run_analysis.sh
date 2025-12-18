@@ -56,13 +56,16 @@ if [ ! -f "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" ]; then
     echo "----------------------------------------"
     echo "Running Multi-omics Feature Reduction..."
     echo "----------------------------------------"
-    python analysis/multiomics_feature_reduction.py \
-        "benchmark_data/multiomics_benchmark_data" \
-        "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" \
-        --checkpoint_path "$CHECKPOINT_PATH" \
-        --config_path "$CONFIG_FILE" \
-        --dataset "LGG OV BRCA SARC" \
-        --omics "mRNA"
+    for dataset in LGG OV BRCA SARC; do
+        echo "Processing dataset: $dataset"
+        python analysis/multiomics_feature_reduction.py \
+            "benchmark_data/multiomics_benchmark_data" \
+            "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" \
+            --checkpoint_path "$CHECKPOINT_PATH" \
+            --config_path "$CONFIG_FILE" \
+            --dataset "$dataset" \
+            --omics "mRNA"
+    done
 else
     echo "Multi-omics Feature Reduction results exist. Skipping."
 fi
@@ -100,13 +103,16 @@ if [ ! -f "${OUTPUT_DIR}/multiomics_attention.pt" ]; then
     echo "----------------------------------------"
     echo "Running Multi-omics Attention Extraction..."
     echo "----------------------------------------"
-    python analysis/extract_multi_omics_attention.py \
-        "benchmark_data/multiomics_benchmark_data" \
-        "${OUTPUT_DIR}/multiomics_attention.pt" \
-        --checkpoint_path "$CHECKPOINT_PATH" \
-        --config_path "$CONFIG_FILE" \
-        --dataset "LGG OV BRCA SARC" \
-        --omic "mRNA"
+    for dataset in LGG OV BRCA SARC; do
+        echo "Processing dataset: $dataset"
+        python analysis/extract_multi_omics_attention.py \
+            "benchmark_data/multiomics_benchmark_data" \
+            "${OUTPUT_DIR}/multiomics_attention.pt" \
+            --checkpoint_path "$CHECKPOINT_PATH" \
+            --config_path "$CONFIG_FILE" \
+            --dataset "$dataset" \
+            --omic "mRNA"
+    done
 else
     echo "Multi-omics Attention Extraction results exist. Skipping."
 fi
