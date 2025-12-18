@@ -91,7 +91,7 @@ if [ ! -d "${OUTPUT_DIR}/openml_widening" ]; then
     echo "----------------------------------------"
     python analysis/openml_widening.py \
         "${OUTPUT_DIR}/openml_widening" \
-        --dataset_ids "1494 40536" \
+        --dataset_ids 1494 40536 \
         --checkpoint_path "$CHECKPOINT_PATH" \
         --config_path "$CONFIG_FILE"
 else
