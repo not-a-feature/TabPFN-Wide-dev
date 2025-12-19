@@ -213,7 +213,7 @@ def main(
                                 "dataset_id": did,
                                 "fold": fold,
                                 "checkpoint": (
-                                    checkpoint_path.split("/")[-1][:-3]
+                                    checkpoint_path.split("/")[-1].replace(".pt", "")
                                     if checkpoint_path not in other_classifiers
                                     else checkpoint_path
                                 ),
