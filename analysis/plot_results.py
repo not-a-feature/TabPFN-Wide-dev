@@ -217,7 +217,7 @@ def plot_multiomics(df, output_dir, basename):
         for ds in datasets:
             ds_df = df[df["dataset_name"] == ds]
             plt.figure(figsize=(10, 6))
-            sns.lineplot(data=ds_df, x="n_features", y=metric, hue="checkpoint", marker="o")
+            sns.lineplot(data=ds_df, x="n_features", y=metric, hue="checkpoint", marker="o", err_kws={'alpha': 0.1})
             plt.ylim(0, 1.05)
             plt.title(f"{ds} - {metric.replace('_', ' ').title()} vs Feature Count")
             plt.xlabel("Number of Features")
@@ -248,7 +248,7 @@ def plot_widening(df, output_dir, basename):
             for ds in datasets:
                 ds_df = df[df["dataset_id"] == ds]
                 plt.figure(figsize=(10, 6))
-                sns.lineplot(data=ds_df, x="features_added", y=metric, hue="checkpoint", marker="o")
+                sns.lineplot(data=ds_df, x="features_added", y=metric, hue="checkpoint", marker="o", err_kws={'alpha': 0.1})
                 plt.ylim(0, 1.05)
                 plt.title(f"Dataset {ds} - {metric} vs Features Added")
                 plt.xlabel("Features Added")
@@ -257,7 +257,7 @@ def plot_widening(df, output_dir, basename):
         else:
             # Fallback if no dataset_id column
             plt.figure(figsize=(10, 6))
-            sns.lineplot(data=df, x="features_added", y=metric, hue="checkpoint", marker="o")
+            sns.lineplot(data=df, x="features_added", y=metric, hue="checkpoint", marker="o", err_kws={'alpha': 0.1})
             plt.ylim(0, 1.05)
             plt.title(f"{basename} - {metric} vs Features Added")
             plt.xlabel("Features Added")
@@ -311,19 +311,6 @@ def main():
                 temp_df = pd.read_csv(f)
                 if temp_df.empty:
                     continue
-
-                if "checkpoint" in temp_df.columns:
-                    try:
-                        rel_path = os.path.relpath(f, base_results_dir)
-                        parts = rel_path.split(os.sep)
-                        if len(parts) > 1:
-                            exp_name = parts[0]
-                            temp_df["checkpoint"] = temp_df["checkpoint"].apply(
-                                lambda x: exp_name if "default_n" in str(x) else x
-                            )
-                    except ValueError:
-                        pass
-
                 dfs.append(temp_df)
 
             if not dfs:
@@ -382,18 +369,19 @@ def main():
                 continue
 
             # Dispatch based on filename
+            output_dir = os.path.dirname(csv_file)
             if "multiomics" in basename.lower():
                 print("   Detected Multiomics Feature Reduction format.")
-                plot_multiomics(df, base_results_dir, basename)
+                plot_multiomics(df, output_dir, basename)
             elif "grouping" in basename.lower():
                 print("   Detected Grouping Benchmark format.")
-                plot_grouping(df, base_results_dir, basename)
+                plot_grouping(df, output_dir, basename)
             elif "hdlss" in basename.lower():
                 print("   Detected HDLSS Benchmark format.")
-                plot_hdlss(df, base_results_dir, basename)
+                plot_hdlss(df, output_dir, basename)
             elif "openml" in basename.lower() and "widening" not in basename.lower():
                 print("   Detected OpenML Benchmark format.")
-                plot_openml(df, base_results_dir, basename)
+                plot_openml(df, output_dir, basename)
             elif basename.isdigit() or "widening" in os.path.dirname(csv_file).lower():
                 print("   Detected OpenML Widening format.")
                 # For widening, we might want to save plots in the same folder as the CSV
