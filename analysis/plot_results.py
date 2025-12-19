@@ -312,6 +312,18 @@ def main():
                 if temp_df.empty:
                     continue
 
+                if "checkpoint" in temp_df.columns:
+                    try:
+                        rel_path = os.path.relpath(f, base_results_dir)
+                        parts = rel_path.split(os.sep)
+                        if len(parts) > 1:
+                            exp_name = parts[0]
+                            temp_df["checkpoint"] = temp_df["checkpoint"].apply(
+                                lambda x: exp_name if "default_n" in str(x) else x
+                            )
+                    except ValueError:
+                        pass
+
                 dfs.append(temp_df)
 
             if not dfs:
