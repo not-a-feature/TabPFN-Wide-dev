@@ -217,7 +217,14 @@ def plot_multiomics(df, output_dir, basename):
         for ds in datasets:
             ds_df = df[df["dataset_name"] == ds]
             plt.figure(figsize=(10, 6))
-            sns.lineplot(data=ds_df, x="n_features", y=metric, hue="checkpoint", marker="o", err_kws={'alpha': 0.1})
+            sns.lineplot(
+                data=ds_df,
+                x="n_features",
+                y=metric,
+                hue="checkpoint",
+                marker="o",
+                err_kws={"alpha": 0.1},
+            )
             plt.ylim(0, 1.05)
             plt.title(f"{ds} - {metric.replace('_', ' ').title()} vs Feature Count")
             plt.xlabel("Number of Features")
@@ -248,7 +255,14 @@ def plot_widening(df, output_dir, basename):
             for ds in datasets:
                 ds_df = df[df["dataset_id"] == ds]
                 plt.figure(figsize=(10, 6))
-                sns.lineplot(data=ds_df, x="features_added", y=metric, hue="checkpoint", marker="o", err_kws={'alpha': 0.1})
+                sns.lineplot(
+                    data=ds_df,
+                    x="features_added",
+                    y=metric,
+                    hue="checkpoint",
+                    marker="o",
+                    err_kws={"alpha": 0.1},
+                )
                 plt.ylim(0, 1.05)
                 plt.title(f"Dataset {ds} - {metric} vs Features Added")
                 plt.xlabel("Features Added")
@@ -257,7 +271,14 @@ def plot_widening(df, output_dir, basename):
         else:
             # Fallback if no dataset_id column
             plt.figure(figsize=(10, 6))
-            sns.lineplot(data=df, x="features_added", y=metric, hue="checkpoint", marker="o", err_kws={'alpha': 0.1})
+            sns.lineplot(
+                data=df,
+                x="features_added",
+                y=metric,
+                hue="checkpoint",
+                marker="o",
+                err_kws={"alpha": 0.1},
+            )
             plt.ylim(0, 1.05)
             plt.title(f"{basename} - {metric} vs Features Added")
             plt.xlabel("Features Added")
