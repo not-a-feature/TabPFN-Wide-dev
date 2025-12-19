@@ -93,7 +93,7 @@ def plot_hdlss(df, output_dir, basename):
         )
 
         # Plot 2: Aggregated Summary (if more than 1 dataset)
-        if df["dataset_name"].nunique() > 1:
+        if df["dataset_name"].nunique() > 1 and df["checkpoint"].nunique() > 1:
             plt.figure(figsize=(8, 6))
             order = df.groupby("checkpoint")[metric].mean().sort_values(ascending=False).index
             sns.barplot(data=df, x="checkpoint", y=metric, errorbar="sd", capsize=0.1, order=order)
@@ -117,9 +117,7 @@ def plot_hdlss(df, output_dir, basename):
                     continue
 
                 plt.figure(figsize=(8, 6))
-                order = (
-                    ds_df.groupby("checkpoint")[metric].mean().sort_values(ascending=False).index
-                )
+                order = sorted(ds_df["checkpoint"].unique())
                 sns.barplot(data=ds_df, x="checkpoint", y=metric, order=order)
                 plt.ylim(0, 1.05)
                 plt.title(f"{ds} - {metric.replace('_', ' ').title()}")
@@ -153,7 +151,7 @@ def plot_openml(df, output_dir, basename):
         )
 
         # Aggregated
-        if df["task_id"].nunique() > 1:
+        if df["task_id"].nunique() > 1 and df["checkpoint"].nunique() > 1:
             plt.figure(figsize=(8, 6))
             order = df.groupby("checkpoint")[metric].mean().sort_values(ascending=False).index
             sns.barplot(data=df, x="checkpoint", y=metric, errorbar="sd", capsize=0.1, order=order)
@@ -176,9 +174,7 @@ def plot_openml(df, output_dir, basename):
                     continue
 
                 plt.figure(figsize=(8, 6))
-                order = (
-                    task_df.groupby("checkpoint")[metric].mean().sort_values(ascending=False).index
-                )
+                order = sorted(task_df["checkpoint"].unique())
                 sns.barplot(data=task_df, x="checkpoint", y=metric, order=order)
                 plt.ylim(0, 1.05)
                 plt.title(f"Task {task} - {metric.replace('_', ' ').title()}")
@@ -207,25 +203,25 @@ def plot_grouping(df, output_dir, basename):
 def plot_multiomics(df, output_dir, basename):
     """Plotting logic for Multiomics Feature Reduction."""
     output_dir = os.path.join(output_dir, "multiomics")
-    # Line plot: x=n_features, y=metric, hue=Checkpoint
-    metrics = [c for c in ["Accuracy"] if c in df.columns]
+    # Line plot: x=n_features, y=metric, hue=checkpoint
+    metrics = [c for c in ["accuracy"] if c in df.columns]
 
-    if "Checkpoint" in df.columns:
-        df["Checkpoint"] = df["Checkpoint"].apply(
+    if "checkpoint" in df.columns:
+        df["checkpoint"] = df["checkpoint"].apply(
             lambda x: str(x).split("/")[-1].replace(".pt", "")
         )
 
     for metric in metrics:
         # Separate plot per Dataset if multiple
-        datasets = df["Dataset"].unique()
+        datasets = df["dataset_name"].unique()
         for ds in datasets:
-            ds_df = df[df["Dataset"] == ds]
+            ds_df = df[df["dataset_name"] == ds]
             plt.figure(figsize=(10, 6))
-            sns.lineplot(data=ds_df, x="n_features", y=metric, hue="Checkpoint", marker="o")
+            sns.lineplot(data=ds_df, x="n_features", y=metric, hue="checkpoint", marker="o")
             plt.ylim(0, 1.05)
-            plt.title(f"{ds} - {metric} vs Feature Count")
+            plt.title(f"{ds} - {metric.replace('_', ' ').title()} vs Feature Count")
             plt.xlabel("Number of Features")
-            plt.ylabel(metric)
+            plt.ylabel(metric.replace("_", " ").title())
             feats = sorted(ds_df["n_features"].unique())
             if 0 in feats:
                 # Move 0 to the end as "All"
@@ -269,6 +265,12 @@ def plot_widening(df, output_dir, basename):
             save_plots(plt.gcf(), output_dir, f"{basename}_{metric}_widening_curve")
 
 
+def clean_basename(basename):
+    for suffix in ["_benchmark_results", "_results", "_benchmark"]:
+        basename = basename.replace(suffix, "")
+    return basename
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -306,39 +308,11 @@ def main():
             print(f"Aggregating {len(file_list)} files for {filename}...")
             dfs = []
             for f in file_list:
-                try:
-                    # Infer checkpoint name from directory structure if not in CSV?
-                    # Actually, the CSVs usually contain a 'checkpoint' column.
-                    # But if they don't, or if we want to distinguish runs from different folders:
-                    # Let's assume the CSVs have the info or we just concat.
-                    # Wait, if we run analysis per checkpoint, the CSV in that folder might just say "best_model.pt"
-                    # which is ambiguous if we combine multiple folders.
-                    # We should probably inject the folder name as a column if needed.
+                temp_df = pd.read_csv(f)
+                if temp_df.empty:
+                    continue
 
-                    temp_df = pd.read_csv(f)
-                    if temp_df.empty:
-                        continue
-
-                    # Add a 'Source_Folder' column to distinguish if needed,
-                    # or rely on 'checkpoint' column if it has full path.
-                    # The analysis scripts usually save the checkpoint filename.
-                    # If all runs use "best_model.pt", we have a problem.
-                    # But the sbatch script passes the full path to the analysis script.
-                    # Let's check hdlss_benchmark.py: it saves checkpoint_path.split("/")[-1].
-                    # So if the file is named the same, we lose distinction.
-                    # However, the user's sbatch script creates output dir based on checkpoint dir name.
-                    # So we can use the parent folder name as the "Model Name".
-
-                    parent_folder = os.path.basename(os.path.dirname(f))
-                    # If the CSV is in a sub-sub folder (like openml_widening), we might need to go up.
-                    if filename.isdigit():  # openml widening files are named by dataset ID
-                        parent_folder = os.path.basename(os.path.dirname(os.path.dirname(f)))
-
-                    # Add/Overwrite checkpoint column with folder name to ensure uniqueness in comparison
-                    temp_df["checkpoint"] = parent_folder
-                    dfs.append(temp_df)
-                except Exception as e:
-                    print(f"Error reading {f}: {e}")
+                dfs.append(temp_df)
 
             if not dfs:
                 continue
@@ -347,16 +321,13 @@ def main():
 
             # Plotting
             basename = os.path.splitext(filename)[0]
+            basename = clean_basename(basename)
             output_dir = os.path.join(base_results_dir, "comparison_plots")
 
             # Special handling for OpenML Widening which has numeric filenames
             if filename.replace(".csv", "").isdigit():
                 # This is likely an OpenML widening file
                 basename = "openml_widening"
-                # We might want to aggregate all widening files into one big DF?
-                # Or plot per dataset.
-                # The loop is over filenames, so we are processing one dataset ID here.
-                # Let's plot it.
                 plot_widening(
                     combined_df, output_dir, f"widening_dataset_{filename.replace('.csv', '')}"
                 )
@@ -390,39 +361,33 @@ def main():
 
         for csv_file in all_files:
             basename = os.path.splitext(os.path.basename(csv_file))[0]
+            basename = clean_basename(basename)
             print(f"-- Processing {basename} --")
 
-            try:
-                df = pd.read_csv(csv_file)
-                if df.empty:
-                    print("   File is empty, skipping.")
-                    continue
+            df = pd.read_csv(csv_file)
+            if df.empty:
+                print("   File is empty, skipping.")
+                continue
 
-                # Dispatch based on filename
-                if "multiomics" in basename.lower():
-                    print("   Detected Multiomics Feature Reduction format.")
-                    plot_multiomics(df, base_results_dir, basename)
-                elif "grouping" in basename.lower():
-                    print("   Detected Grouping Benchmark format.")
-                    plot_grouping(df, base_results_dir, basename)
-                elif "hdlss" in basename.lower():
-                    print("   Detected HDLSS Benchmark format.")
-                    plot_hdlss(df, base_results_dir, basename)
-                elif "openml" in basename.lower() and "widening" not in basename.lower():
-                    print("   Detected OpenML Benchmark format.")
-                    plot_openml(df, base_results_dir, basename)
-                elif basename.isdigit() or "widening" in os.path.dirname(csv_file).lower():
-                    print("   Detected OpenML Widening format.")
-                    # For widening, we might want to save plots in the same folder as the CSV
-                    plot_widening(df, os.path.dirname(csv_file), basename)
-                else:
-                    print(f"   Skipping {basename}: filename pattern not recognized.")
-
-            except Exception as e:
-                print(f"   Error processing file: {e}")
-                import traceback
-
-                traceback.print_exc()
+            # Dispatch based on filename
+            if "multiomics" in basename.lower():
+                print("   Detected Multiomics Feature Reduction format.")
+                plot_multiomics(df, base_results_dir, basename)
+            elif "grouping" in basename.lower():
+                print("   Detected Grouping Benchmark format.")
+                plot_grouping(df, base_results_dir, basename)
+            elif "hdlss" in basename.lower():
+                print("   Detected HDLSS Benchmark format.")
+                plot_hdlss(df, base_results_dir, basename)
+            elif "openml" in basename.lower() and "widening" not in basename.lower():
+                print("   Detected OpenML Benchmark format.")
+                plot_openml(df, base_results_dir, basename)
+            elif basename.isdigit() or "widening" in os.path.dirname(csv_file).lower():
+                print("   Detected OpenML Widening format.")
+                # For widening, we might want to save plots in the same folder as the CSV
+                plot_widening(df, os.path.dirname(csv_file), basename)
+            else:
+                print(f"   Skipping {basename}: filename pattern not recognized.")
 
 
 if __name__ == "__main__":

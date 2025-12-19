@@ -102,7 +102,6 @@ def main(
                 "fold",
                 "checkpoint",
                 "accuracy",
-                "f1_weighted",
                 "roc_auc_score",
                 "prediction_probas",
                 "ground_truth",
@@ -140,7 +139,6 @@ def main(
 
                     pred_res = PredictionResults(y_test, pred_probs)
                     accuracy = pred_res.get_classification_report(print_report=False)["accuracy"]
-                    f1_weighted = pred_res.get_f1_score(average="weighted")
                     if pred_probs.shape[-1] == 2:
                         roc_auc = roc_auc_score(
                             pred_res.ground_truth, pred_res.prediction_probas[:, 1]
@@ -162,7 +160,6 @@ def main(
                                     "fold": fold,
                                     "checkpoint": checkpoint_path.split("/")[-1],
                                     "accuracy": accuracy,
-                                    "f1_weighted": f1_weighted,
                                     "roc_auc_score": roc_auc,
                                     "prediction_probas": [
                                         " ".join(map(str, pred_res.prediction_probas))

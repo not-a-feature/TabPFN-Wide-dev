@@ -38,7 +38,6 @@ RESULT_COLUMNS = [
     "masks_injected",
     "n_estimators",
     "accuracy",
-    "f1_weighted",
     "roc_auc_score",
     "analysis_type",
 ]
@@ -569,7 +568,6 @@ def evaluate_task(
             pred_res = PredictionResults(y_test, pred_probs)
             report = pred_res.get_classification_report(print_report=False)
             accuracy = report["accuracy"]
-            f1_weighted = pred_res.get_f1_score(average="weighted")
 
             if pred_probs.shape[-1] == 2:
                 roc_auc = roc_auc_score(pred_res.ground_truth, pred_res.prediction_probas[:, 1])
@@ -595,7 +593,6 @@ def evaluate_task(
                 "masks_injected": [masks_injected],
                 "n_estimators": [n_estimators],
                 "accuracy": [accuracy],
-                "f1_weighted": [f1_weighted],
                 "roc_auc_score": [roc_auc],
                 "analysis_type": [analysis_type],
             }

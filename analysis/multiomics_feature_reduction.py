@@ -37,15 +37,12 @@ def main(
     api = wandb.Api()
     results = pd.DataFrame(
         columns=[
-            "Dataset",
-            "Omic",
-            "Checkpoint",
+            "dataset_name",
+            "omic",
+            "checkpoint",
             "n_features",
-            "Fold",
-            "Model",
-            "Max_finetune",
-            "Accuracy",
-            "f1_weighted",
+            "fold",
+            "accuracy",
             "prediction_probas",
             "ground_truth",
         ]
@@ -63,6 +60,7 @@ def main(
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
             )
+            name = "default_n1g1"
         elif checkpoint_path == "default_n8g3":
             clf = TabPFNWideClassifier(
                 model_name="v2.5",
@@ -72,6 +70,7 @@ def main(
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
             )
+            name = "default_n8g3"
         else:
             config_file = (
                 config_path
@@ -111,8 +110,8 @@ def main(
         ]:
             exists = (
                 (results["n_features"] == n_features)
-                & (results["Checkpoint"] == checkpoint_path.split("/")[-1])
-                & (results["Dataset"] == dataset_name)
+                & (results["checkpoint"] == name)
+                & (results["dataset_name"] == dataset_name)
             ).any()
             if exists:
                 print(f"Skipping {dataset_name} with {n_features} features, already exists")
@@ -133,8 +132,8 @@ def main(
                 X_train_tensor, y_train_tensor, X_test_tensor, y_test_tensor = dataset
                 exists = (
                     (results["n_features"] == X_train_tensor.shape[-1])
-                    & (results["Checkpoint"] == checkpoint_path.split("/")[-1])
-                    & (results["Dataset"] == dataset_name)
+                    & (results["checkpoint"] == name)
+                    & (results["dataset_name"] == dataset_name)
                 ).any()
                 if exists and i == 0:
                     print(
@@ -153,20 +152,17 @@ def main(
 
                 pred_res = PredictionResults(y_test, pred_probs)
                 accuracy = pred_res.get_classification_report(print_report=False)["accuracy"]
-                f1_weighted = pred_res.get_f1_score(average="weighted")
                 results = pd.concat(
                     [
                         results,
                         pd.DataFrame(
                             {
-                                "Dataset": dataset_name,
-                                "Omic": "+".join(omics_list) if omics_list else "mRNA",
-                                "Checkpoint": checkpoint_path.split("/")[-1],
+                                "dataset_name": dataset_name,
+                                "omic": "+".join(omics_list) if omics_list else "mRNA",
+                                "checkpoint": name,
                                 "n_features": X_train_tensor.shape[-1],
-                                "Fold": i,
-                                "Model": name,
-                                "Accuracy": accuracy,
-                                "f1_weighted": f1_weighted,
+                                "fold": i,
+                                "accuracy": accuracy,
                                 "prediction_probas": [
                                     " ".join(map(str, pred_res.prediction_probas))
                                 ],
