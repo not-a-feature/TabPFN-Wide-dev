@@ -70,7 +70,8 @@ def plot_metric_vs_categorical(
 
 def plot_hdlss(df, output_dir, basename):
     """Plotting logic for HDLSS benchmarks."""
-    metrics = [c for c in ["accuracy", "f1_weighted", "roc_auc_score"] if c in df.columns]
+    output_dir = os.path.join(output_dir, "hdlss")
+    metrics = [c for c in ["accuracy", "roc_auc_score"] if c in df.columns]
 
     # Clean up checkpoint names if needed
     if "checkpoint" in df.columns:
@@ -130,7 +131,8 @@ def plot_hdlss(df, output_dir, basename):
 
 def plot_openml(df, output_dir, basename):
     """Plotting logic for OpenML benchmarks."""
-    metrics = [c for c in ["accuracy", "f1_weighted", "roc_auc_score"] if c in df.columns]
+    output_dir = os.path.join(output_dir, "openml")
+    metrics = [c for c in ["accuracy", "roc_auc_score"] if c in df.columns]
 
     if "checkpoint" in df.columns:
         df["checkpoint"] = df["checkpoint"].apply(
@@ -188,7 +190,8 @@ def plot_openml(df, output_dir, basename):
 
 def plot_grouping(df, output_dir, basename):
     """Plotting logic for Grouping benchmarks."""
-    metrics = [c for c in ["accuracy", "f1_weighted", "roc_auc_score"] if c in df.columns]
+    output_dir = os.path.join(output_dir, "grouping")
+    metrics = [c for c in ["accuracy", "roc_auc_score"] if c in df.columns]
 
     for metric in metrics:
         plt.figure(figsize=(8, 6))
@@ -203,8 +206,9 @@ def plot_grouping(df, output_dir, basename):
 
 def plot_multiomics(df, output_dir, basename):
     """Plotting logic for Multiomics Feature Reduction."""
+    output_dir = os.path.join(output_dir, "multiomics")
     # Line plot: x=n_features, y=metric, hue=Checkpoint
-    metrics = [c for c in ["Accuracy", "f1_weighted"] if c in df.columns]
+    metrics = [c for c in ["Accuracy"] if c in df.columns]
 
     if "Checkpoint" in df.columns:
         df["Checkpoint"] = df["Checkpoint"].apply(
@@ -232,8 +236,9 @@ def plot_multiomics(df, output_dir, basename):
 
 def plot_widening(df, output_dir, basename):
     """Plotting logic for OpenML Widening."""
+    output_dir = os.path.join(output_dir, "widening")
     # Line plot: x=features_added, y=metric, hue=checkpoint
-    metrics = [c for c in ["accuracy", "f1_weighted", "roc_auc_score"] if c in df.columns]
+    metrics = [c for c in ["accuracy", "roc_auc_score"] if c in df.columns]
 
     if "checkpoint" in df.columns:
         df["checkpoint"] = df["checkpoint"].apply(
