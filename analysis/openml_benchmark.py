@@ -58,46 +58,43 @@ def main(
 
     for checkpoint_path in checkpoints:
         print(f"Initializing model from {checkpoint_path}")
-        try:
-            if checkpoint_path == "default_n1g1":
-                clf = TabPFNWideClassifier(
-                    model_name="v2.5",
-                    device=device,
-                    n_estimators=1,
-                    features_per_group=1,
-                    ignore_pretraining_limits=True,
-                )
-            elif checkpoint_path == "default_n8g3":
-                clf = TabPFNWideClassifier(
-                    model_name="v2.5",
-                    device=device,
-                    n_estimators=8,
-                    features_per_group=3,
-                    ignore_pretraining_limits=True,
-                )
-            else:
+        if checkpoint_path == "default_n1g1":
+            clf = TabPFNWideClassifier(
+                model_name="v2.5",
+                device=device,
+                n_estimators=1,
+                features_per_group=1,
+                ignore_pretraining_limits=True,
+                save_attention_maps=False,
+            )
+        elif checkpoint_path == "default_n8g3":
+            clf = TabPFNWideClassifier(
+                model_name="v2.5",
+                device=device,
+                n_estimators=8,
+                features_per_group=3,
+                ignore_pretraining_limits=True,
+                save_attention_maps=False,
+            )
+        else:
+            config_file = (
+                config_path
+                if config_path
+                else os.path.join(os.path.dirname(checkpoint_path), "config.json")
+            )
+            with open(config_file, "r") as f:
+                config = json.load(f)
+                features_per_group = config["model_config"]["features_per_group"]
+                n_estimators = config["train_config"]["n_estimators"]
 
-                config_file = (
-                    config_path
-                    if config_path
-                    else os.path.join(os.path.dirname(checkpoint_path), "config.json")
-                )
-                with open(config_file, "r") as f:
-                    config = json.load(f)
-                    features_per_group = config["model_config"]
-                    n_estimators = config["n_estimators"]
-
-                clf = TabPFNWideClassifier(
-                    model_name="",
-                    model_path=checkpoint_path,
-                    device=device,
-                    n_estimators=n_estimators,
-                    features_per_group=features_per_group,
-                    ignore_pretraining_limits=True,
-                )
-        except Exception as e:
-            print(f"Failed to initialize model {checkpoint_path}: {e}")
-            continue
+            clf = TabPFNWideClassifier(
+                model_path=checkpoint_path,
+                device=device,
+                n_estimators=n_estimators,
+                features_per_group=features_per_group,
+                ignore_pretraining_limits=True,
+                save_attention_maps=False,
+            )
 
         res_df = pd.DataFrame(
             columns=[

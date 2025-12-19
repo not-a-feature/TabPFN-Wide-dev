@@ -94,6 +94,7 @@ def main(
                 n_estimators=1,
                 features_per_group=1,
                 ignore_pretraining_limits=True,
+                save_attention_maps=False,
             )
         elif checkpoint_path == "default_n8g3":
             clf = TabPFNWideClassifier(
@@ -102,32 +103,28 @@ def main(
                 n_estimators=8,
                 features_per_group=3,
                 ignore_pretraining_limits=True,
+                save_attention_maps=False,
             )
         else:
-            features_per_group = 1
-            n_estimators = 1
-
             config_file = (
                 config_path
-                if config_path and os.path.exists(config_path)
+                if config_path
                 else os.path.join(os.path.dirname(checkpoint_path), "config.json")
             )
-
             with open(config_file, "r") as f:
                 config = json.load(f)
-                if "model_config" in config:
-                    features_per_group = config["model_config"]
-                if "n_estimators" in config:
-                    n_estimators = config["n_estimators"]
+                features_per_group = config["model_config"]["features_per_group"]
+                n_estimators = config["train_config"]["n_estimators"]
 
             clf = TabPFNWideClassifier(
-                model_name="",
                 model_path=checkpoint_path,
                 device=device,
                 n_estimators=n_estimators,
                 features_per_group=features_per_group,
                 ignore_pretraining_limits=True,
+                save_attention_maps=False,
             )
+            name = checkpoint_path.split("/")[-1]
 
         if checkpoint_path in ["tabicl", "random_forest"]:
             if X.isnull().values.any():
