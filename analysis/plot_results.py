@@ -332,6 +332,12 @@ def main():
                 temp_df = pd.read_csv(f)
                 if temp_df.empty:
                     continue
+
+                # Use parent folder name as checkpoint label
+                parent_folder = os.path.basename(os.path.dirname(f))
+                if "checkpoint" in temp_df.columns:
+                    temp_df["checkpoint"] = parent_folder
+
                 dfs.append(temp_df)
 
             if not dfs:
