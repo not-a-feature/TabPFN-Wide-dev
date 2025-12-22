@@ -334,10 +334,14 @@ def main():
                     continue
 
                 # Use parent folder name as checkpoint label
-                parent_folder = os.path.basename(os.path.dirname(f))
-                if "checkpoint" in temp_df.columns:
-                    temp_df["checkpoint"] = parent_folder
+                parent_folder = os.path.dirname(f)
+                folder_name = os.path.basename(parent_folder)
+                # If the folder name is "openml_widening", go up one level
+                if folder_name == "openml_widening":
+                    folder_name = os.path.basename(os.path.dirname(parent_folder))
 
+                if "checkpoint" in temp_df.columns:
+                    temp_df["checkpoint"] = folder_name
                 dfs.append(temp_df)
 
             if not dfs:
