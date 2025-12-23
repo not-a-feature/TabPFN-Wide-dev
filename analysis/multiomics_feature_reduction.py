@@ -121,8 +121,9 @@ def main(
                 print(f"Skipping {dataset_name} with {n_features} features, already exists")
                 continue
             print(f"Validating {dataset_name} with {n_features} features")
-            clf.model.to(device)
-            clf.model.eval()
+            if hasattr(clf, "model"):
+                clf.model.to(device)
+                clf.model.eval()
             for i, dataset in enumerate(
                 get_wide_validation_datasets(
                     device,
@@ -176,7 +177,8 @@ def main(
                     ],
                     ignore_index=True,
                 )
-            clf.model.to("cpu")
+            if hasattr(clf, "model"):
+                clf.model.to("cpu")
             results.to_csv(output_file, index=False)
 
 
