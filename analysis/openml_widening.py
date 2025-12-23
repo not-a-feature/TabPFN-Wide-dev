@@ -87,7 +87,7 @@ def main(
         elif checkpoint_path == "random_forest":
             pass  # Will be created in loop
         elif checkpoint_path == "stock":
-            clf = TabPFNClassifier(device=device)
+            clf = TabPFNClassifier(device=device, ignore_pretraining_limits=True)
         elif checkpoint_path == "default_n1g1":
             clf = TabPFNWideClassifier(
                 model_name="v2.5",
