@@ -36,6 +36,10 @@ def main(
         - Runs inference to obtain predictions and attention maps.
         - Saves the extracted attention maps to the specified output file.
     """
+    if checkpoint_path == "stock":
+        print("Skipping attention extraction for stock model.")
+        return
+
     if checkpoint_path == "default_n1g1":
         n_estimators = 1
         features_per_group = 1

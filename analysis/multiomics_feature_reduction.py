@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from analysis.utils import PredictionResults
 from analysis.data import get_wide_validation_datasets
 from tabpfnwide.classifier import TabPFNWideClassifier
+from tabpfn import TabPFNClassifier
 import warnings
 import json
 
@@ -51,7 +52,10 @@ def main(
         results = pd.read_csv(output_file)
     for checkpoint_path in checkpoint_paths:
         print(f"Initializing model from {checkpoint_path}")
-        if checkpoint_path == "default_n1g1":
+        if checkpoint_path == "stock":
+            clf = TabPFNClassifier(device=device)
+            name = "stock"
+        elif checkpoint_path == "default_n1g1":
             clf = TabPFNWideClassifier(
                 model_name="v2.5",
                 device=device,

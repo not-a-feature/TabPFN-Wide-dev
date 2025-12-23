@@ -15,7 +15,7 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
-if [ "$CHECKPOINT_PATH" == "default_n1g1" ] || [ "$CHECKPOINT_PATH" == "default_n8g3" ]; then
+if [ "$CHECKPOINT_PATH" == "default_n1g1" ] || [ "$CHECKPOINT_PATH" == "default_n8g3" ] || [ "$CHECKPOINT_PATH" == "stock" ]; then
     echo "Using default model: $CHECKPOINT_PATH"
     CONFIG_FILE=""
 else

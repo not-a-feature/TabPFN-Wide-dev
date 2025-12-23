@@ -28,6 +28,10 @@ def main(device, openml_id, checkpoint_path, output, config_path):
         - Saves attention maps from the model during inference to an output pickle file.
     """
 
+    if checkpoint_path == "stock":
+        print("Skipping attention extraction for stock model.")
+        return
+
     if checkpoint_path == "default_n1g1":
         n_estimators = 1
         features_per_group = 1
