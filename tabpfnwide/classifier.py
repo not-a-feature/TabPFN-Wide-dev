@@ -42,11 +42,16 @@ class TabPFNWideClassifier(TabPFNClassifier):
             )
 
         # Initialize parent TabPFNClassifier
-        # We pass ignore_pretraining_limits=True by default as in the example, but allow override
+        # We pass ignore_pretraining_limits=True by default, but allow override
         if "ignore_pretraining_limits" not in kwargs:
             kwargs["ignore_pretraining_limits"] = True
 
-        super().__init__(device=device, n_estimators=n_estimators, **kwargs)
+        super().__init__(
+            device=device,
+            n_estimators=n_estimators,
+            model_path=model_path,
+            **kwargs,
+        )
 
         # Restore model_path after super().__init__ overwrites it with default "auto"
         self.model_path = model_path
@@ -104,7 +109,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
             cache_trainset_representation=False,
             which="classifier",
             version="v2.5",
-            download_if_not_exists=self.model_name == "v2.5",
+            download_if_not_exists=True,
         )
         model = models[0]
 
@@ -117,15 +122,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
 
             # Handle DDP-wrapped checkpoints
             # TODO fix this during training / saving
-            if "state_dict" in checkpoint:
-                state_dict = checkpoint["state_dict"]
-            else:
-                state_dict = checkpoint
-
-            # Unwrap DDP prefix if present
-            if any(k.startswith("module.") for k in state_dict.keys()):
-                state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
-
+            state_dict = checkpoint["state_dict"]
             model.load_state_dict(state_dict)
 
         return model

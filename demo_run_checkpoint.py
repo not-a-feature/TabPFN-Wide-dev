@@ -10,7 +10,8 @@ from tabpfnwide.classifier import TabPFNWideClassifier
 CHECKPOINT_PATH = os.path.join(
     CURRENT_DIR,
     "checkpoints",
-    "20251212_003233_final_neat-serenity-5.pt",
+    "5_AddFeat8000_NEst8_Group3",
+    "20251218_123325_final_icy-sea-9.pt",
 )
 
 if __name__ == "__main__":
@@ -34,11 +35,11 @@ if __name__ == "__main__":
     y = np.array([0, 0, 1, 1, 0, 1, 0, 1], dtype=np.int64)
 
     clf = TabPFNWideClassifier(
-        model_path=CHECKPOINT_PATH,
-        device="cpu",  # switch to "cuda" if available and desired
+        model_path=CHECKPOINT_PATH,  # Use the correct n_estimators and features_per_group for this checkpoint (check config.json)
         n_estimators=8,
-        features_per_group=1,  # grouping = 3
+        features_per_group=3,
         ignore_pretraining_limits=True,
+        device="cpu",
     )
 
     clf.fit(X, y)
