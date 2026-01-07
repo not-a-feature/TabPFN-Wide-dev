@@ -29,6 +29,7 @@ def main(
     config_path=None,
     sparsity=0.01,
     feature_numbers=[0, 50, 500, 2000, 5000, 10000, 20000, 30000],
+    subsampling_max_features=500,
 ):
     """
     Runs feature widening experiments on an OpenML dataset using various classifiers and checkpoints.
@@ -96,6 +97,7 @@ def main(
                 features_per_group=1,
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
+                subsampling_max_features=subsampling_max_features,
             )
         elif checkpoint_path == "default_n8g3":
             clf = TabPFNWideClassifier(
@@ -105,6 +107,7 @@ def main(
                 features_per_group=3,
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
+                subsampling_max_features=subsampling_max_features,
             )
         else:
             config_file = (
@@ -124,6 +127,7 @@ def main(
                 features_per_group=features_per_group,
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
+                subsampling_max_features=subsampling_max_features,
             )
             name = checkpoint_path.split("/")[-1]
 
@@ -251,6 +255,12 @@ if __name__ == "__main__":
         default=[0, 50, 500, 2000, 5000, 10000, 20000, 30000],
     )
     parser.add_argument("--device", type=str, default="cuda:0")
+    parser.add_argument(
+        "--subsampling_max_features",
+        type=int,
+        default=500,
+        help="Maximum number of features for subsampling",
+    )
 
     args = parser.parse_args()
 
@@ -283,6 +293,7 @@ if __name__ == "__main__":
                 config_path=args.config_path,
                 sparsity=args.sparsity,
                 feature_numbers=args.feature_numbers,
+                subsampling_max_features=args.subsampling_max_features,
             )
         except Exception as e:
             print(f"Error processing dataset {dataset_id}: {e}")
