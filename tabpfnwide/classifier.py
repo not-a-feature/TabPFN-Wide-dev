@@ -1,5 +1,6 @@
 import torch
 import os
+import dataclasses
 from tabpfn import TabPFNClassifier
 from tabpfn.model.loading import load_model_criterion_config
 from tabpfnwide.patches import fit as patched_fit
@@ -15,6 +16,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
         device="cuda",
         features_per_group=3,
         n_estimators=8,
+        subsampling_max_features=500,
         save_attention_maps=False,
         **kwargs,
     ):
@@ -58,6 +60,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
         self.model_name = model_name
         self.features_per_group = features_per_group
         self.n_estimators = n_estimators
+        self.subsampling_max_features = subsampling_max_features
         self.save_attention_maps = save_attention_maps
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -81,6 +84,16 @@ class TabPFNWideClassifier(TabPFNClassifier):
         if hasattr(self, "inference_config_"):
             self.inference_config_ = self.inference_config_.override_with_user_input(
                 user_config=self.inference_config
+            )
+
+            # Set the max_features_per_estimator to enable/prevent subsampling 
+            new_preprocessors = []
+            for p in self.inference_config_.PREPROCESS_TRANSFORMS:
+                new_preprocessors.append(
+                    dataclasses.replace(p, max_features_per_estimator=self.subsampling_max_features)
+                )
+            self.inference_config_ = dataclasses.replace(
+                self.inference_config_, PREPROCESS_TRANSFORMS=new_preprocessors
             )
 
             outlier_removal_std = self.inference_config_.OUTLIER_REMOVAL_STD
