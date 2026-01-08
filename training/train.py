@@ -39,9 +39,11 @@ from utils import PredictionResults, get_new_features_mixed
 
 import wandb
 import tqdm
+import dataclasses
 from dataclasses import dataclass, asdict, fields
 from collections import defaultdict
 import warnings
+from tabpfn.preprocessing import v2_5_classifier_preprocessor_configs
 
 warnings.filterwarnings("ignore", module="sklearn")
 
@@ -236,7 +238,7 @@ class Trainer:
             max_features_add = self.feature_adding_config.add_features_max
         new_features = np.random.randint(
             self.feature_adding_config.add_features_min,
-            max_features_add + 1,
+            int(max_features_add) + 1,
         )
         sparsity = np.random.uniform(
             self.feature_adding_config.min_sparsity, self.feature_adding_config.max_sparsity
@@ -254,10 +256,23 @@ class Trainer:
         pred_res = []
         val_losses = []
 
+        preprocessors = v2_5_classifier_preprocessor_configs()
+        SAFE_MAX_FEATURES = 20000
+        new_preprocessors = [
+            dataclasses.replace(p, max_features_per_estimator=SAFE_MAX_FEATURES)
+            for p in preprocessors
+        ]
+        
+        custom_inference_config = {
+            "PREPROCESS_TRANSFORMS": new_preprocessors,
+            "MAX_NUMBER_OF_FEATURES": SAFE_MAX_FEATURES,
+        }
+
         clf = TabPFNClassifier(
             device=self.device,
             n_estimators=self.n_estimators,
             ignore_pretraining_limits=True,
+            inference_config=custom_inference_config,
         )
 
         # Ensure grouping is set on the underlying model used for ensembling
