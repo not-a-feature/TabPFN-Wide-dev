@@ -326,7 +326,8 @@ class Trainer:
                     f"validation_f1_weighted_wide": mean_val_f1_weighted,
                     f"validation_roc_auc_wide": mean_val_roc_auc,
                     "custom_step": self.curr_step,
-                }
+                },
+                step=self.curr_step,
             )
 
     def train(self):
@@ -419,7 +420,8 @@ class Trainer:
                             new_features if self.feature_adding_config.add_features_max > 0 else 0
                         ),
                         "custom_step": self.curr_step,
-                    }
+                    },
+                    step=self.curr_step,
                 )
 
             if (
