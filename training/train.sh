@@ -79,9 +79,9 @@ torchrun --nproc_per_node=2 --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/trai
     --model_emsize 192 \
     --model_features_per_group ${GROUPING} \
     --model_max_num_classes 10 \
-    --model_nlayers 12 \
-    --model_nhead 6 \
-    --model_nhid_factor 4 \
+    --model_nlayers 24 \
+    --model_nhead 3 \
+    --model_nhid_factor 2 \
     --model_num_buckets 5000 \
     --model_max_num_features 85 \
     --model_feature_attention_type full \
