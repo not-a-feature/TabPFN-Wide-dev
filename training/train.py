@@ -179,6 +179,9 @@ class Trainer:
 
             # Compare loaded config to self.model_config and assert all fields are equal
             for field in fields(self.model_config):
+                # Ignore recompute_layer mismatch as we want to force it for training stability/memory
+                if field.name == "recompute_layer":
+                    continue
                 loaded_value = getattr(config, field.name, None)
                 current_value = getattr(self.model_config, field.name, None)
                 assert (
