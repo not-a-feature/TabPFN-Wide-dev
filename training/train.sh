@@ -71,8 +71,8 @@ torchrun --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/training/train.py" \
     --model_num_buckets 1000 \
     --model_max_num_features 85 \
     --model_feature_attention_type full \
-    --model_seed 42 \
-    --model_num_thinking_rows 64 \
+    --model_seed 0 \
+    --model_num_thinking_rows 0 \
     --prior_batch_size_per_gp 4 \
     --prior_device_prior cpu \
     --prior_min_features 50 \
