@@ -7,16 +7,12 @@ CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 from tabpfnwide.classifier import TabPFNWideClassifier
 
 # Path to the requested checkpoint
-CHECKPOINT_PATH = os.path.join(
-    CURRENT_DIR,
-    "checkpoints",
-    "5_AddFeat8000_NEst8_Group3",
-    "20251218_123325_final_icy-sea-9.pt",
-)
+# Path to the requested checkpoint
+CHECKPOINT_PATH = "/weka/pfeifer/ppu738/TabPFN-Wide/checkpoints/0_AddFeat1500_NEst1_Group1/20260116_182343_final_genial-firebrand-13.pt"
 
 if __name__ == "__main__":
     if not os.path.isfile(CHECKPOINT_PATH):
-        raise FileNotFoundError(f"Checkpoint not found: {CHECKPOINT_PATH}")
+        print(f"Warning: Checkpoint not found at {CHECKPOINT_PATH}. Please ensure the path is correct or accessible.")
 
     # Small, linearly separable toy dataset
     X = np.array(
@@ -35,11 +31,11 @@ if __name__ == "__main__":
     y = np.array([0, 0, 1, 1, 0, 1, 0, 1], dtype=np.int64)
 
     clf = TabPFNWideClassifier(
-        model_path=CHECKPOINT_PATH,  # Use the correct n_estimators and features_per_group for this checkpoint (check config.json)
-        n_estimators=8,
-        features_per_group=3,
+        model_path=CHECKPOINT_PATH,
+        n_estimators=1,
+        features_per_group=1,
         ignore_pretraining_limits=True,
-        device="cpu",
+        device="cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu",
     )
 
     clf.fit(X, y)

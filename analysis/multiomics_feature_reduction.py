@@ -229,7 +229,7 @@ if __name__ == "__main__":
         ]
 
     if not checkpoint_paths:
-        checkpoint_paths = ["default"]
+        checkpoint_paths = ["stock"]
 
     omics_list = args.omics_list
     device = args.device

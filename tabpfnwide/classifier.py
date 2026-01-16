@@ -128,6 +128,13 @@ class TabPFNWideClassifier(TabPFNClassifier):
         self.inference_config_ = inference_config
 
         if self.model_name != "v2":
+            # Manually override features_per_group to match the training behavior
+            # This is crucial because we are loading weights trained with grouping=1
+            # into a base model initialized with grouping=2
+            if hasattr(self, "features_per_group"):
+                 model.features_per_group = self.features_per_group
+                 self.configs_[0].features_per_group = self.features_per_group
+
             checkpoint = torch.load(self.model_path, map_location=self.device, weights_only=False)
 
             # Handle DDP-wrapped checkpoints

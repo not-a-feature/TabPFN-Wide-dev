@@ -299,7 +299,7 @@ if __name__ == "__main__":
         ]
 
     if not checkpoints:
-        checkpoints = ["v2.5"]
+        checkpoints = ["v2"]
 
     main(
         hdlss_data_dir=args.hdlss_data_dir,

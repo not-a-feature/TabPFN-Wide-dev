@@ -257,7 +257,7 @@ if __name__ == "__main__":
         ]
 
     if not checkpoint_paths:
-        checkpoint_paths = ["default"]
+        checkpoint_paths = ["stock"]
 
     if not args.checkpoint_path:
         checkpoint_paths += ["tabicl", "random_forest"]
