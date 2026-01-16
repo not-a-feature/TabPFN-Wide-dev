@@ -1,6 +1,6 @@
 #!/bin/bash
 USER_HOME=/weka/pfeifer/ppu738
-BASE_DIR_LOCAL=$USER_HOME/TabPFN-Wide
+BASE_DIR_LOCAL=$USER_HOME/TabPFN-Wide-v2.5
 
 
 HF_HOME=$BASE_DIR_LOCAL/huggingface
