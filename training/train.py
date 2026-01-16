@@ -292,7 +292,8 @@ class Trainer:
             y_test_np = y_test_tensor.cpu().numpy().flatten()
 
             # Fit classifier with provided pretrained model (no further training of weights)
-            clf.fit(X_train_np, y_train_np, model=self.base_model)
+            clf.model = self.base_model
+            clf.fit(X_train_np, y_train_np)
             pred_probs = clf.predict_proba(X_test_np)
 
             n_classes = pred_probs.shape[1]
@@ -375,10 +376,10 @@ class Trainer:
             try:
                 with Timer() as timer:
                     with self.amp_ctx:
+                        full_x = torch.cat([X_train, X_test], dim=0)
                         pred_logits = self.model(
-                            train_x=X_train,
-                            train_y=y_train,
-                            test_x=X_test,
+                            full_x,
+                            y_train,
                         )
                         pred_logits = pred_logits.float()
                     loss = self.criterion(pred_logits.reshape(-1, 10), y_test.flatten().long())
@@ -406,7 +407,8 @@ class Trainer:
             self.scheduler.step()
 
             if self.is_main_process and self.train_config.use_wandb:
-                wandb.log(
+                #print(f"Logging to wandb at step {self.curr_step}", flush=True)
+                self.wandb_obj.log(
                     {
                         "loss": loss.item(),
                         "lr": self.optimizer.param_groups[0]["lr"],
@@ -418,7 +420,8 @@ class Trainer:
                             new_features if self.feature_adding_config.add_features_max > 0 else 0
                         ),
                         "custom_step": self.curr_step,
-                    }
+                    },
+                    step=self.curr_step,
                 )
 
             if (
