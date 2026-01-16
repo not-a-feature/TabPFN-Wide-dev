@@ -381,6 +381,9 @@ class Trainer:
                         pred_logits = pred_logits.float()
                     loss = self.criterion(pred_logits.reshape(-1, 10), y_test.flatten().long())
                     self.scaler.scale(loss).backward()
+                    
+                    if self.is_main_process:
+                        step_progress.set_postfix({"loss": f"{loss.item():.4f}"})
                 forward_time = timer.elapsed
             except torch.cuda.OutOfMemoryError:
                 oom_errors += 1
