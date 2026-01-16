@@ -154,7 +154,8 @@ def load_multiomics_benchmark_shamir(dataset, normalize, aligned=True, subtype_l
                 "Kidney dataset only consists of clear cell subtype, no subtype labels available."
             )
         else:
-            clinical_data = pd.read_table(os.path.join(dir_path, dataset))
+            clinical_path = os.path.join(shamir_path, "clinical", "clinical", dataset)
+            clinical_data = pd.read_table(clinical_path)
             clinical_data["sampleID"] = clinical_data["sampleID"].str.replace("-", ".")
             clinical_data.index = clinical_data["sampleID"]
             label_column = {
