@@ -46,7 +46,7 @@ torchrun --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/training/train.py" \
     --batch_size 16 \
     --learning_rate 1e-5 \
     --weight_decay 1e-4 \
-    --num_steps 500 \
+    --num_steps 50 \
     --use_wandb \
     --d_type float16 \
     --warmup_proportion 0 \
