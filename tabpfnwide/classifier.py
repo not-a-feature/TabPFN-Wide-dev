@@ -11,7 +11,7 @@ from tabpfn.utils import infer_random_state, infer_devices, update_encoder_param
 class TabPFNWideClassifier(TabPFNClassifier):
     def __init__(
         self,
-        model_name="v2-Wide-5k",
+        model_name="",
         model_path="",
         device="cuda",
         n_estimators=1,
