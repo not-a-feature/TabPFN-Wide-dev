@@ -1,4 +1,6 @@
 analysis_results/embeddings/embeddings.pkl
+TabPFN/
+TabPFN-Wide-old/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
