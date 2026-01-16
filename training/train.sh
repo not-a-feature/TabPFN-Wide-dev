@@ -78,7 +78,6 @@ torchrun --nproc_per_node=2 --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/trai
     --n_estimators ${N_ESTIMATORS} \
     --model_emsize 192 \
     --model_features_per_group ${GROUPING} \
-    --model_recompute_layer \
     --model_max_num_classes 10 \
     --model_nlayers 24 \
     --model_nhead 3 \
