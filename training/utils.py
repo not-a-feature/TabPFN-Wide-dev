@@ -135,6 +135,21 @@ def get_categorical_added_features(X_cat, n_cat, sparsity=0.05, max_cats=20):
             X_new_cat[b, :, i] = new_feature
     return X_new_cat
 
+@torch.no_grad()
+def get_feature_dependent_noise(x_tensor, std):
+    stds = x_tensor.std(dim=0, keepdim=True)
+    stds[stds == 0] = 1
+    noise = torch.randn_like(x_tensor) * (std * stds)
+    return noise
+
+@torch.no_grad()
+def get_linear_added_features(x, features_to_be_added, sparsity, noise_std):
+    W_sparse = nn.Linear(x.shape[-1], features_to_be_added, bias=False).to(x.device)
+    W_sparse.weight.data *= (torch.rand_like(W_sparse.weight) < sparsity).float()
+    x = W_sparse(x)
+    dependent_noise = get_feature_dependent_noise(x, noise_std)
+    x += dependent_noise
+    return x.detach()
 
 @torch.no_grad()
 def get_new_features_mixed_batched(
