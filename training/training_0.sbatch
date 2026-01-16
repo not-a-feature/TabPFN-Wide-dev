@@ -18,4 +18,4 @@
 #SBATCH --mail-user=jules.kreuer@uni-tuebingen.de 
 
 source /weka/pfeifer/ppu738/TabPFN-Wide/training/init.sh
-source /weka/pfeifer/ppu738/TabPFN-Wide/training/train.sh 5
+source /weka/pfeifer/ppu738/TabPFN-Wide/training/train.sh 0
