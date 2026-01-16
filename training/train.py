@@ -319,7 +319,7 @@ class Trainer:
                     rocs.append(np.nan)
             mean_val_roc_auc = np.nanmean(rocs)
 
-            wandb.log(
+            self.wandb_obj.log(
                 {
                     f"validation_loss_wide": mean_val_loss,
                     f"validation_accuracy_wide": mean_val_accuracy,
@@ -410,7 +410,8 @@ class Trainer:
             self.scheduler.step()
 
             if self.is_main_process and self.train_config.use_wandb:
-                wandb.log(
+                print(f"Logging to wandb at step {self.curr_step}")
+                self.wandb_obj.log(
                     {
                         "loss": loss.item(),
                         "lr": self.optimizer.param_groups[0]["lr"],
