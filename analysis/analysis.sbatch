@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=TabPFN-Wide-analysis
-#SBATCH --array=0-10
+#SBATCH --array=0-3
 
 #SBATCH --cpus-per-task=100
 #SBATCH --nodes=1
@@ -22,24 +22,15 @@
 source training/init.sh
 
 # Handle default models and specific checkpoints
-if [ "$SLURM_ARRAY_TASK_ID" -eq 9 ]; then
+if [ "$SLURM_ARRAY_TASK_ID" -eq 3 ]; then
     CHECKPOINT_PATH="default_n1g1"
     OUTPUT_DIR="${BASE_DIR_LOCAL}/analysis_results/default_n1g1"
-elif [ "$SLURM_ARRAY_TASK_ID" -eq 10 ]; then
-    CHECKPOINT_PATH="default_n8g3"
-    OUTPUT_DIR="${BASE_DIR_LOCAL}/analysis_results/default_n8g3"
 else
     # Define specific checkpoints
     CHECKPOINT_NAMES=(
         "0_AddFeat1500_NEst1_Group1"
-        "0_AddFeat1500_NEst1_Group1_Warmup"
         "1_AddFeat5000_NEst1_Group1"
-        "1_AddFeat5000_NEst1_Group1_Warmup"
         "2_AddFeat8000_NEst1_Group1"
-        "2_AddFeat8000_NEst1_Group1_Warmup"
-        "3_AddFeat1500_NEst8_Group3"
-        "4_AddFeat5000_NEst8_Group3"
-        "5_AddFeat8000_NEst8_Group3"
     )
 
     if [ "$SLURM_ARRAY_TASK_ID" -ge "${#CHECKPOINT_NAMES[@]}" ]; then
@@ -79,8 +70,8 @@ OUTPUT_DIR_NOSUB="${OUTPUT_DIR}_nosub"
 echo "Output directory (no subsampling): $OUTPUT_DIR_NOSUB"
 bash analysis/run_analysis.sh "$CHECKPOINT_PATH" "$OUTPUT_DIR_NOSUB" "$RUN_HDLSS_ONLY" 50000
 
-# If this is the last task (assuming array 0-10), run the comparison script
-if [ "$SLURM_ARRAY_TASK_ID" -eq 10 ]; then
-    echo "Task ID 10: Running comparison plotting..."
+# If this is the last task (assuming array 0-3), run the comparison script
+if [ "$SLURM_ARRAY_TASK_ID" -eq 3 ]; then
+    echo "Task ID 3: Running comparison plotting..."
     bash analysis/compare_results.sh "${BASE_DIR_LOCAL}/analysis_results"
 fi

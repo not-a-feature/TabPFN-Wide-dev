@@ -20,6 +20,7 @@ from sklearn.metrics import roc_auc_score
 from analysis.utils import PredictionResults
 from tabpfnwide.classifier import TabPFNWideClassifier
 from tabpfn import TabPFNClassifier
+from tabpfn.constants import ModelVersion
 import argparse
 
 
@@ -93,27 +94,10 @@ def main(
         print(f"Initializing model from {checkpoint_path}")
 
         if checkpoint_path == "stock":
-            clf = TabPFNClassifier(device=device, ignore_pretraining_limits=True)
-        elif checkpoint_path == "default_n1g1":
-            clf = TabPFNWideClassifier(
-                model_name="v2.5",
-                device=device,
-                n_estimators=1,
-                features_per_group=1,
-                ignore_pretraining_limits=True,
-                save_attention_maps=False,
-                subsampling_max_features=subsampling_max_features,
-            )
-        elif checkpoint_path == "default_n8g3":
-            clf = TabPFNWideClassifier(
-                model_name="v2.5",
-                device=device,
-                n_estimators=8,
-                features_per_group=3,
-                ignore_pretraining_limits=True,
-                save_attention_maps=False,
-                subsampling_max_features=subsampling_max_features,
-            )
+            clf = TabPFNClassifier.create_default_for_version(ModelVersion.V2)
+            clf.device = device
+        elif checkpoint_path == "stock_2.5":
+            clf = TabPFNClassifier(device=device, ignore_pretraining_limits=True, model_path="v2")
         else:
             config_file = (
                 config_path

@@ -11,12 +11,11 @@ from tabpfn.utils import infer_random_state, infer_devices, update_encoder_param
 class TabPFNWideClassifier(TabPFNClassifier):
     def __init__(
         self,
-        model_name="",
+        model_name="v2-Wide-5k",
         model_path="",
         device="cuda",
+        n_estimators=1,
         features_per_group=3,
-        n_estimators=8,
-        subsampling_max_features=500,
         save_attention_maps=False,
         **kwargs,
     ):
@@ -26,16 +25,16 @@ class TabPFNWideClassifier(TabPFNClassifier):
             raise ValueError("Either model_name or model_path must be specified, but not both.")
 
         if model_name:
-            valid_models = ["v2.5-Wide-1.5k", "v2.5-Wide-5k", "v2.5-Wide-8k", "v2.5"]
+            valid_models = ["v2", "v2-Wide-1.5k", "v2-Wide-5k", "v2-Wide-8k"]
             if model_name not in valid_models:
                 raise ValueError(
                     f"Model name {model_name} not recognized. Choose from {valid_models}"
                 )
-            if model_name != "v2.5":
+            if model_name != "v2":
                 # TODO FIX LOCAL PATH
                 model_path = os.path.join(f"TODO FIX LOCAL PATH {model_name}.pt")
 
-        if model_name != "v2.5" and not os.path.isfile(model_path):
+        if model_name != "v2" and not os.path.isfile(model_path):
             raise ValueError(f"Model path {model_path} does not exist.")
 
         if save_attention_maps and (n_estimators != 1 or features_per_group != 1):
@@ -60,7 +59,6 @@ class TabPFNWideClassifier(TabPFNClassifier):
         self.model_name = model_name
         self.features_per_group = features_per_group
         self.n_estimators = n_estimators
-        self.subsampling_max_features = subsampling_max_features
         self.save_attention_maps = save_attention_maps
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -86,15 +84,15 @@ class TabPFNWideClassifier(TabPFNClassifier):
                 user_config=self.inference_config
             )
 
-            # Set the max_features_per_estimator to enable/prevent subsampling 
-            new_preprocessors = []
-            for p in self.inference_config_.PREPROCESS_TRANSFORMS:
-                new_preprocessors.append(
-                    dataclasses.replace(p, max_features_per_estimator=self.subsampling_max_features)
-                )
-            self.inference_config_ = dataclasses.replace(
-                self.inference_config_, PREPROCESS_TRANSFORMS=new_preprocessors
-            )
+            # # Set the max_features_per_estimator to enable/prevent subsampling 
+            # new_preprocessors = []
+            # for p in self.inference_config_.PREPROCESS_TRANSFORMS:
+            #     new_preprocessors.append(
+            #         dataclasses.replace(p, max_features_per_estimator=self.subsampling_max_features)
+            #     )
+            # self.inference_config_ = dataclasses.replace(
+            #     self.inference_config_, PREPROCESS_TRANSFORMS=new_preprocessors
+            # )
 
             outlier_removal_std = self.inference_config_.OUTLIER_REMOVAL_STD
             if outlier_removal_std == "auto":
@@ -121,7 +119,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
             check_bar_distribution_criterion=False,
             cache_trainset_representation=False,
             which="classifier",
-            version="v2.5",
+            version="v2",
             download_if_not_exists=True,
         )
         model = models[0]
@@ -129,8 +127,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
         self.configs_ = configs
         self.inference_config_ = inference_config
 
-        if self.model_name != "v2.5":
-            model.features_per_group = self.features_per_group
+        if self.model_name != "v2":
             checkpoint = torch.load(self.model_path, map_location=self.device, weights_only=False)
 
             # Handle DDP-wrapped checkpoints

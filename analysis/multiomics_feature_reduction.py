@@ -63,7 +63,7 @@ def main(
             name = "stock"
         elif checkpoint_path == "default_n1g1":
             clf = TabPFNWideClassifier(
-                model_name="v2.5",
+                model_name="v2",
                 device=device,
                 n_estimators=1,
                 features_per_group=1,
@@ -74,7 +74,7 @@ def main(
             name = "default_n1g1"
         elif checkpoint_path == "default_n8g3":
             clf = TabPFNWideClassifier(
-                model_name="v2.5",
+                model_name="v2",
                 device=device,
                 n_estimators=8,
                 features_per_group=3,

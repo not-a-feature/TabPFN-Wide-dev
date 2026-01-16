@@ -43,7 +43,7 @@ import dataclasses
 from dataclasses import dataclass, asdict, fields
 from collections import defaultdict
 import warnings
-from tabpfn.preprocessing import v2_5_classifier_preprocessor_configs
+from tabpfn.preprocessing import v2_classifier_preprocessor_configs
 
 warnings.filterwarnings("ignore", module="sklearn")
 
@@ -168,7 +168,7 @@ class Trainer:
                 check_bar_distribution_criterion=False,
                 cache_trainset_representation=False,
                 which="classifier",
-                version="v2.5",
+                version="v2",
                 download_if_not_exists=True,
             )
             model = models[0]
@@ -256,7 +256,7 @@ class Trainer:
         pred_res = []
         val_losses = []
 
-        preprocessors = v2_5_classifier_preprocessor_configs()
+        preprocessors = v2_classifier_preprocessor_configs()
         SAFE_MAX_FEATURES = 20000
         new_preprocessors = [
             dataclasses.replace(p, max_features_per_estimator=SAFE_MAX_FEATURES)

@@ -16,32 +16,14 @@ case "${TASK_ID}" in
     0)
         ADD_FEATURES_MAX=1500
         N_ESTIMATORS=1
-        GROUPING=1
         ;;
     1)
         ADD_FEATURES_MAX=5000
         N_ESTIMATORS=1
-        GROUPING=1
         ;;
     2)
         ADD_FEATURES_MAX=8000
         N_ESTIMATORS=1
-        GROUPING=1
-        ;;
-    3)
-        ADD_FEATURES_MAX=1500
-        N_ESTIMATORS=8
-        GROUPING=3
-        ;;
-    4)
-        ADD_FEATURES_MAX=5000
-        N_ESTIMATORS=8
-        GROUPING=3
-        ;;
-    5)
-        ADD_FEATURES_MAX=8000
-        N_ESTIMATORS=8
-        GROUPING=3
         ;;
     *)
         echo "Error: Invalid SLURM_ARRAY_TASK_ID: ${TASK_ID}" >&2
@@ -49,8 +31,10 @@ case "${TASK_ID}" in
         ;;
 esac
 
+GROUPING=1
 
-CHECKPOINT_DIR="${BASE_DIR_LOCAL}/checkpoints/${TASK_ID}_AddFeat${ADD_FEATURES_MAX}_NEst${N_ESTIMATORS}_Group${GROUPING}_Warmup"
+
+CHECKPOINT_DIR="${BASE_DIR_LOCAL}/checkpoints/${TASK_ID}_AddFeat${ADD_FEATURES_MAX}_NEst${N_ESTIMATORS}_Group${GROUPING}"
 mkdir -p $CHECKPOINT_DIR
 
 MSG="TASK_ID=${TASK_ID}, ADD_FEATURES_MAX=${ADD_FEATURES_MAX}, N_ESTIMATORS=${N_ESTIMATORS}, GROUPING=${GROUPING}"
@@ -65,14 +49,13 @@ torchrun --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/training/train.py" \
     --num_steps 100000 \
     --use_wandb \
     --d_type float16 \
-    --warmup_proportion 0.02 \
+    --warmup_proportion 0 \
     --num_cycles 10 \
     --gradient_clipping 1.0 \
     --validation_interval 200 \
     --validation_interval_wide 100 \
-    --add_features_min 500 \
+    --add_features_min 200 \
     --add_features_max ${ADD_FEATURES_MAX} \
-    --feature_adding_warmup_steps 50000 \
     --max_sparsity_feature_adding 0.05 \
     --max_noise_feature_adding 1.0 \
     --use_original_model \

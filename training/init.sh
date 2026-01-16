@@ -35,7 +35,7 @@ if [ ! -d $CONDA_DIR ]; then
     echo "Creating conda environment..."
     conda create -n $CONDA_ENV_NAME python=3.12 -y
     conda activate $CONDA_ENV_NAME
-    pip install -r requirements.txt
+    pip install -e .
 else
     echo "Activating existing conda environment..."
     conda activate $CONDA_ENV_NAME

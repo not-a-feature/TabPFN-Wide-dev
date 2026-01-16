@@ -48,18 +48,10 @@ SCENARIOS = [
     {"name": "A_n8", "grouping": 1, "dup": 1, "mask": 0, "type": "grouping", "n_estimators": 8},
     {"name": "B_n1", "grouping": 2, "dup": 1, "mask": 0, "type": "grouping", "n_estimators": 1},
     {"name": "B_n8", "grouping": 2, "dup": 1, "mask": 0, "type": "grouping", "n_estimators": 8},
-    {"name": "C_n1", "grouping": 3, "dup": 1, "mask": 0, "type": "grouping", "n_estimators": 1},
-    {"name": "C_n8", "grouping": 3, "dup": 1, "mask": 0, "type": "grouping", "n_estimators": 8},
     {"name": "D_n1", "grouping": 2, "dup": 2, "mask": 0, "type": "duplication", "n_estimators": 1},
     {"name": "D_n8", "grouping": 2, "dup": 2, "mask": 0, "type": "duplication", "n_estimators": 8},
-    {"name": "E_n1", "grouping": 3, "dup": 3, "mask": 0, "type": "duplication", "n_estimators": 1},
-    {"name": "E_n8", "grouping": 3, "dup": 3, "mask": 0, "type": "duplication", "n_estimators": 8},
     {"name": "F_n1", "grouping": 2, "dup": 1, "mask": 1, "type": "masking", "n_estimators": 1},
     {"name": "F_n8", "grouping": 2, "dup": 1, "mask": 1, "type": "masking", "n_estimators": 8},
-    {"name": "G_n1", "grouping": 3, "dup": 1, "mask": 2, "type": "masking", "n_estimators": 1},
-    {"name": "G_n8", "grouping": 3, "dup": 1, "mask": 2, "type": "masking", "n_estimators": 8},
-    {"name": "H_n1", "grouping": 3, "dup": 2, "mask": 1, "type": "mixed", "n_estimators": 1},
-    {"name": "H_n8", "grouping": 3, "dup": 2, "mask": 1, "type": "mixed", "n_estimators": 8},
 ]
 
 
@@ -687,7 +679,7 @@ def main(
 
         # Initialize classifier for this scenario
         clf = TabPFNWideClassifier(
-            model_name="v2.5",
+            model_name="v2",
             device=device,
             n_estimators=n_est,
             ignore_pretraining_limits=True,
@@ -780,7 +772,7 @@ def main(
                 print(f"  Method: {name} ({ana_type})")
 
                 clf = TabPFNWideClassifier(
-                    model_name="v2.5",
+                    model_name="v2",
                     device=device,
                     n_estimators=n_est,
                     ignore_pretraining_limits=True,

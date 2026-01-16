@@ -14,6 +14,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import roc_auc_score
 from sklearn.utils import shuffle
 from tabpfn import TabPFNClassifier
+from tabpfn.constants import ModelVersion
 from analysis.utils import PredictionResults, get_new_features
 from tabpfnwide.classifier import TabPFNWideClassifier
 
@@ -88,27 +89,8 @@ def main(
         elif checkpoint_path == "random_forest":
             pass  # Will be created in loop
         elif checkpoint_path == "stock":
-            clf = TabPFNClassifier(device=device, ignore_pretraining_limits=True)
-        elif checkpoint_path == "default_n1g1":
-            clf = TabPFNWideClassifier(
-                model_name="v2.5",
-                device=device,
-                n_estimators=1,
-                features_per_group=1,
-                ignore_pretraining_limits=True,
-                save_attention_maps=False,
-                subsampling_max_features=subsampling_max_features,
-            )
-        elif checkpoint_path == "default_n8g3":
-            clf = TabPFNWideClassifier(
-                model_name="v2.5",
-                device=device,
-                n_estimators=8,
-                features_per_group=3,
-                ignore_pretraining_limits=True,
-                save_attention_maps=False,
-                subsampling_max_features=subsampling_max_features,
-            )
+            clf = TabPFNClassifier.create_default_for_version(ModelVersion.V2)
+            clf.device = device
         else:
             config_file = (
                 config_path
