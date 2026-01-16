@@ -82,7 +82,7 @@ torchrun --nproc_per_node=2 --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/trai
     --model_nlayers 24 \
     --model_nhead 3 \
     --model_nhid_factor 2 \
-    --model_num_buckets 5000 \
+    --model_num_buckets 1000 \
     --model_max_num_features 85 \
     --model_feature_attention_type full \
     --model_seed 42 \
