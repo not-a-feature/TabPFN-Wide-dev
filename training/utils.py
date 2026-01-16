@@ -262,7 +262,7 @@ def get_new_features_mixed_helper(
     X_cont = x_tensor[..., ~cat_mask] if (~cat_mask).any() else None
     # ratio of categorical to total features
     cat_ratio = (X_cat.shape[-1] if X_cat is not None else 0) / max(x_tensor.shape[-1], 1)
-    print(f"Cat ratio: {cat_ratio}")
+    #print(f"Cat ratio: {cat_ratio}")
     n_cat = int(features_to_be_added * cat_ratio)
     n_cont = features_to_be_added - n_cat
     # print(f"Cat ratio is: {cat_ratio}")

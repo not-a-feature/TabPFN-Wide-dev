@@ -354,7 +354,7 @@ class Trainer:
                 and torch.all(seq_len == seq_len[0])
                 and torch.all(trainsizes == trainsizes[0])
             ):
-                if self.is_main_process and self.curr_step % 10 == 0:
+                if self.is_main_process:
                      print(f"Skipping batch at step {self.curr_step} due to shape mismatch: d={d}, seq_len={seq_len}", flush=True)
                 continue
             X = X[:, :, : d[0]]
@@ -413,7 +413,7 @@ class Trainer:
             self.scheduler.step()
 
             if self.is_main_process and self.train_config.use_wandb:
-                print(f"Logging to wandb at step {self.curr_step}", flush=True)
+                #print(f"Logging to wandb at step {self.curr_step}", flush=True)
                 self.wandb_obj.log(
                     {
                         "loss": loss.item(),
