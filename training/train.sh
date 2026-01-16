@@ -73,7 +73,7 @@ torchrun --nproc_per_node=2 --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/trai
     --model_feature_attention_type full \
     --model_seed 0 \
     --model_num_thinking_rows 0 \
-    --prior_batch_size_per_gp 4 \
+    --prior_batch_size_per_gp 32 \
     --prior_device_prior cpu \
     --prior_min_features 50 \
     --prior_max_features 350 \
