@@ -82,11 +82,12 @@ torchrun --nproc_per_node=2 --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/trai
     --model_nlayers 24 \
     --model_nhead 3 \
     --model_nhid_factor 2 \
+    --model_num_thinking_rows 64 \
     --model_num_buckets 5000 \
     --model_recompute_layer \
     --model_max_num_features 85 \
     --model_feature_attention_type full \
-    --model_seed 0 \
+    --model_seed 42 \
     --prior_batch_size_per_gp 32 \
     --prior_device_prior cpu \
     --prior_min_features 50 \

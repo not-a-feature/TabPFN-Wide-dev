@@ -386,14 +386,22 @@ class Trainer:
             try:
                 with Timer() as timer:
                     with self.amp_ctx:
+                        if self.is_main_process: print(f"Batch {i}: Concatenating inputs", flush=True)
                         full_x = torch.cat([X_train, X_test], dim=0)
+                        if self.is_main_process: print(f"Batch {i}: Entering model forward", flush=True)
                         pred_logits = self.model(
                             full_x,
                             y_train,
                         )
+                        if self.is_main_process: print(f"Batch {i}: Model forward done", flush=True)
                         pred_logits = pred_logits.float()
+                    
+                    if self.is_main_process: print(f"Batch {i}: Calculating loss", flush=True)
                     loss = self.criterion(pred_logits.reshape(-1, 10), y_test.flatten().long())
+                    
+                    if self.is_main_process: print(f"Batch {i}: Backward pass", flush=True)
                     self.scaler.scale(loss).backward()
+                    if self.is_main_process: print(f"Batch {i}: Backward pass done", flush=True)
                 forward_time = timer.elapsed
             except torch.cuda.OutOfMemoryError:
                 oom_errors += 1

@@ -137,7 +137,10 @@ def get_categorical_added_features(X_cat, n_cat, sparsity=0.05, max_cats=20):
 
 @torch.no_grad()
 def get_feature_dependent_noise(x_tensor, std):
-    stds = x_tensor.std(dim=0, keepdim=True)
+    stds = x_tensor.std(dim=1, keepdim=True)
+    if torch.isnan(stds).any():
+        print(f"NAN detected in stds in get_feature_dependent_noise", flush=True)
+        stds = torch.nan_to_num(stds, nan=1.0)
     stds[stds == 0] = 1
     noise = torch.randn_like(x_tensor) * (std * stds)
     return noise
@@ -222,7 +225,9 @@ def get_new_features_mixed(
     include_orig = np.random.rand() < include_original_prob and include_original
     b, t, d = x_tensor.shape
     x_widened = []
+    x_widened = []
     for i in range(b):
+        print(f"Debug: get_new_features_mixed processing item {i}/{b}", flush=True)
         # for every dataset perform feature widening independently!
         new_x = get_new_features_mixed_helper(
             x_tensor=x_tensor[i].unsqueeze(0),
