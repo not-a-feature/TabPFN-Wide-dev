@@ -8,7 +8,7 @@
 #SBATCH --partition=h100-ferranti # --partition=h100-ferranti h100-preemptable-ferranti
 #SBATCH --mem=20G
 
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:2
 
 #SBATCH --time=72:00:00
 

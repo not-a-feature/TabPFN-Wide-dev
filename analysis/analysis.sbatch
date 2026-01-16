@@ -32,11 +32,8 @@ else
     # Define specific checkpoints
     CHECKPOINT_NAMES=(
         "0_AddFeat1500_NEst1_Group1"
-        "0_AddFeat1500_NEst1_Group1_Warmup"
         "1_AddFeat5000_NEst1_Group1"
-        "1_AddFeat5000_NEst1_Group1_Warmup"
         "2_AddFeat8000_NEst1_Group1"
-        "2_AddFeat8000_NEst1_Group1_Warmup"
         "3_AddFeat1500_NEst8_Group3"
         "4_AddFeat5000_NEst8_Group3"
         "5_AddFeat8000_NEst8_Group3"
