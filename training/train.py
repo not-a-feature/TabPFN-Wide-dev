@@ -354,7 +354,7 @@ class Trainer:
                 and torch.all(trainsizes == trainsizes[0])
             ):
                 if self.is_main_process and self.curr_step % 10 == 0:
-                     print(f"Skipping batch at step {self.curr_step} due to shape mismatch: d={d}, seq_len={seq_len}")
+                     print(f"Skipping batch at step {self.curr_step} due to shape mismatch: d={d}, seq_len={seq_len}", flush=True)
                 continue
             X = X[:, :, : d[0]]
             new_features = 0
@@ -388,7 +388,7 @@ class Trainer:
                     if self.is_main_process:
                         step_progress.set_postfix({"loss": f"{loss.item():.4f}"})
                         if self.curr_step % 10 == 0:
-                             print(f"Step: {self.curr_step}, Loss: {loss.item():.4f}")
+                             print(f"Step: {self.curr_step}, Loss: {loss.item():.4f}", flush=True)
                 forward_time = timer.elapsed
             except torch.cuda.OutOfMemoryError:
                 oom_errors += 1
@@ -412,7 +412,7 @@ class Trainer:
             self.scheduler.step()
 
             if self.is_main_process and self.train_config.use_wandb:
-                print(f"Logging to wandb at step {self.curr_step}")
+                print(f"Logging to wandb at step {self.curr_step}", flush=True)
                 self.wandb_obj.log(
                     {
                         "loss": loss.item(),
