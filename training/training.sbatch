@@ -6,11 +6,11 @@
 #SBATCH --cpus-per-task=100
 #SBATCH --nodes=1
 #SBATCH --partition=h100-ferranti # --partition=h100-ferranti h100-preemptable-ferranti
-#SBATCH --mem=20G
+#SBATCH --mem=50G
 
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:2
 
-#SBATCH --time=72:00:00
+#SBATCH --time=48:00:00
 
 #SBATCH --error=job.%J.err 
 #SBATCH --output=job.%J.out 
