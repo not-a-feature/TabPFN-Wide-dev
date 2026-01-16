@@ -339,12 +339,19 @@ class Trainer:
             else range(self.curr_step, self.train_config.num_steps)
         )
 
+        if self.is_main_process:
+            print("Trainer initialized", flush=True)
+
         for i in step_progress:
             self.curr_step = i
             self.model.train()
             self.optimizer.zero_grad(set_to_none=True)
+            if self.is_main_process:
+                print(f"Waiting for batch {i}...", flush=True)
             with Timer() as timer:
                 batch = next(self.dataloader)
+            if self.is_main_process:
+                print(f"Got batch {i}", flush=True)
             prior_time = timer.elapsed
 
             X, y, d, seq_len, trainsizes = batch
@@ -407,7 +414,8 @@ class Trainer:
             self.scheduler.step()
 
             if self.is_main_process and self.train_config.use_wandb:
-                #print(f"Logging to wandb at step {self.curr_step}", flush=True)
+                if i % 10 == 0:
+                     print(f"Logging to wandb at step {self.curr_step}", flush=True)
                 self.wandb_obj.log(
                     {
                         "loss": loss.item(),
