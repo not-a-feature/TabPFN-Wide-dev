@@ -376,10 +376,10 @@ class Trainer:
             try:
                 with Timer() as timer:
                     with self.amp_ctx:
+                        full_x = torch.cat([X_train, X_test], dim=0)
                         pred_logits = self.model(
-                            train_x=X_train,
-                            train_y=y_train,
-                            test_x=X_test,
+                            full_x,
+                            y_train,
                         )
                         pred_logits = pred_logits.float()
                     loss = self.criterion(pred_logits.reshape(-1, 10), y_test.flatten().long())
