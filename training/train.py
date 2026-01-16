@@ -385,6 +385,8 @@ class Trainer:
                     
                     if self.is_main_process:
                         step_progress.set_postfix({"loss": f"{loss.item():.4f}"})
+                        if self.curr_step % 10 == 0:
+                             print(f"Step: {self.curr_step}, Loss: {loss.item():.4f}")
                 forward_time = timer.elapsed
             except torch.cuda.OutOfMemoryError:
                 oom_errors += 1
