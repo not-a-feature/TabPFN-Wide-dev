@@ -292,7 +292,8 @@ class Trainer:
             y_test_np = y_test_tensor.cpu().numpy().flatten()
 
             # Fit classifier with provided pretrained model (no further training of weights)
-            clf.fit(X_train_np, y_train_np, model=self.base_model)
+            clf.model = self.base_model
+            clf.fit(X_train_np, y_train_np)
             pred_probs = clf.predict_proba(X_test_np)
 
             n_classes = pred_probs.shape[1]
