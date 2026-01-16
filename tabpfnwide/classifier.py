@@ -84,15 +84,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
                 user_config=self.inference_config
             )
 
-            # # Set the max_features_per_estimator to enable/prevent subsampling 
-            # new_preprocessors = []
-            # for p in self.inference_config_.PREPROCESS_TRANSFORMS:
-            #     new_preprocessors.append(
-            #         dataclasses.replace(p, max_features_per_estimator=self.subsampling_max_features)
-            #     )
-            # self.inference_config_ = dataclasses.replace(
-            #     self.inference_config_, PREPROCESS_TRANSFORMS=new_preprocessors
-            # )
+
 
             outlier_removal_std = self.inference_config_.OUTLIER_REMOVAL_STD
             if outlier_removal_std == "auto":

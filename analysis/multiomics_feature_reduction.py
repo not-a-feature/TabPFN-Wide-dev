@@ -23,7 +23,6 @@ def main(
     device="cuda:0",
     omics_list=None,
     config_path=None,
-    subsampling_max_features=500,
 ):
     """
     Runs feature reduction experiments on multi-omics datasets using a specified model and checkpoints.
@@ -69,8 +68,9 @@ def main(
                 features_per_group=1,
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
-                subsampling_max_features=subsampling_max_features,
+                save_attention_maps=False,
             )
+
             name = "default_n1g1"
         elif checkpoint_path == "default_n8g3":
             clf = TabPFNWideClassifier(
@@ -80,8 +80,9 @@ def main(
                 features_per_group=3,
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
-                subsampling_max_features=subsampling_max_features,
+                save_attention_maps=False,
             )
+
             name = "default_n8g3"
         else:
             config_file = (
@@ -101,8 +102,9 @@ def main(
                 features_per_group=features_per_group,
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
-                subsampling_max_features=subsampling_max_features,
+                save_attention_maps=False,
             )
+
             name = checkpoint_path.split("/")[-1]
 
         for n_features in [
@@ -206,12 +208,6 @@ if __name__ == "__main__":
     parser.add_argument("--config_path", type=str)
     parser.add_argument("--omics", dest="omics_list", type=str, nargs="+", default=["mRNA"])
     parser.add_argument("--device", type=str, default="cuda:0")
-    parser.add_argument(
-        "--subsampling_max_features",
-        type=int,
-        default=500,
-        help="Maximum number of features for subsampling",
-    )
 
     args = parser.parse_args()
 
@@ -241,5 +237,4 @@ if __name__ == "__main__":
         device,
         omics_list,
         config_path=args.config_path,
-        subsampling_max_features=args.subsampling_max_features,
     )

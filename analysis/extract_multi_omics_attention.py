@@ -19,7 +19,6 @@ def main(
     config_path,
     device="cuda:0",
     omic="mrna",
-    subsampling_max_features=500,
 ):
     """
     Extracts and saves attention maps from a trained transformer-based model on multi-omics data.
@@ -70,8 +69,9 @@ def main(
             features_per_group=1,
             ignore_pretraining_limits=True,
             save_attention_maps=True,
-            subsampling_max_features=subsampling_max_features,
+            save_attention_maps=True,
         )
+
     else:
         clf = TabPFNWideClassifier(
             model_path=checkpoint_path,
@@ -80,8 +80,9 @@ def main(
             features_per_group=1,
             ignore_pretraining_limits=True,
             save_attention_maps=True,
-            subsampling_max_features=subsampling_max_features,
+            save_attention_maps=True,
         )
+
 
     model = clf.model
 
@@ -115,12 +116,6 @@ if __name__ == "__main__":
     parser.add_argument("--config_path", type=str)
     parser.add_argument("--device", type=str, default="cuda:0", help="Device to run the model on")
     parser.add_argument("--omic", type=str, default="mrna", help="Omic type to use (default: mRNA)")
-    parser.add_argument(
-        "--subsampling_max_features",
-        type=int,
-        default=500,
-        help="Maximum number of features for subsampling",
-    )
 
     args = parser.parse_args()
     main(
@@ -130,5 +125,4 @@ if __name__ == "__main__":
         args.config_path,
         args.device,
         args.omic,
-        subsampling_max_features=args.subsampling_max_features,
     )

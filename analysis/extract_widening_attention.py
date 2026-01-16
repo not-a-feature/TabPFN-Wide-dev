@@ -13,7 +13,7 @@ import json
 
 
 def main(
-    device, openml_id, checkpoint_path, output, config_path, subsampling_max_features=500
+    device, openml_id, checkpoint_path, output, config_path
 ):
     """
     Runs an analysis pipeline to evaluate attention patterns in a transformer-based model on tabular data with added noise and sparsity.
@@ -73,8 +73,9 @@ def main(
             features_per_group=1,
             ignore_pretraining_limits=True,
             save_attention_maps=True,
-            subsampling_max_features=subsampling_max_features,
+            save_attention_maps=True,
         )
+
     else:
         clf = TabPFNWideClassifier(
             model_path=checkpoint_path,
@@ -83,8 +84,9 @@ def main(
             features_per_group=1,
             ignore_pretraining_limits=True,
             save_attention_maps=True,
-            subsampling_max_features=subsampling_max_features,
+            save_attention_maps=True,
         )
+
 
     permutation = None
     attentions_to_last_column = {}
@@ -134,12 +136,6 @@ if __name__ == "__main__":
         "--checkpoint_path", type=str, required=True, help="Path to model checkpoint"
     )
     parser.add_argument("--config_path", type=str)
-    parser.add_argument(
-        "--subsampling_max_features",
-        type=int,
-        default=500,
-        help="Maximum number of features for subsampling",
-    )
 
     args = parser.parse_args()
     main(
@@ -148,5 +144,4 @@ if __name__ == "__main__":
         args.checkpoint_path,
         args.output,
         config_path=args.config_path,
-        subsampling_max_features=args.subsampling_max_features,
     )

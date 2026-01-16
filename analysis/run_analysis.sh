@@ -7,10 +7,8 @@ export PYTHONPATH=$PYTHONPATH:.
 CHECKPOINT_PATH="$1"
 OUTPUT_DIR="$2"
 RUN_HDLSS_ONLY="${3:-false}"
-SUBSAMPLING_MAX_FEATURES="${4:-500}"
-
 if [ -z "$CHECKPOINT_PATH" ] || [ -z "$OUTPUT_DIR" ]; then
-    echo "Usage: $0 <checkpoint_path> <output_dir> [run_hdlss_only] [subsampling_max_features]"
+    echo "Usage: $0 <checkpoint_path> <output_dir> [run_hdlss_only]"
     exit 1
 fi
 
@@ -38,8 +36,7 @@ if [ ! -f "${OUTPUT_DIR}/hdlss_benchmark_results.csv" ]; then
         "${OUTPUT_DIR}/hdlss_benchmark_results.csv" \
         --checkpoint_path "$CHECKPOINT_PATH" \
         --config_path "$CONFIG_FILE" \
-        --min_features 500 \
-        --subsampling_max_features "$SUBSAMPLING_MAX_FEATURES"
+        --min_features 500
 else
     echo "HDLSS Benchmark results exist. Skipping."
 fi
@@ -66,8 +63,7 @@ if [ ! -f "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" ]; then
             --checkpoint_path "$CHECKPOINT_PATH" \
             --config_path "$CONFIG_FILE" \
             --dataset "$dataset" \
-            --omics "mrna" \
-            --subsampling_max_features "$SUBSAMPLING_MAX_FEATURES"
+            --omics "mrna"
     done
 else
     echo "Multi-omics Feature Reduction results exist. Skipping."
@@ -82,8 +78,7 @@ if [ ! -f "${OUTPUT_DIR}/openml_benchmark_results.csv" ]; then
         "${OUTPUT_DIR}/openml_benchmark_results.csv" \
         --suite_id 457 \
         --checkpoint_path "$CHECKPOINT_PATH" \
-        --config_path "$CONFIG_FILE" \
-        --subsampling_max_features "$SUBSAMPLING_MAX_FEATURES"
+        --config_path "$CONFIG_FILE"
 else
     echo "OpenML Benchmark results exist. Skipping."
 fi
@@ -97,8 +92,7 @@ if [ ! -d "${OUTPUT_DIR}/openml_widening" ]; then
         "${OUTPUT_DIR}/openml_widening" \
         --dataset_ids 1494 40536 \
         --checkpoint_path "$CHECKPOINT_PATH" \
-        --config_path "$CONFIG_FILE" \
-        --subsampling_max_features "$SUBSAMPLING_MAX_FEATURES"
+        --config_path "$CONFIG_FILE"
 else
     echo "OpenML Widening results directory exists. Skipping."
 fi
@@ -116,8 +110,7 @@ if [ ! -f "${OUTPUT_DIR}/multiomics_attention.pt" ]; then
             --checkpoint_path "$CHECKPOINT_PATH" \
             --config_path "$CONFIG_FILE" \
             --dataset "$dataset" \
-            --omic "mrna" \
-            --subsampling_max_features "$SUBSAMPLING_MAX_FEATURES"
+            --omic "mrna"
     done
 else
     echo "Multi-omics Attention Extraction results exist. Skipping."
@@ -132,8 +125,7 @@ if [ ! -f "${OUTPUT_DIR}/widening_attention.pkl" ]; then
         "${OUTPUT_DIR}/widening_attention.pkl" \
         --checkpoint_path "$CHECKPOINT_PATH" \
         --config_path "$CONFIG_FILE" \
-        --openml_id 1494 \
-        --subsampling_max_features "$SUBSAMPLING_MAX_FEATURES"
+        --openml_id 1494
 else
     echo "Widening Attention Extraction results exist. Skipping."
 fi

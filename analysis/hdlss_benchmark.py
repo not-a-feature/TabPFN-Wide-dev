@@ -59,7 +59,6 @@ def main(
     checkpoints=[],
     config_path=None,
     device="cuda:0",
-    subsampling_max_features=500,
 ):
     """
     Runs classification experiments on HDLSS datasets, evaluating different model checkpoints and the default model (TabPFNv2).
@@ -116,8 +115,8 @@ def main(
                 features_per_group=features_per_group,
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
-                subsampling_max_features=subsampling_max_features,
             )
+
         res_df = pd.DataFrame(
             columns=[
                 "dataset_name",
@@ -278,12 +277,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--device", type=str, default="cuda:0", help="Device for computation (cuda:0 or cpu)"
     )
-    parser.add_argument(
-        "--subsampling_max_features",
-        type=int,
-        default=500,
-        help="Maximum number of features for subsampling",
-    )
+
 
     args = parser.parse_args()
 
@@ -310,5 +304,4 @@ if __name__ == "__main__":
         checkpoints=checkpoints,
         config_path=args.config_path,
         device=args.device,
-        subsampling_max_features=args.subsampling_max_features,
     )
