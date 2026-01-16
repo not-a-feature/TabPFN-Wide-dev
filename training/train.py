@@ -353,6 +353,8 @@ class Trainer:
                 and torch.all(seq_len == seq_len[0])
                 and torch.all(trainsizes == trainsizes[0])
             ):
+                if self.is_main_process and self.curr_step % 10 == 0:
+                     print(f"Skipping batch at step {self.curr_step} due to shape mismatch: d={d}, seq_len={seq_len}")
                 continue
             X = X[:, :, : d[0]]
             new_features = 0
