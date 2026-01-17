@@ -63,8 +63,14 @@ def main(
         if checkpoint_path == "stock":
             clf = TabPFNClassifier.create_default_for_version(ModelVersion.V2)
             clf.device = device
-        elif checkpoint_path == "stock_2.5":
-            clf = TabPFNClassifier(device=device, ignore_pretraining_limits=True, model_path="v2")
+        elif checkpoint_path == "stock_2.5" or checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
+            name = "v2" if checkpoint_path == "stock_2.5" else checkpoint_path
+            clf = TabPFNWideClassifier(
+                model_name=name,
+                device=device,
+                ignore_pretraining_limits=True,
+                save_attention_maps=False,
+            )
         else:
             config_file = (
                 config_path

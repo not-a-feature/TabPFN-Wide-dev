@@ -34,7 +34,7 @@ def main(
         print("Skipping attention extraction for stock model.")
         return
 
-    if checkpoint_path == "default_n1g1":
+    if checkpoint_path == "default_n1g1" or checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
         n_estimators = 1
         features_per_group = 1
     elif checkpoint_path == "default_n8g3":
@@ -65,9 +65,10 @@ def main(
 
     features_per_group = 1
 
-    if checkpoint_path == "default_n1g1":
+    if checkpoint_path == "default_n1g1" or checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
+        model_name = "v2" if checkpoint_path == "default_n1g1" else checkpoint_path
         clf = TabPFNWideClassifier(
-            model_name="v2",
+            model_name=model_name,
             device=device,
             n_estimators=1,
             features_per_group=1,
@@ -80,8 +81,8 @@ def main(
         clf = TabPFNWideClassifier(
             model_path=checkpoint_path,
             device=device,
-            n_estimators=1,
-            features_per_group=1,
+            n_estimators=n_estimators,
+            features_per_group=features_per_group,
             ignore_pretraining_limits=True,
             save_attention_maps=True,
             save_attention_maps=True,

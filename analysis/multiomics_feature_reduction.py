@@ -60,30 +60,17 @@ def main(
         if checkpoint_path == "stock":
             clf = TabPFNClassifier(device=device, ignore_pretraining_limits=True)
             name = "stock"
-        elif checkpoint_path == "default_n1g1":
+        elif checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2") or checkpoint_path == "default_n1g1":
+            # Map legacy 'default_n1g1' to v2 if needed, or keep as is if it's a name
+            model_name = "v2" if checkpoint_path == "default_n1g1" else checkpoint_path
+            
             clf = TabPFNWideClassifier(
-                model_name="v2",
+                model_name=model_name,
                 device=device,
-                n_estimators=1,
-                features_per_group=1,
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
-                save_attention_maps=False,
             )
-
-            name = "default_n1g1"
-        elif checkpoint_path == "default_n8g3":
-            clf = TabPFNWideClassifier(
-                model_name="v2",
-                device=device,
-                n_estimators=8,
-                features_per_group=3,
-                ignore_pretraining_limits=True,
-                save_attention_maps=False,
-                save_attention_maps=False,
-            )
-
-            name = "default_n8g3"
+            name = checkpoint_path
         else:
             config_file = (
                 config_path
@@ -101,7 +88,6 @@ def main(
                 n_estimators=n_estimators,
                 features_per_group=features_per_group,
                 ignore_pretraining_limits=True,
-                save_attention_maps=False,
                 save_attention_maps=False,
             )
 
