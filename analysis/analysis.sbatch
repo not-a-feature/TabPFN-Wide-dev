@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=TabPFN-Wide-analysis
-#SBATCH --array=0-6
+#SBATCH --array=0-4
 
 #SBATCH --cpus-per-task=100
 #SBATCH --nodes=1
@@ -10,7 +10,7 @@
 
 #SBATCH --gres=gpu:2
 
-#SBATCH --time=72:00:00
+#SBATCH --time=24:00:00
 
 #SBATCH --error=job.%J.err 
 #SBATCH --output=job.%J.out 
@@ -22,7 +22,7 @@
 source training/init.sh
 
 # Define Jobs: Type:Value
-# TODO Increse array size
+# TODO Uppdate array size
 JOBS=(
     "MODEL:v2"
     "MODEL:wide-v2-1.5k-nocat"
@@ -73,7 +73,7 @@ echo "Running analysis for: $JOB_INFO"
 echo "Checkpoint/Model: $CHECKPOINT_PATH"
 echo "Output directory: $OUTPUT_DIR"
 
-RUN_HDLSS_ONLY=true
+RUN_HDLSS_ONLY=false
 # RUN_HDLSS_ONLY=${RUN_HDLSS_ONLY:-false}
 
 bash analysis/run_analysis.sh "$CHECKPOINT_PATH" "$OUTPUT_DIR" "$RUN_HDLSS_ONLY" 50000
