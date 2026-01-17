@@ -22,8 +22,7 @@
 source training/init.sh
 
 # Define Jobs: Type:Value
-# Indices 0-3: Model Names
-# Indices 4-6: Specific Checkpoints
+# TODO Increse array size
 JOBS=(
     "MODEL:v2"
     "MODEL:wide-v2-1.5k-nocat"
