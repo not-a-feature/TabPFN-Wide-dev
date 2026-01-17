@@ -372,6 +372,10 @@ class Trainer:
                 print(f"[Rank {self.rank}] Skipping batch at step {self.curr_step} due to shape mismatch: d={d}, seq_len={seq_len}, trainsizes={trainsizes}", flush=True)
                 continue
             
+            # Synchronize before data prep to ensure all ranks are ready
+            if dist.is_initialized():
+                 dist.barrier()
+            
             print(f"[Rank {self.rank}] Step {i}: Batch accepted. Entering data prep.", flush=True)
             X = X[:, :, : d[0]]
             new_features = 0
@@ -415,8 +419,12 @@ class Trainer:
                 torch.cuda.empty_cache()
                 if oom_errors / self.curr_step > 0.1:
                     raise RuntimeError("Too many OOM errors, stopping training.")
+                if dist.is_initialized():
+                    dist.barrier()
                 continue
             torch.cuda.empty_cache()
+            if dist.is_initialized():
+                 dist.barrier()
 
             if self.train_config.gradient_clipping > 0:
                 self.scaler.unscale_(self.optimizer)
