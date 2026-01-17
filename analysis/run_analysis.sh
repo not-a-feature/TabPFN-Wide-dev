@@ -133,6 +133,22 @@ else
     echo "Widening Attention Extraction results exist. Skipping."
 fi
 
+# SNP Benchmark
+if [ ! -f "${OUTPUT_DIR}/snp_benchmark_results.csv" ]; then
+    echo "----------------------------------------"
+    echo "Running SNP Benchmark..."
+    echo "----------------------------------------"
+    # Use default data dir or allow override? For now hardcode or use relative path assuming standard structure
+    # The script expects: analysis/snp_benchmark.py "data_dir" "output_file" ...
+    python analysis/snp_benchmark.py \
+        "benchmark_data/snp_data" \
+        "${OUTPUT_DIR}/snp_benchmark_results.csv" \
+        --checkpoint_path "$CHECKPOINT_PATH" \
+        --device "cuda:0"
+else
+    echo "SNP Benchmark results exist. Skipping."
+fi
+
 # Plotting Results
 echo "----------------------------------------"
 echo "Plotting Results..."

@@ -1,7 +1,7 @@
 analysis_results/embeddings/embeddings.pkl
 TabPFN/
 TabPFN-Wide-old/
-
+snp_analysis/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

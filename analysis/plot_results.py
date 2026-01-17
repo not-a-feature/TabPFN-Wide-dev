@@ -286,6 +286,128 @@ def plot_widening(df, output_dir, basename):
             save_plots(plt.gcf(), output_dir, f"{basename}_{metric}_widening_curve")
 
 
+def plot_tabarena(df, output_dir, basename):
+    """
+    Scatter plot comparing two models (e.g., TabPFN-v2 vs TabPFN-Wide) 
+    using 'roc_auc_score' from OpenML benchmark results.
+    Ref: snp_analysis/tabarena_vis.ipynb
+    """
+    output_dir = os.path.join(output_dir, "tabarena")
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # We expect 'task_id', 'checkpoint', 'roc_auc_score'
+    if not all(col in df.columns for col in ["task_id", "checkpoint", "roc_auc_score"]):
+        print("   [TabArena] Missing columns for TabArena plot. Skipping.")
+        return
+
+    # Aggregate if multiple entries per task/checkpoint (e.g. folds)
+    df_agg = (
+        df.groupby(["task_id", "checkpoint"])["roc_auc_score"]
+        .mean()
+        .reset_index()
+    )
+    
+    # Pivot to have checkpoints as columns
+    df_pivot = df_agg.pivot(index='task_id', columns='checkpoint', values='roc_auc_score')
+    
+    # Needs at least 2 columns to compare
+    if df_pivot.shape[1] < 2:
+        print("   [TabArena] Need at least 2 checkpoints to compare. Skipping.")
+        return
+        
+    cols = df_pivot.columns
+    # Simple pairwise comparison: Compare the last column vs the first column 
+    # (assuming sorted order, often baseline vs new model)
+    # OR compare all against the first one.
+    
+    baseline = cols[0]
+    others = cols[1:]
+    
+    import scipy.stats as stats
+    
+    for other in others:
+        df_xy = df_pivot[[baseline, other]].dropna()
+        if df_xy.empty:
+            continue
+            
+        x_vals = df_xy[baseline]
+        y_vals = df_xy[other]
+        
+        rho, _ = stats.spearmanr(x_vals, y_vals)
+        
+        plt.figure(figsize=(6, 6))
+        plt.scatter(x_vals, y_vals, marker="x", s=100, linewidths=1.5, color="mediumblue")
+        
+        # Plot diagonal
+        # lims = [min(x_vals.min(), y_vals.min()), max(x_vals.max(), y_vals.max())]
+        lims = [0.5, 1.0] # Fixed range often better for AUC
+        plt.plot(lims, lims, "--", color="gray", linewidth=1.5)
+        
+        plt.xlim(lims)
+        plt.ylim(lims)
+        plt.gca().set_aspect('equal', adjustable='box')
+        
+        plt.xlabel(f"{baseline}", fontsize=12)
+        plt.ylabel(f"{other}", fontsize=12)
+        plt.title(f"TabArena Style Comparison (Spearman rho={rho:.4f})")
+        
+        save_plots(plt.gcf(), output_dir, f"tabarena_scatter_{baseline}_vs_{other}")
+
+
+def plot_snp(df, output_dir, basename):
+    """Plotting logic for SNP benchmarks."""
+    output_dir = os.path.join(output_dir, "snp")
+    # Make sure n_features is numeric
+    if "n_features" in df.columns:
+        df["n_features"] = pd.to_numeric(df["n_features"])
+    
+    # Use checkpoint column for model name if available (aggregated), else 'model'
+    hue_col = "checkpoint" if "checkpoint" in df.columns else "model"
+    
+    # Clean up checkpoint names
+    if hue_col in df.columns:
+        df[hue_col] = df[hue_col].apply(
+            lambda x: str(x).split("/")[-1].replace(".pt", "")
+        )
+
+    # Metrics to plot
+    metrics = [c for c in ["roc_auc", "accuracy"] if c in df.columns]
+    
+    for metric in metrics:
+        # 1. Faceted Plot by Polygenicity
+        if "Polygenicity" in df.columns:
+            plt.figure(figsize=(10, 6))
+            g = sns.FacetGrid(df, col="Polygenicity", sharey=False, height=5, aspect=1.2)
+            g.map_dataframe(
+                sns.lineplot, 
+                x="n_features", 
+                y=metric, 
+                hue=hue_col, 
+                style=hue_col, 
+                markers=True,
+                err_kws={"alpha": 0.1}
+            )
+            g.add_legend()
+            g.set_axis_labels("Number of Features", metric.replace("_", " ").title())
+            g.set_titles(col_template="Polygenicity: {col_name}")
+            save_plots(plt.gcf(), output_dir, f"{basename}_{metric}_by_polygenicity")
+        else:
+            # Fallback simple plot
+            plt.figure(figsize=(10, 6))
+            sns.lineplot(
+                data=df,
+                x="n_features",
+                y=metric,
+                hue=hue_col,
+                style=hue_col, 
+                markers=True
+            )
+            plt.title(f"{basename} - {metric.replace('_', ' ').title()}")
+            plt.xlabel("Number of Features")
+            plt.ylabel(metric.replace("_", " ").title())
+            save_plots(plt.gcf(), output_dir, f"{basename}_{metric}")
+
+
 def clean_basename(basename):
     for suffix in ["_benchmark_results", "_results", "_benchmark"]:
         basename = basename.replace(suffix, "")
@@ -370,6 +492,10 @@ def main():
                     plot_hdlss(combined_df, output_dir, basename)
                 elif "openml" in basename.lower() and "widening" not in basename.lower():
                     plot_openml(combined_df, output_dir, basename)
+                    # Also run TabArena plot for OpenML results in comparison mode
+                    plot_tabarena(combined_df, output_dir, basename)
+                elif "snp" in basename.lower():
+                    plot_snp(combined_df, output_dir, basename)
                 else:
                     print(f"Skipping {basename}: filename pattern not recognized.")
 
@@ -413,6 +539,12 @@ def main():
             elif "openml" in basename.lower() and "widening" not in basename.lower():
                 print("   Detected OpenML Benchmark format.")
                 plot_openml(df, output_dir, basename)
+                # Also run TabArena plot for OpenML results
+                print("   Running TabArena plot...")
+                plot_tabarena(df, output_dir, basename)
+            elif "snp" in basename.lower():
+                print("   Detected SNP Benchmark format.")
+                plot_snp(df, output_dir, basename)
             elif basename.isdigit() or "widening" in os.path.dirname(csv_file).lower():
                 print("   Detected OpenML Widening format.")
                 # For widening, we might want to save plots in the same folder as the CSV
