@@ -89,7 +89,6 @@ def main(
                 features_per_group=features_per_group,
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
-                save_attention_maps=False,
             )
 
 

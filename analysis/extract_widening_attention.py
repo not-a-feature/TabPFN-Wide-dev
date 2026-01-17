@@ -74,7 +74,6 @@ def main(
             features_per_group=1,
             ignore_pretraining_limits=True,
             save_attention_maps=True,
-            save_attention_maps=True,
         )
 
     else:
@@ -84,7 +83,6 @@ def main(
             n_estimators=n_estimators,
             features_per_group=features_per_group,
             ignore_pretraining_limits=True,
-            save_attention_maps=True,
             save_attention_maps=True,
         )
 
