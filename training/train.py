@@ -195,7 +195,7 @@ class Trainer:
         if self.ddp:
             model = model.to(self.device)
             model_ = DDP(
-                model, device_ids=[int(self.device.split(":")[-1])], broadcast_buffers=False
+                model, device_ids=[int(self.device.split(":")[-1])], broadcast_buffers=False, find_unused_parameters=True
             )
             self.base_model = model
         else:
@@ -410,9 +410,9 @@ class Trainer:
                     if self.is_main_process: print(f"Batch {i}: Calculating loss", flush=True)
                     loss = self.criterion(pred_logits.reshape(-1, 10), y_test.flatten().long())
                     
-                    if self.is_main_process: print(f"Batch {i}: Backward pass", flush=True)
+                    print(f"[Rank {self.rank}] Batch {i}: Backward pass", flush=True)
                     self.scaler.scale(loss).backward()
-                    if self.is_main_process: print(f"Batch {i}: Backward pass done", flush=True)
+                    print(f"[Rank {self.rank}] Batch {i}: Backward pass done", flush=True)
                 forward_time = timer.elapsed
             except torch.cuda.OutOfMemoryError:
                 oom_errors += 1
@@ -422,9 +422,14 @@ class Trainer:
                 if dist.is_initialized():
                     dist.barrier()
                 continue
+            
+            print(f"[Rank {self.rank}] Batch {i}: Emptying cache", flush=True)
             torch.cuda.empty_cache()
             if dist.is_initialized():
+                 print(f"[Rank {self.rank}] Batch {i}: Waiting for barrier after cache clear", flush=True)
                  dist.barrier()
+                 print(f"[Rank {self.rank}] Batch {i}: Passed value barrier", flush=True)
+
 
             if self.train_config.gradient_clipping > 0:
                 self.scaler.unscale_(self.optimizer)
