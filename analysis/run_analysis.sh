@@ -7,14 +7,16 @@ export PYTHONPATH=$PYTHONPATH:.
 CHECKPOINT_PATH="$1"
 OUTPUT_DIR="$2"
 RUN_HDLSS_ONLY="${3:-false}"
+MIN_FEATURES="${4:-500}"
+
 if [ -z "$CHECKPOINT_PATH" ] || [ -z "$OUTPUT_DIR" ]; then
-    echo "Usage: $0 <checkpoint_path> <output_dir> [run_hdlss_only]"
+    echo "Usage: $0 <checkpoint_path> <output_dir> [run_hdlss_only] [min_features]"
     exit 1
 fi
 
 mkdir -p "$OUTPUT_DIR"
 
-if [ "$CHECKPOINT_PATH" == "default_n1g1" ] || [ "$CHECKPOINT_PATH" == "default_n8g3" ] || [ "$CHECKPOINT_PATH" == "stock" ]; then
+if [ "$CHECKPOINT_PATH" == "default_n1g1" ] || [ "$CHECKPOINT_PATH" == "stock" ]; then
     echo "Using default model: $CHECKPOINT_PATH"
     CONFIG_FILE=""
 else
@@ -36,7 +38,7 @@ if [ ! -f "${OUTPUT_DIR}/hdlss_benchmark_results.csv" ]; then
         "${OUTPUT_DIR}/hdlss_benchmark_results.csv" \
         --checkpoint_path "$CHECKPOINT_PATH" \
         --config_path "$CONFIG_FILE" \
-        --min_features 500
+        --min_features "$MIN_FEATURES"
 else
     echo "HDLSS Benchmark results exist. Skipping."
 fi

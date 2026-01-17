@@ -60,8 +60,8 @@ fi
 echo "Running analysis for checkpoint: $CHECKPOINT_PATH"
 echo "Output directory: $OUTPUT_DIR"
 
-RUN_HDLSS_ONLY=false
-#RUN_HDLSS_ONLY=${RUN_HDLSS_ONLY:-false}
+RUN_HDLSS_ONLY=true
+# RUN_HDLSS_ONLY=${RUN_HDLSS_ONLY:-false}
 bash analysis/run_analysis.sh "$CHECKPOINT_PATH" "$OUTPUT_DIR" "$RUN_HDLSS_ONLY" 500
 
 echo "Running analysis for checkpoint (no subsampling): $CHECKPOINT_PATH"
