@@ -364,13 +364,28 @@ class Trainer:
             # DEBUG: Print batch info for all ranks
             print(f"[Rank {self.rank}] Step {i}: Got batch. d={d[0].item()}, seq_len={seq_len[0].item()}, trainsize={trainsizes[0].item()}", flush=True)
 
-            if not (
-                torch.all(d == d[0])
-                and torch.all(seq_len == seq_len[0])
-                and torch.all(trainsizes == trainsizes[0])
-            ):
-                print(f"[Rank {self.rank}] Skipping batch at step {self.curr_step} due to shape mismatch: d={d}, seq_len={seq_len}, trainsizes={trainsizes}", flush=True)
-                continue
+            if dist.is_initialized():
+                # Synchronize batch skip decision
+                skip_batch = torch.tensor([0.0], device=self.device)
+                if not (
+                    torch.all(d == d[0])
+                    and torch.all(seq_len == seq_len[0])
+                    and torch.all(trainsizes == trainsizes[0])
+                ):
+                    skip_batch[0] = 1.0
+                
+                dist.all_reduce(skip_batch, op=dist.ReduceOp.MAX)
+                if skip_batch.item() > 0.5:
+                    print(f"[Rank {self.rank}] Skipping batch at step {self.curr_step} due to shape mismatch (global decision)", flush=True)
+                    continue
+            else:
+                if not (
+                    torch.all(d == d[0])
+                    and torch.all(seq_len == seq_len[0])
+                    and torch.all(trainsizes == trainsizes[0])
+                ):
+                    print(f"[Rank {self.rank}] Skipping batch at step {self.curr_step} due to shape mismatch: d={d}, seq_len={seq_len}, trainsizes={trainsizes}", flush=True)
+                    continue
             
             # Synchronize before data prep to ensure all ranks are ready
             if dist.is_initialized():
@@ -394,43 +409,26 @@ class Trainer:
             y_train = y[:, : trainsizes[0]].transpose(0, 1).to(self.device)
             y_test = y[:, trainsizes[0] :].transpose(0, 1).to(self.device)
 
-            try:
-                with Timer() as timer:
-                    with self.amp_ctx:
-                        # if self.is_main_process: print(f"Batch {i}: Concatenating inputs", flush=True)
-                        full_x = torch.cat([X_train, X_test], dim=0)
-                        print(f"[Rank {self.rank}] Batch {i}: Entering model forward", flush=True)
-                        pred_logits = self.model(
-                            full_x,
-                            y_train,
-                        )
-                        print(f"[Rank {self.rank}] Batch {i}: Model forward done", flush=True)
-                        pred_logits = pred_logits.float()
-                    
-                    if self.is_main_process: print(f"Batch {i}: Calculating loss", flush=True)
-                    loss = self.criterion(pred_logits.reshape(-1, 10), y_test.flatten().long())
-                    
-                    print(f"[Rank {self.rank}] Batch {i}: Backward pass", flush=True)
-                    self.scaler.scale(loss).backward()
-                    print(f"[Rank {self.rank}] Batch {i}: Backward pass done", flush=True)
-                forward_time = timer.elapsed
-            except torch.cuda.OutOfMemoryError:
-                oom_errors += 1
-                torch.cuda.empty_cache()
-                if oom_errors / self.curr_step > 0.1:
-                    raise RuntimeError("Too many OOM errors, stopping training.")
-                if dist.is_initialized():
-                    dist.barrier()
-                continue
+            with Timer() as timer:
+                with self.amp_ctx:
+                    # if self.is_main_process: print(f"Batch {i}: Concatenating inputs", flush=True)
+                    full_x = torch.cat([X_train, X_test], dim=0)
+                    print(f"[Rank {self.rank}] Batch {i}: Entering model forward", flush=True)
+                    pred_logits = self.model(
+                        full_x,
+                        y_train,
+                    )
+                    print(f"[Rank {self.rank}] Batch {i}: Model forward done", flush=True)
+                    pred_logits = pred_logits.float()
+                
+                if self.is_main_process: print(f"Batch {i}: Calculating loss", flush=True)
+                loss = self.criterion(pred_logits.reshape(-1, 10), y_test.flatten().long())
+                
+                print(f"[Rank {self.rank}] Batch {i}: Backward pass", flush=True)
+                self.scaler.scale(loss).backward()
+                print(f"[Rank {self.rank}] Batch {i}: Backward pass done", flush=True)
+            forward_time = timer.elapsed
             
-            print(f"[Rank {self.rank}] Batch {i}: Emptying cache", flush=True)
-            torch.cuda.empty_cache()
-            if dist.is_initialized():
-                 print(f"[Rank {self.rank}] Batch {i}: Waiting for barrier after cache clear", flush=True)
-                 dist.barrier()
-                 print(f"[Rank {self.rank}] Batch {i}: Passed value barrier", flush=True)
-
-
             if self.train_config.gradient_clipping > 0:
                 self.scaler.unscale_(self.optimizer)
                 nn.utils.clip_grad_norm_(
