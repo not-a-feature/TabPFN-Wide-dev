@@ -136,11 +136,14 @@ def get_categorical_added_features(X_cat, n_cat, sparsity=0.05, max_cats=20):
     return X_new_cat
 
 
+# TODO !IMPORTANT Double check (was dim=0 before)
 @torch.no_grad()
 def get_feature_dependent_noise(x_tensor, std):
-    # The noise std is proportional to the standard deviation of each feature
-    stds = x_tensor.std(dim=0, keepdim=True)
-    stds[stds == 0] = 1  # Avoid division by zero
+    stds = x_tensor.std(dim=1, keepdim=True)
+    if torch.isnan(stds).any():
+        print(f"NAN detected in stds in get_feature_dependent_noise", flush=True)
+        stds = torch.nan_to_num(stds, nan=1.0)
+    stds[stds == 0] = 1
     noise = torch.randn_like(x_tensor) * (std * stds)
     return noise
 
