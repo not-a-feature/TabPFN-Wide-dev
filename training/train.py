@@ -119,7 +119,7 @@ class Trainer:
     def configure_wandb(self):
         if self.train_config.use_wandb and self.is_main_process:
             self.wandb_obj = wandb.init(
-                project="tabpfn",
+                project="tabpfn-2.5",
                 entity="jules-kreuer-university-of-t-bingen",
                 config=asdict(self.model_config)
                 | asdict(self.prior_dataset_config)
