@@ -25,14 +25,13 @@ class TabPFNWideClassifier(TabPFNClassifier):
             raise ValueError("Either model_name or model_path must be specified, but not both.")
 
         if model_name:
-            valid_models = ["v2", "v2-Wide-1.5k", "v2-Wide-5k", "v2-Wide-8k"]
+            valid_models = ["v2", "wide-v2-1.5k-nocat", "wide-v2-5k-nocat", "wide-v2-8k-nocat"]
             if model_name not in valid_models:
                 raise ValueError(
                     f"Model name {model_name} not recognized. Choose from {valid_models}"
                 )
             if model_name != "v2":
-                # TODO FIX LOCAL PATH
-                model_path = os.path.join(f"TODO FIX LOCAL PATH {model_name}.pt")
+                model_path = os.path.join(f"models/tabpfn-{model_name}.pt")
 
         if model_name != "v2" and not os.path.isfile(model_path):
             raise ValueError(f"Model path {model_path} does not exist.")
