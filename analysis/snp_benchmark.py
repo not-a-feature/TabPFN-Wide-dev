@@ -97,8 +97,8 @@ def main(
             res_df = pd.read_csv(output_file)
         except:
             pass
-
-    feature_counts = [500, 1000, 5000, 10000, 15000, 20000, 30000, 50000, 60000, 70000]
+    # todo re increase
+    feature_counts = [500, 1000, 5000, 10000, 15000] #, 20000, 30000, 50000, 60000, 70000]
 
     for model_name in checkpoints:
         print(f"Processing model: {model_name}")
