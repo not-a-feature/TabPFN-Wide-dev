@@ -112,7 +112,7 @@ def feature_reduction_from_model(
 
 def get_feature_dependent_noise(x_tensor, std):
     # The noise std is proportional to the standard deviation of each feature
-    stds = x_tensor.std(dim=0, keepdim=True)
+    stds = x_tensor.std(dim=0, keepdim=True, correction=0)
     stds[stds == 0] = 1  # Avoid division by zero
     noise = torch.randn_like(x_tensor) * (std * stds)
     return noise
