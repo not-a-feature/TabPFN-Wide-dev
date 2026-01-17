@@ -58,8 +58,8 @@ echo "${MSG}"
 echo "${MSG}" >> "${CHECKPOINT_DIR}/training.log"
 
 MASTER_PORT=${MASTER_PORT:-$((29501 + TASK_ID))}
-torchrun --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/training/train.py" \
-    --batch_size 1 \
+torchrun --nproc_per_node=2 --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/training/train.py" \
+    --batch_size 2 \
     --learning_rate 1e-5 \
     --weight_decay 1e-4 \
     --num_steps 30000 \
@@ -87,7 +87,7 @@ torchrun --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/training/train.py" \
     --model_max_num_features 85 \
     --model_feature_attention_type full \
     --model_seed 42 \
-    --prior_batch_size_per_gp 32 \
+    --prior_batch_size_per_gp 8 \
     --prior_device_prior cpu \
     --prior_min_features 50 \
     --prior_max_features 350 \
