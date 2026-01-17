@@ -58,8 +58,8 @@ echo "${MSG}"
 echo "${MSG}" >> "${CHECKPOINT_DIR}/training.log"
 
 MASTER_PORT=${MASTER_PORT:-$((29501 + TASK_ID))}
-torchrun --nproc_per_node=2 --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/training/train.py" \
-    --batch_size 4 \
+torchrun --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/training/train.py" \
+    --batch_size 2 \
     --learning_rate 1e-5 \
     --weight_decay 1e-4 \
     --num_steps 30000 \
@@ -84,7 +84,6 @@ torchrun --nproc_per_node=2 --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/trai
     --model_nhid_factor 2 \
     --model_num_thinking_rows 64 \
     --model_num_buckets 5000 \
-    --model_recompute_layer \
     --model_max_num_features 85 \
     --model_feature_attention_type full \
     --model_seed 42 \
@@ -105,3 +104,4 @@ torchrun --nproc_per_node=2 --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/trai
     --prior_dataloader_pin_memory \
     --checkpoint_dir "${CHECKPOINT_DIR}" \
     --save_interval 100
+    # --model_recompute_layer

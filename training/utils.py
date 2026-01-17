@@ -135,6 +135,7 @@ def get_categorical_added_features(X_cat, n_cat, sparsity=0.05, max_cats=20):
             X_new_cat[b, :, i] = new_feature
     return X_new_cat
 
+# TODO !IMPORTANT Double check
 @torch.no_grad()
 def get_feature_dependent_noise(x_tensor, std):
     stds = x_tensor.std(dim=1, keepdim=True)

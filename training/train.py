@@ -107,6 +107,8 @@ class Trainer:
         else:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
             self.is_main_process = True
+        
+        self.rank = int(os.environ.get("RANK", 0))
 
         seed_offset = int(os.environ.get("RANK", 0)) if self.ddp else 0
         np.random.seed(42 + seed_offset)
@@ -358,14 +360,19 @@ class Trainer:
             prior_time = timer.elapsed
 
             X, y, d, seq_len, trainsizes = batch
+            
+            # DEBUG: Print batch info for all ranks
+            print(f"[Rank {self.rank}] Step {i}: Got batch. d={d[0].item()}, seq_len={seq_len[0].item()}, trainsize={trainsizes[0].item()}", flush=True)
+
             if not (
                 torch.all(d == d[0])
                 and torch.all(seq_len == seq_len[0])
                 and torch.all(trainsizes == trainsizes[0])
             ):
-                if self.is_main_process:
-                    print(f"Skipping batch at step {self.curr_step} due to shape mismatch: d={d}, seq_len={seq_len}", flush=True)
+                print(f"[Rank {self.rank}] Skipping batch at step {self.curr_step} due to shape mismatch: d={d}, seq_len={seq_len}, trainsizes={trainsizes}", flush=True)
                 continue
+            
+            print(f"[Rank {self.rank}] Step {i}: Batch accepted. Entering data prep.", flush=True)
             X = X[:, :, : d[0]]
             new_features = 0
             if self.feature_adding_config.add_features_max > 0:
@@ -386,14 +393,14 @@ class Trainer:
             try:
                 with Timer() as timer:
                     with self.amp_ctx:
-                        if self.is_main_process: print(f"Batch {i}: Concatenating inputs", flush=True)
+                        # if self.is_main_process: print(f"Batch {i}: Concatenating inputs", flush=True)
                         full_x = torch.cat([X_train, X_test], dim=0)
-                        if self.is_main_process: print(f"Batch {i}: Entering model forward", flush=True)
+                        print(f"[Rank {self.rank}] Batch {i}: Entering model forward", flush=True)
                         pred_logits = self.model(
                             full_x,
                             y_train,
                         )
-                        if self.is_main_process: print(f"Batch {i}: Model forward done", flush=True)
+                        print(f"[Rank {self.rank}] Batch {i}: Model forward done", flush=True)
                         pred_logits = pred_logits.float()
                     
                     if self.is_main_process: print(f"Batch {i}: Calculating loss", flush=True)
