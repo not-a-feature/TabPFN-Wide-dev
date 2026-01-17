@@ -75,13 +75,8 @@ echo "Output directory: $OUTPUT_DIR"
 
 RUN_HDLSS_ONLY=true
 # RUN_HDLSS_ONLY=${RUN_HDLSS_ONLY:-false}
-bash analysis/run_analysis.sh "$CHECKPOINT_PATH" "$OUTPUT_DIR" "$RUN_HDLSS_ONLY" 500
 
-echo "Running analysis for (no subsampling): $CHECKPOINT_PATH"
-OUTPUT_DIR_NOSUB="${OUTPUT_DIR}_nosub"
-
-echo "Output directory (no subsampling): $OUTPUT_DIR_NOSUB"
-bash analysis/run_analysis.sh "$CHECKPOINT_PATH" "$OUTPUT_DIR_NOSUB" "$RUN_HDLSS_ONLY" 50000
+bash analysis/run_analysis.sh "$CHECKPOINT_PATH" "$OUTPUT_DIR" "$RUN_HDLSS_ONLY" 50000
 
 # If this is the last task, run the comparison script
 if [ "$SLURM_ARRAY_TASK_ID" -eq 6 ]; then
