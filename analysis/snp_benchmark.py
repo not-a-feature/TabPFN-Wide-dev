@@ -183,19 +183,7 @@ def main(
                 
                 df = subset_genotypes.join(pheno, how="inner")
                 data = np.asarray(df)
-                
-                # first column: index (not in result of join?), await, join merges on index.
-                # subset_genotypes index is fam.iid (Sample ID). pheno index is Sample.
-                # The result index is Sample ID.
-                # data will be (n_samples, n_features + n_pheno_cols)
-                # Original script: X = data[:, 1:-5] ... wait.
-                # Original script did: df = subset_genotypes.join(pheno, how="inner"); data = np.asarray(df)
-                # subset_genotypes columns are SNPs. pheno columns are: GenoEff, CovarEff, EnvEff, Phenotype(liability), Phenotype(binary) (5 columns)
-                # So data has Shape (N, n_features + 5)
-                # but original script says X = data[:, 1:-5]. This implies skipping the first column?
-                # Ah, np.asarray(df) might include index if not careful? No, it usually doesn't.
-                # Use standard pandas slicing to be safe.
-                
+
                 X = df.iloc[:, :-5].values
                 # y = df.iloc[:, -1].values # Phenotype(binary) is last
                 y = df["Phenotype(binary)"].astype(int).values
