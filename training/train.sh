@@ -103,5 +103,5 @@ torchrun --nproc_per_node=4 --master_port ${MASTER_PORT} "${BASE_DIR_LOCAL}/trai
     --prior_dataloader_prefetch_factor 4 \
     --prior_dataloader_pin_memory \
     --checkpoint_dir "${CHECKPOINT_DIR}" \
-    --save_interval 100
+    --save_interval 10
     # --model_recompute_layer

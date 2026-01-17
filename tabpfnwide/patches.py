@@ -264,9 +264,9 @@ def compute_attention_heads(  # noqa: C901, PLR0912
                 self.attention_map = attention_map_cpu
             else:
                 self.attention_map += attention_map_cpu
-        ### End of added part
+        ### End of attention maps
 
-        print(f"DEBUG: calling scaled_dot_product_attention with shapes: q={q.shape}, k={k.shape}, v={v.shape}", flush=True)
+        #print(f"DEBUG: calling scaled_dot_product_attention with shapes: q={q.shape}, k={k.shape}, v={v.shape}", flush=True)
         attention_head_outputs = torch.nn.functional.scaled_dot_product_attention(
             q.transpose(1, 2),
             k.transpose(1, 2),
@@ -274,7 +274,7 @@ def compute_attention_heads(  # noqa: C901, PLR0912
             dropout_p=dropout_p,
             **extra_inputs,
         )
-        print(f"DEBUG: scaled_dot_product_attention done", flush=True)
+        #print(f"DEBUG: scaled_dot_product_attention done", flush=True)
         attention_head_outputs = attention_head_outputs.transpose(1, 2)
     else:
         ### This part was added to extract attention maps
