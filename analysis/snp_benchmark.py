@@ -156,7 +156,7 @@ def main(
                 print(f"Missing data files for run {run}, skipping.")
                 continue
 
-            causal_snps = pd.read_csv(causal_file, header=None, sep='\s+')
+            causal_snps = pd.read_csv(causal_file, header=None, sep=r'\s+')
             pheno = pd.read_csv(pheno_file, sep=r"\s+")
             pheno.set_index("Sample", inplace=True)
             
