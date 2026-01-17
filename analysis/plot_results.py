@@ -385,6 +385,7 @@ def plot_snp(df, output_dir, basename):
                 hue=hue_col, 
                 style=hue_col, 
                 markers=True,
+                palette="tab10",
                 err_kws={"alpha": 0.1}
             )
             g.add_legend()
@@ -400,7 +401,8 @@ def plot_snp(df, output_dir, basename):
                 y=metric,
                 hue=hue_col,
                 style=hue_col, 
-                markers=True
+                markers=True,
+                palette="tab10",
             )
             plt.title(f"{basename} - {metric.replace('_', ' ').title()}")
             plt.xlabel("Number of Features")
