@@ -102,7 +102,6 @@ def load_multiomics_benchmark_shamir(dataset, normalize, aligned=True, subtype_l
         "..",
         "benchmark_data",
         "shamir_data",
-        "Multi_Omics_Cancer_Benchmark_TCGA_Shamir",
     )
     dir_path = os.path.join(shamir_path, dataset)
 
