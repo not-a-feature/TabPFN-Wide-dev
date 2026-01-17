@@ -139,7 +139,7 @@ def get_categorical_added_features(X_cat, n_cat, sparsity=0.05, max_cats=20):
 # TODO !IMPORTANT Double check (was dim=0 before)
 @torch.no_grad()
 def get_feature_dependent_noise(x_tensor, std):
-    stds = x_tensor.std(dim=1, keepdim=True, correction=0)
+    stds = x_tensor.std(dim=0, keepdim=True, correction=0)
     if torch.isnan(stds).any():
         print(f"NAN detected in stds in get_feature_dependent_noise", flush=True)
         stds = torch.nan_to_num(stds, nan=1.0)

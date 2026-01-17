@@ -25,13 +25,14 @@ class TabPFNWideClassifier(TabPFNClassifier):
             raise ValueError("Either model_name or model_path must be specified, but not both.")
 
         if model_name:
-            valid_models = ["v2", "wide-v2-1.5k-nocat", "wide-v2-5k-nocat", "wide-v2-8k-nocat"]
+            valid_models = ["v2", "wide-v2-5k", "wide-v2-1.5k-nocat", "wide-v2-5k-nocat", "wide-v2-8k-nocat"]
             if model_name not in valid_models:
                 raise ValueError(
                     f"Model name {model_name} not recognized. Choose from {valid_models}"
                 )
             if model_name != "v2":
-                model_path = os.path.join(f"models/tabpfn-{model_name}.pt")
+                package_dir = os.path.dirname(os.path.abspath(__file__))
+                model_path = os.path.join(package_dir, "models", f"tabpfn-{model_name}.pt")
 
         if model_name != "v2" and not os.path.isfile(model_path):
             raise ValueError(f"Model path {model_path} does not exist.")
@@ -128,9 +129,12 @@ class TabPFNWideClassifier(TabPFNClassifier):
 
             checkpoint = torch.load(self.model_path, map_location=self.device, weights_only=False)
 
-            # Handle DDP-wrapped checkpoints
-            # TODO fix this during training / saving
-            state_dict = checkpoint["state_dict"]
+            # Handle DDP-wrapped checkpoints and direct state dicts
+            if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+                state_dict = checkpoint["state_dict"]
+            else:
+                state_dict = checkpoint
+
             model.load_state_dict(state_dict)
 
         return model
