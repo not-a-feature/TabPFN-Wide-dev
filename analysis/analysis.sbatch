@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=TabPFN-Wide-analysis
-#SBATCH --array=0-4
+#SBATCH --array=0-5
 
 #SBATCH --cpus-per-task=100
 #SBATCH --nodes=1
@@ -80,7 +80,7 @@ RUN_HDLSS_ONLY=false
 bash analysis/run_analysis.sh "$CHECKPOINT_PATH" "$OUTPUT_DIR" "$RUN_HDLSS_ONLY" 50000
 
 # If this is the last task, run the comparison script
-if [ "$SLURM_ARRAY_TASK_ID" -eq 4 ]; then
-    echo "Task ID 4: Running comparison plotting..."
+if [ "$SLURM_ARRAY_TASK_ID" -eq 5 ]; then
+    echo "Task ID 5: Running comparison plotting..."
     bash analysis/compare_results.sh "${BASE_DIR_LOCAL}/analysis_results"
 fi

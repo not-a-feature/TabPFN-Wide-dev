@@ -101,23 +101,23 @@ else
 fi
 
 # Multi-omics Attention Extraction
-if [ ! -f "${OUTPUT_DIR}/multiomics_attention.pt" ]; then
-    echo "----------------------------------------"
-    echo "Running Multi-omics Attention Extraction..."
-    echo "----------------------------------------"
-    for dataset in BRCA COAD GBM LGG OV; do
-        echo "Processing dataset: $dataset"
-        python analysis/extract_multi_omics_attention.py \
-            "benchmark_data/multiomics_benchmark_data" \
-            "${OUTPUT_DIR}/multiomics_attention.pt" \
-            --checkpoint_path "$CHECKPOINT_PATH" \
-            --config_path "$CONFIG_FILE" \
-            --dataset "$dataset" \
-            --omic "mrna"
-    done
-else
-    echo "Multi-omics Attention Extraction results exist. Skipping."
-fi
+# if [ ! -f "${OUTPUT_DIR}/multiomics_attention.pt" ]; then
+#     echo "----------------------------------------"
+#     echo "Running Multi-omics Attention Extraction..."
+#     echo "----------------------------------------"
+#     for dataset in BRCA COAD GBM LGG OV; do
+#         echo "Processing dataset: $dataset"
+#         python analysis/extract_multi_omics_attention.py \
+#             "benchmark_data/multiomics_benchmark_data" \
+#             "${OUTPUT_DIR}/multiomics_attention.pt" \
+#             --checkpoint_path "$CHECKPOINT_PATH" \
+#             --config_path "$CONFIG_FILE" \
+#             --dataset "$dataset" \
+#             --omic "mrna"
+#     done
+# else
+#     echo "Multi-omics Attention Extraction results exist. Skipping."
+# fi
 
 # Widening Attention Extraction
 if [ ! -f "${OUTPUT_DIR}/widening_attention.pkl" ]; then
