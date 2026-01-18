@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import os
 import dataclasses
 from tabpfn import TabPFNClassifier
@@ -157,6 +158,161 @@ class TabPFNWideClassifier(TabPFNClassifier):
         return patched_fit(self, X, y, model=self.model)
 
     def get_attention_maps(self):
+        """Return attention maps mapped to original input features.
+
+        This method handles the preprocessing transformations by:
+        1. Extracting the raw attention maps from the transformer
+        2. Using the preprocessor's index_permutation_ to map back to original features
+        3. Handling feature doubling from append_to_original=True
+        4. Aggregating attention for each original feature
+
+        Returns:
+            List of numpy arrays, one per transformer layer, with shape
+            (n_features_in_, n_features_in_) representing attention between
+            original input features.
+        """
+        if not self.save_attention_maps:
+            raise ValueError("Attention maps were not saved during training.")
+
+        raw_maps = []
+        for layer in self.model.transformer_encoder.layers:
+            if hasattr(layer, "self_attn_between_features"):
+                attn = getattr(layer.self_attn_between_features, "attention_map", None)
+                if attn is not None:
+                    raw_maps.append(attn.numpy())
+
+        n_original = self.n_features_in_
+
+        # Get the preprocessing mapping info
+        mapping_info = self._get_feature_mapping_info()
+        if mapping_info is None:
+            warnings.warn("Could not get feature mapping info. Returning None.")
+            return None
+
+        original_to_preprocessed = mapping_info["original_to_preprocessed"]
+        n_preprocessed = mapping_info["n_preprocessed"]
+
+        mapped_maps = []
+        for raw_attn in raw_maps:
+            # Create output attention matrix for original features
+            mapped_attn = np.zeros((n_original, n_original), dtype=raw_attn.dtype)
+
+            # Aggregate attention: sum over all preprocessed positions that
+            # correspond to each original feature pair
+            for orig_i in range(n_original):
+                for orig_j in range(n_original):
+                    preprocessed_positions_i = original_to_preprocessed[orig_i]
+                    preprocessed_positions_j = original_to_preprocessed[orig_j]
+
+                    # Sum attention across all corresponding preprocessed positions
+                    attn_sum = 0.0
+                    count = 0
+                    for pi in preprocessed_positions_i:
+                        for pj in preprocessed_positions_j:
+                            if pi < raw_attn.shape[0] and pj < raw_attn.shape[1]:
+                                attn_sum += raw_attn[pi, pj]
+                                count += 1
+                    if count > 0:
+                        mapped_attn[orig_i, orig_j] = attn_sum / count  # Average
+
+            mapped_maps.append(mapped_attn)
+
+        return mapped_maps
+
+    def _get_feature_mapping_info(self):
+        """Extract feature mapping from preprocessor to original features.
+
+        Returns a dict with:
+        - original_to_preprocessed: dict mapping original feature idx to list
+          of preprocessed positions
+        - n_preprocessed: total number of preprocessed features
+        - index_permutation: the shuffle permutation applied
+
+        Returns None if mapping cannot be extracted.
+        """
+        # Need the executor to access preprocessors
+        if not hasattr(self, "executor_"):
+            return None
+
+        # Get preprocessor from executor
+        preprocessor = None
+        if hasattr(self.executor_, "preprocessors") and self.executor_.preprocessors:
+            preprocessor = self.executor_.preprocessors[0]
+        elif hasattr(self.executor_, "preprocessor"):
+            preprocessor = self.executor_.preprocessor
+
+        if preprocessor is None:
+            return None
+
+        # Extract info from preprocessor steps
+        n_original = self.n_features_in_
+        index_permutation = None
+        append_to_original = False
+
+        # Walk through preprocessor steps
+        steps = getattr(preprocessor, "steps", [])
+        for step in steps:
+            step_obj = step[1] if isinstance(step, tuple) else step
+
+            # Check for ShuffleFeaturesStep
+            if hasattr(step_obj, "index_permutation_"):
+                index_permutation = step_obj.index_permutation_
+
+            # Check for ReshapeFeatureDistributionsStep
+            if hasattr(step_obj, "append_to_original"):
+                append_to_original = step_obj.append_to_original
+
+        # Build the mapping from original feature idx to preprocessed positions
+        original_to_preprocessed = {}
+
+        if index_permutation is not None:
+            # Convert to list if tensor
+            if hasattr(index_permutation, "tolist"):
+                perm = index_permutation.tolist()
+            else:
+                perm = list(index_permutation)
+
+            n_preprocessed = len(perm)
+
+            # When append_to_original=True, positions 0..n-1 are originals,
+            # positions n..2n-1 are transformed versions
+            if append_to_original:
+                for orig_idx in range(n_original):
+                    positions = []
+                    # Find where this original feature ended up after shuffle
+                    for new_pos, old_pos in enumerate(perm):
+                        # Original features are at indices 0..n-1 before shuffle
+                        # Transformed versions are at indices n..2n-1
+                        if old_pos == orig_idx or old_pos == (orig_idx + n_original):
+                            positions.append(new_pos)
+                    original_to_preprocessed[orig_idx] = positions if positions else [orig_idx]
+            else:
+                # No feature doubling - direct mapping through permutation
+                for orig_idx in range(n_original):
+                    positions = []
+                    for new_pos, old_pos in enumerate(perm):
+                        if old_pos == orig_idx:
+                            positions.append(new_pos)
+                    original_to_preprocessed[orig_idx] = positions if positions else [orig_idx]
+        else:
+            # No shuffle info - assume identity mapping
+            n_preprocessed = n_original
+            for i in range(n_original):
+                original_to_preprocessed[i] = [i]
+
+        return {
+            "original_to_preprocessed": original_to_preprocessed,
+            "n_preprocessed": n_preprocessed,
+            "index_permutation": index_permutation,
+            "append_to_original": append_to_original,
+        }
+
+    def get_raw_attention_maps(self):
+        """Return raw attention maps without any processing.
+
+        Returns a tuple of (maps, n_features_in) where maps is a list of raw
+        attention matrices and n_features_in is the number of input features.
+        """
         if not self.save_attention_maps:
             raise ValueError("Attention maps were not saved during training.")
 
@@ -165,14 +321,15 @@ class TabPFNWideClassifier(TabPFNClassifier):
             if hasattr(layer, "self_attn_between_features"):
                 attn = getattr(layer.self_attn_between_features, "attention_map", None)
                 if attn is not None:
-                    # Convert to numpy
-                    attn_np = attn.numpy()
+                    maps.append(attn.numpy())
 
-                    # Crop to valid features if n_features_in_ is known
-                    if hasattr(self, "n_features_in_"):
-                        n = self.n_features_in_
-                        if n <= attn_np.shape[0] and n <= attn_np.shape[1]:
-                            attn_np = attn_np[:n, :n]
+        n_features = getattr(self, "n_features_in_", None)
+        return maps, n_features
 
-                    maps.append(attn_np)
-        return maps
+    def get_feature_mapping_debug(self):
+        """Get detailed feature mapping info for debugging.
+
+        Returns the mapping info dict showing how original features
+        map to preprocessed token positions.
+        """
+        return self._get_feature_mapping_info()
