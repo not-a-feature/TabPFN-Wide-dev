@@ -28,6 +28,7 @@ JOBS=(
     "MODEL:wide-v2-1.5k-nocat"
     "MODEL:wide-v2-5k-nocat"
     "MODEL:wide-v2-8k-nocat"
+    "MODEL:wide-v2-1.5k"
     "MODEL:wide-v2-5k"
     #"CHECKPOINT:0_AddFeat1500_NEst1_Group1"
     #"CHECKPOINT:1_AddFeat5000_NEst1_Group1"
