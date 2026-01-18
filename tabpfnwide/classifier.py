@@ -7,6 +7,15 @@ from tabpfnwide.patches import fit as patched_fit
 from tabpfn.base import determine_precision
 from tabpfn.utils import infer_random_state, infer_devices, update_encoder_params
 
+VALID_MODELS = [
+    "v2",
+    "wide-v2-1.5k",
+    "wide-v2-5k",
+    "wide-v2-1.5k-nocat",
+    "wide-v2-5k-nocat",
+    "wide-v2-8k-nocat",
+]
+
 
 class TabPFNWideClassifier(TabPFNClassifier):
     def __init__(
@@ -25,10 +34,9 @@ class TabPFNWideClassifier(TabPFNClassifier):
             raise ValueError("Either model_name or model_path must be specified, but not both.")
 
         if model_name:
-            valid_models = ["v2", "wide-v2-5k", "wide-v2-1.5k-nocat", "wide-v2-5k-nocat", "wide-v2-8k-nocat"]
-            if model_name not in valid_models:
+            if model_name not in VALID_MODELS:
                 raise ValueError(
-                    f"Model name {model_name} not recognized. Choose from {valid_models}"
+                    f"Model name {model_name} not recognized. Choose from {VALID_MODELS}"
                 )
             if model_name != "v2":
                 package_dir = os.path.dirname(os.path.abspath(__file__))
@@ -84,8 +92,6 @@ class TabPFNWideClassifier(TabPFNClassifier):
                 user_config=self.inference_config
             )
 
-
-
             outlier_removal_std = self.inference_config_.OUTLIER_REMOVAL_STD
             if outlier_removal_std == "auto":
                 outlier_removal_std = (
@@ -124,8 +130,8 @@ class TabPFNWideClassifier(TabPFNClassifier):
             # This is crucial because we are loading weights trained with grouping=1
             # into a base model initialized with grouping=2
             if hasattr(self, "features_per_group"):
-                 model.features_per_group = self.features_per_group
-                 self.configs_[0].features_per_group = self.features_per_group
+                model.features_per_group = self.features_per_group
+                self.configs_[0].features_per_group = self.features_per_group
 
             checkpoint = torch.load(self.model_path, map_location=self.device, weights_only=False)
 
