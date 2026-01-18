@@ -17,7 +17,7 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
-if [ "$CHECKPOINT_PATH" == "default_n1g1" ] || [ "$CHECKPOINT_PATH" == "stock" ] || [ "$CHECKPOINT_PATH" == "v2" ] || [[ "$CHECKPOINT_PATH" == wide-v2* ]]; then
+if [ "$CHECKPOINT_PATH" == "default_n1g1" ] || [ "$CHECKPOINT_PATH" == "stock" ] || [ "$CHECKPOINT_PATH" == "v2" ] || [[ "$CHECKPOINT_PATH" == wide-v2* ]] || [ "$CHECKPOINT_PATH" == "tabicl" ] || [ "$CHECKPOINT_PATH" == "random_forest" ]; then
     echo "Using default/valid model: $CHECKPOINT_PATH"
     CONFIG_FILE=""
 else
@@ -30,6 +30,7 @@ fi
 echo "Output directory: $OUTPUT_DIR"
 
 # HDLSS Benchmark
+if [ "$CHECKPOINT_PATH" != "tabicl" ] && [ "$CHECKPOINT_PATH" != "random_forest" ]; then
 if [ ! -f "${OUTPUT_DIR}/hdlss_benchmark_results.csv" ]; then
     echo "----------------------------------------"
     echo "Running HDLSS Benchmark..."
@@ -43,6 +44,7 @@ if [ ! -f "${OUTPUT_DIR}/hdlss_benchmark_results.csv" ]; then
 else
     echo "HDLSS Benchmark results exist. Skipping."
 fi
+fi
 
 if [ "$RUN_HDLSS_ONLY" = "true" ]; then
     echo "HDLSS only mode enabled. Skipping other benchmarks."
@@ -54,6 +56,7 @@ if [ "$RUN_HDLSS_ONLY" = "true" ]; then
 fi
 
 # Multi-omics Feature Reduction
+if [ "$CHECKPOINT_PATH" != "tabicl" ] && [ "$CHECKPOINT_PATH" != "random_forest" ]; then
 if [ ! -f "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" ]; then
     echo "----------------------------------------"
     echo "Running Multi-omics Feature Reduction..."
@@ -70,6 +73,7 @@ if [ ! -f "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" ]; then
     done
 else
     echo "Multi-omics Feature Reduction results exist. Skipping."
+fi
 fi
 
 # OpenML Benchmark
@@ -120,6 +124,7 @@ fi
 # fi
 
 # Widening Attention Extraction
+if [ "$CHECKPOINT_PATH" != "tabicl" ] && [ "$CHECKPOINT_PATH" != "random_forest" ]; then
 if [ ! -f "${OUTPUT_DIR}/widening_attention.pkl" ]; then
     echo "----------------------------------------"
     echo "Running Widening Attention Extraction..."
@@ -132,8 +137,10 @@ if [ ! -f "${OUTPUT_DIR}/widening_attention.pkl" ]; then
 else
     echo "Widening Attention Extraction results exist. Skipping."
 fi
+fi
 
 # SNP Benchmark
+if [ "$CHECKPOINT_PATH" != "tabicl" ] && [ "$CHECKPOINT_PATH" != "random_forest" ]; then
 if [ ! -f "${OUTPUT_DIR}/snp_benchmark_results.csv" ]; then
     echo "----------------------------------------"
     echo "Running SNP Benchmark..."
@@ -145,6 +152,7 @@ if [ ! -f "${OUTPUT_DIR}/snp_benchmark_results.csv" ]; then
         --device "cuda:0"
 else
     echo "SNP Benchmark results exist. Skipping."
+fi
 fi
 
 # Plotting Results

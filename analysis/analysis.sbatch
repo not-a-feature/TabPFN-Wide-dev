@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=TabPFN-Wide-analysis
-#SBATCH --array=0-5
+#SBATCH --array=0-7
 
 #SBATCH --cpus-per-task=100
 #SBATCH --nodes=1
@@ -30,9 +30,8 @@ JOBS=(
     "MODEL:wide-v2-8k-nocat"
     "MODEL:wide-v2-1.5k"
     "MODEL:wide-v2-5k"
-    #"CHECKPOINT:0_AddFeat1500_NEst1_Group1"
-    #"CHECKPOINT:1_AddFeat5000_NEst1_Group1"
-    #"CHECKPOINT:2_AddFeat8000_NEst1_Group1"
+    "MODEL:tabicl"
+    "MODEL:random_forest"
 )
 
 if [ "$SLURM_ARRAY_TASK_ID" -ge "${#JOBS[@]}" ]; then
@@ -47,24 +46,6 @@ JOB_VALUE=${JOB_INFO#*:}
 if [ "$JOB_TYPE" == "MODEL" ]; then
     CHECKPOINT_PATH="$JOB_VALUE"
     OUTPUT_DIR="${BASE_DIR_LOCAL}/analysis_results/${JOB_VALUE}"
-elif [ "$JOB_TYPE" == "CHECKPOINT" ]; then
-    CHECKPOINT_NAME="$JOB_VALUE"
-    CURRENT_CHECKPOINT_DIR="${BASE_DIR_LOCAL}/checkpoints/${CHECKPOINT_NAME}"
-    
-    if [ ! -d "$CURRENT_CHECKPOINT_DIR" ]; then
-        echo "Checkpoint directory not found: $CURRENT_CHECKPOINT_DIR"
-        exit 1
-    fi
-    
-    # Find the latest checkpoint file
-    CHECKPOINT_PATH=$(ls -t "$CURRENT_CHECKPOINT_DIR"/*.pt | head -n 1)
-    
-    if [ -z "$CHECKPOINT_PATH" ]; then
-        echo "No checkpoint found in $CURRENT_CHECKPOINT_DIR"
-        exit 1
-    fi
-    
-    OUTPUT_DIR="${BASE_DIR_LOCAL}/analysis_results/${CHECKPOINT_NAME}"
 else
     echo "Unknown job type: $JOB_TYPE"
     exit 1
@@ -80,7 +61,7 @@ RUN_HDLSS_ONLY=false
 bash analysis/run_analysis.sh "$CHECKPOINT_PATH" "$OUTPUT_DIR" "$RUN_HDLSS_ONLY" 50000
 
 # If this is the last task, run the comparison script
-if [ "$SLURM_ARRAY_TASK_ID" -eq 5 ]; then
+if [ "$SLURM_ARRAY_TASK_ID" -eq 7 ]; then
     echo "Task ID 5: Running comparison plotting..."
     bash analysis/compare_results.sh "${BASE_DIR_LOCAL}/analysis_results"
 fi

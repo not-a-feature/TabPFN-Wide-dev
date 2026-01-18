@@ -15,6 +15,9 @@ from analysis.utils import PredictionResults
 from tabpfnwide.classifier import TabPFNWideClassifier
 from tabpfn import TabPFNClassifier
 from tabpfn.constants import ModelVersion
+from tabicl import TabICLClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import SimpleImputer
 import argparse
 import json
 
@@ -60,10 +63,20 @@ def main(
 
     for checkpoint_path in checkpoints:
         print(f"Initializing model from {checkpoint_path}")
-        if checkpoint_path == "stock":
+        if checkpoint_path == "tabicl":
+            # Will be initialized in loop
+            clf = None
+        elif checkpoint_path == "random_forest":
+            # Will be initialized in loop
+            clf = None
+        elif checkpoint_path == "stock":
             clf = TabPFNClassifier.create_default_for_version(ModelVersion.V2)
             clf.device = device
-        elif checkpoint_path == "stock_2.5" or checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
+        elif (
+            checkpoint_path == "stock_2.5"
+            or checkpoint_path == "v2"
+            or checkpoint_path.startswith("wide-v2")
+        ):
             name = "v2" if checkpoint_path == "stock_2.5" else checkpoint_path
             clf = TabPFNWideClassifier(
                 model_name=name,
@@ -91,7 +104,6 @@ def main(
                 save_attention_maps=False,
             )
 
-
         res_df = pd.DataFrame(
             columns=[
                 "task_id",
@@ -118,6 +130,16 @@ def main(
                 task = openml.tasks.get_task(int(task_id))
                 dataset = task.get_dataset()
                 X, y, _, _ = dataset.get_data(target=task.target_name)
+
+                if checkpoint_path in ["tabicl", "random_forest"]:
+                    if X.isnull().values.any():
+                        simple_imputer = SimpleImputer(strategy="most_frequent")
+                        X = pd.DataFrame(simple_imputer.fit_transform(X), columns=X.columns)
+
+                    for col in X.columns:
+                        if X[col].dtype == object or X[col].dtype.name == "category":
+                            X[col] = LabelEncoder().fit_transform(X[col].astype(str))
+
                 X, y = shuffle(X, y, random_state=42)
                 X = X.values
                 le = LabelEncoder()
@@ -130,6 +152,12 @@ def main(
                 for fold, (train_idx, test_idx) in enumerate(skf.split(X, y)):
                     X_train, X_test = X[train_idx], X[test_idx]
                     y_train, y_test = y[train_idx], y[test_idx]
+
+                    if checkpoint_path == "tabicl":
+                        clf = TabICLClassifier(device=device, n_estimators=1)
+                    elif checkpoint_path == "random_forest":
+                        clf = RandomForestClassifier(n_jobs=4)
+
                     clf.fit(X_train, y_train)
                     pred_probs = clf.predict_proba(X_test)
 
@@ -191,7 +219,6 @@ if __name__ == "__main__":
     parser.add_argument("--config_path", type=str)
     parser.add_argument("--device", type=str, default="cuda:0")
 
-
     args = parser.parse_args()
 
     checkpoints = []
@@ -206,6 +233,9 @@ if __name__ == "__main__":
 
     if not checkpoints:
         checkpoints = ["v2"]
+
+    if not args.checkpoint_path and not args.checkpoint_dir:
+        checkpoints += ["tabicl", "random_forest"]
 
     main(
         suite_id=args.suite_id,
