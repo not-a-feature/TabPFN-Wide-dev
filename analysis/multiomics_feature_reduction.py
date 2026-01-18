@@ -12,6 +12,7 @@ from tabpfn import TabPFNClassifier
 from tabicl import TabICLClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
+from sklearn.metrics import roc_auc_score
 import warnings
 import json
 
@@ -52,6 +53,7 @@ def main(
             "n_features",
             "fold",
             "accuracy",
+            "roc_auc",
             "prediction_probas",
             "ground_truth",
         ]
@@ -173,6 +175,21 @@ def main(
 
                 pred_res = PredictionResults(y_test, pred_probs)
                 accuracy = pred_res.get_classification_report(print_report=False)["accuracy"]
+                try:
+                    if pred_probs.shape[-1] == 2:
+                        roc_auc = roc_auc_score(y_test, pred_probs[:, 1])
+                    else:
+                        roc_auc = roc_auc_score(
+                            y_test,
+                            pred_probs,
+                            multi_class="ovr",
+                            average="macro",
+                            labels=np.arange(pred_probs.shape[-1]),
+                        )
+                except Exception as e:
+                    print(f"Error calculating ROC AUC: {e}")
+                    roc_auc = np.nan
+
                 results = pd.concat(
                     [
                         results,
@@ -184,6 +201,7 @@ def main(
                                 "n_features": X_train_tensor.shape[-1],
                                 "fold": i,
                                 "accuracy": accuracy,
+                                "roc_auc": roc_auc,
                                 "prediction_probas": [
                                     " ".join(map(str, pred_res.prediction_probas))
                                 ],

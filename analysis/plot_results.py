@@ -248,7 +248,7 @@ def plot_multiomics(df, output_dir, basename):
     """Plotting logic for Multiomics Feature Reduction."""
     output_dir = os.path.join(output_dir, "multiomics")
     # Line plot: x=n_features, y=metric, hue=checkpoint
-    metrics = [c for c in ["accuracy"] if c in df.columns]
+    metrics = [c for c in ["accuracy", "roc_auc", "roc_auc_score"] if c in df.columns]
 
     if "checkpoint" in df.columns:
         df["checkpoint"] = df["checkpoint"].apply(
