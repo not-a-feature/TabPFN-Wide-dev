@@ -61,32 +61,33 @@ def test_attention_maps():
     overall_pass = True
 
     # 1. Create synthetic dataset
-    # 5 informative features, 95 noise features = 100 total
-    n_features = 100
+    # 5 informative features
+    n_features = 95
     n_informative = 5
-    n_samples = 100
+    n_samples = 300
 
-    # Pre-generate datasets
-    # Random shuffle for first check
-    X_shuffled, y_shuffled = make_classification(
-        n_samples=n_samples,
-        n_features=n_features,
-        n_informative=n_informative,
-        n_redundant=0,
-        n_repeated=0,
-        random_state=42,
-    )
-
-    # No shuffle for importance check
-    X_ordered, y_ordered = make_classification(
+    # Generate ordered data first to identify informative features easily
+    X, y = make_classification(
         n_samples=n_samples,
         n_features=n_features,
         n_informative=n_informative,
         n_redundant=0,
         n_repeated=0,
         shuffle=False,
-        random_state=42,
+        random_state=123456,
     )
+
+    # Manually shuffle features to track indices
+    rng = np.random.RandomState(123456)
+    p = rng.permutation(n_features)
+    X_shuffled = X[:, p]
+
+    # Identify which columns in X_shuffled are the informative ones
+    # The original informative features were at indices 0 to n_informative-1
+    # X_shuffled[:, j] comes from X[:, p[j]]
+    # So if p[j] < n_informative, then column j is an informative feature
+    informative_idxs = np.where(p < n_informative)[0]
+    noise_idxs = np.where(p >= n_informative)[0]
 
     for model_name in available_models:
         print(f"\n--- Testing Attention Map: {model_name} ---")
@@ -100,8 +101,8 @@ def test_attention_maps():
                 save_attention_maps=True,
             )
 
-            # 1. Test Shape with shuffled data
-            clf.fit(X_shuffled, y_shuffled)
+            # Test using shuffled data but tracking importance via indices
+            clf.fit(X_shuffled, y)
             clf.predict(X_shuffled)
             maps = clf.get_attention_maps()
 
@@ -118,31 +119,40 @@ def test_attention_maps():
                 overall_pass = False
                 continue
 
-            # 2. Test Importance with ordered data
-            clf.fit(X_ordered, y_ordered)
-            clf.predict(X_ordered)
-            maps = clf.get_attention_maps()
-
-            if not maps:
-                print(f"FAILURE ({model_name}): No maps after second fit.")
-                overall_pass = False
-                continue
-
-            avg_map = np.mean(maps, axis=0)
+            # Calculate Importance
             importance = avg_map.sum(axis=0)
 
-            informative_importance = importance[:n_informative].mean()
-            noise_importance = importance[n_informative:].mean()
+            informative_importance = importance[informative_idxs].mean()
+            noise_importance = importance[noise_idxs].mean()
 
             print(f"  Mean importance (Informative): {informative_importance:.4f}")
             print(f"  Mean importance (Noise):       {noise_importance:.4f}")
 
             if informative_importance > noise_importance:
-                print(f"  SUCCESS ({model_name}): Informative features received more attention.")
+                print(
+                    f"  SUCCESS ({model_name}): Informative features received more attention (Weak Test)."
+                )
             else:
                 print(
-                    f"  FAILURE ({model_name}): Noise features received more (or equal) attention."
+                    f"  FAILURE ({model_name}): Noise features received more (or equal) attention (Weak Test)."
                 )
+                overall_pass = False
+
+            # Strong Test
+            top_indices = np.argsort(importance)[::-1][:(n_informative)]
+
+            # Use sets for order-independent comparison
+            # We want to check if the informative features are captured in the top K (where K > n_informative)
+            if set(informative_idxs).issubset(set(top_indices)):
+                print(
+                    f"  SUCCESS ({model_name}): Informative indices are contained in Top {n_informative*2} importance scores (Strong Test)."
+                )
+            else:
+                print(
+                    f"  FAILURE ({model_name}): Top {n_informative} features DO NOT match exactly (Strong Test)."
+                )
+                print(f"    Expected: {set(informative_idxs.tolist())}")
+                print(f"    Got:      {set(top_indices.tolist())}")
                 overall_pass = False
 
         except Exception:
