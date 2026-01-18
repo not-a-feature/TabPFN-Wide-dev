@@ -4,7 +4,7 @@ import os
 import glob
 import torch
 import warnings
-import json
+
 import sys
 import argparse
 import gc
@@ -109,8 +109,6 @@ def main(
         # Initialize model
         if model_name == "stock":
             clf = TabPFNClassifier.create_default_for_version(ModelVersion.V2)
-            clf.device = device
-            clf.fit = clf.fit  # standard fit
         elif model_name == "stock_2.5" or model_name == "v2" or model_name.startswith("wide-v2"):
             name = "v2" if model_name == "stock_2.5" else model_name
             clf = TabPFNWideClassifier(
@@ -124,30 +122,7 @@ def main(
         elif model_name == "random_forest":
             clf = RandomForestClassifier(n_jobs=4)
         else:
-            # Load from checkpoint
-            config_file = (
-                config_path
-                if config_path
-                else os.path.join(os.path.dirname(model_name), "config.json")
-            )
-            # Try to load config if exists, else guess/default
-            features_per_group = 1  # Default for SNP? Original script set it to 1.
-            n_estimators = 8  # Default
-
-            if os.path.exists(config_file):
-                with open(config_file, "r") as f:
-                    config = json.load(f)
-                    features_per_group = config.get("model_config", {}).get("features_per_group", 1)
-                    n_estimators = config.get("train_config", {}).get("n_estimators", 8)
-
-            clf = TabPFNWideClassifier(
-                model_path=model_name,
-                device=device,
-                n_estimators=n_estimators,
-                features_per_group=features_per_group,
-                ignore_pretraining_limits=True,
-                save_attention_maps=False,
-            )
+            raise ValueError(f"Unknown checkpoint: {model_name}")
 
         # Ensure model is on device
         # clf.device = device # handled in init
@@ -195,7 +170,7 @@ def main(
                 df = subset_genotypes.join(pheno, how="inner")
                 data = np.asarray(df)
 
-                X = df.iloc[:, :-5].values
+                X = df.iloc[:, 1:-5].values
                 # y = df.iloc[:, -1].values # Phenotype(binary) is last
                 y = df["Phenotype(binary)"].astype(int).values
 

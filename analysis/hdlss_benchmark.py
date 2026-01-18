@@ -6,7 +6,7 @@ from scipy.io import loadmat
 from sklearn.utils import shuffle
 import torch
 import warnings
-import json
+
 import sys
 from tabicl import TabICLClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -115,24 +115,7 @@ def main(
         elif checkpoint_path == "random_forest":
             clf = RandomForestClassifier(n_jobs=4)
         else:
-            config_file = (
-                config_path
-                if config_path
-                else os.path.join(os.path.dirname(checkpoint_path), "config.json")
-            )
-            with open(config_file, "r") as f:
-                config = json.load(f)
-                features_per_group = config["model_config"]["features_per_group"]
-                n_estimators = config["train_config"]["n_estimators"]
-
-            clf = TabPFNWideClassifier(
-                model_path=checkpoint_path,
-                device=device,
-                n_estimators=n_estimators,
-                features_per_group=features_per_group,
-                ignore_pretraining_limits=True,
-                save_attention_maps=False,
-            )
+            raise ValueError(f"Unknown checkpoint: {checkpoint_path}")
 
         res_df = pd.DataFrame(
             columns=[

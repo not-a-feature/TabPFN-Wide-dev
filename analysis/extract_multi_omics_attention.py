@@ -40,23 +40,14 @@ def main(
         print("Skipping attention extraction for stock model.")
         return
 
-    if checkpoint_path == "default_n1g1" or checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
+    if (
+        checkpoint_path == "default_n1g1"
+        or checkpoint_path == "v2"
+        or checkpoint_path.startswith("wide-v2")
+    ):
         # Default/Named model settings
         n_estimators = 1
         features_per_group = 1
-    elif checkpoint_path == "default_n8g3":
-        # Legacy
-        n_estimators = 8
-        features_per_group = 3
-    else:
-        with open(config_path, "r") as f:
-            config = json.load(f)
-            features_per_group = config["model_config"]["features_per_group"]
-            n_estimators = config["train_config"]["n_estimators"]
-
-    # We only extract attention maps if n_estimators=1 and features_per_group=1
-    if features_per_group != 1 or n_estimators != 1:
-        return
 
     ds_dict, labels = load_multiomics(dataset_name)
     mrna = ds_dict[omic]
@@ -64,27 +55,15 @@ def main(
     y = LabelEncoder().fit_transform(y)
     print(X.shape)
 
-    if checkpoint_path == "default_n1g1" or checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
-        model_name = "v2" if checkpoint_path == "default_n1g1" else checkpoint_path
-        clf = TabPFNWideClassifier(
-            model_name=model_name,
-            device=device,
-            n_estimators=1,
-            features_per_group=1,
-            ignore_pretraining_limits=True,
-            save_attention_maps=True,
-        )
-
-    else:
-        clf = TabPFNWideClassifier(
-            model_path=checkpoint_path,
-            device=device,
-            n_estimators=n_estimators,
-            features_per_group=features_per_group,
-            ignore_pretraining_limits=True,
-            save_attention_maps=True,
-        )
-
+    model_name = "v2" if checkpoint_path == "default_n1g1" else checkpoint_path
+    clf = TabPFNWideClassifier(
+        model_name=model_name,
+        device=device,
+        n_estimators=1,
+        features_per_group=1,
+        ignore_pretraining_limits=True,
+        save_attention_maps=True,
+    )
 
     model = clf.model
 

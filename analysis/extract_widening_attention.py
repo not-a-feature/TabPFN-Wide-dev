@@ -12,9 +12,7 @@ import pickle
 import json
 
 
-def main(
-    device, openml_id, checkpoint_path, output, config_path
-):
+def main(device, openml_id, checkpoint_path, output, config_path):
     """
     Runs an analysis pipeline to evaluate attention patterns in a transformer-based model on tabular data with added noise and sparsity.
 
@@ -34,20 +32,8 @@ def main(
         print("Skipping attention extraction for stock model.")
         return
 
-    if checkpoint_path == "default_n1g1" or checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
-        n_estimators = 1
-        features_per_group = 1
-    elif checkpoint_path == "default_n8g3":
-        n_estimators = 8
-        features_per_group = 3
-    else:
-        with open(config_path, "r") as f:
-            config = json.load(f)
-            features_per_group = config["model_config"]["features_per_group"]
-            n_estimators = config["train_config"]["n_estimators"]
-
-    if features_per_group != 1 or n_estimators != 1:
-        return
+    n_estimators = 1
+    features_per_group = 1
 
     dataset = openml.datasets.get_dataset(openml_id)
     X, y, categorical_indicator, _ = dataset.get_data(target=dataset.default_target_attribute)
@@ -65,7 +51,11 @@ def main(
 
     features_per_group = 1
 
-    if checkpoint_path == "default_n1g1" or checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
+    if (
+        checkpoint_path == "default_n1g1"
+        or checkpoint_path == "v2"
+        or checkpoint_path.startswith("wide-v2")
+    ):
         model_name = "v2" if checkpoint_path == "default_n1g1" else checkpoint_path
         clf = TabPFNWideClassifier(
             model_name=model_name,
@@ -85,7 +75,6 @@ def main(
             ignore_pretraining_limits=True,
             save_attention_maps=True,
         )
-
 
     permutation = None
     attentions_to_last_column = {}
