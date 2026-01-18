@@ -292,18 +292,18 @@ def plot_widening(df, output_dir, basename):
             save_plots(plt.gcf(), output_dir, f"{basename}_{metric}_widening_curve")
 
 
-def plot_tabarena(df, output_dir, basename):
+def plot_forgetting(df, output_dir, basename):
     """
     Scatter plot comparing two models (e.g., TabPFN-v2 vs TabPFN-Wide) 
     using 'roc_auc_score' from OpenML benchmark results.
     Ref: snp_analysis/tabarena_vis.ipynb
     """
-    output_dir = os.path.join(output_dir, "tabarena")
+    output_dir = os.path.join(output_dir, "forgetting")
     os.makedirs(output_dir, exist_ok=True)
     
     # We expect 'task_id', 'checkpoint', 'roc_auc_score'
     if not all(col in df.columns for col in ["task_id", "checkpoint", "roc_auc_score"]):
-        print("   [TabArena] Missing columns for TabArena plot. Skipping.")
+        print("   [Forgetting] Missing columns for Forgetting plot. Skipping.")
         return
 
     # Aggregate if multiple entries per task/checkpoint (e.g. folds)
@@ -322,7 +322,7 @@ def plot_tabarena(df, output_dir, basename):
     
     # Needs at least 2 columns to compare
     if df_pivot.shape[1] < 2:
-        print("   [TabArena] Need at least 2 checkpoints to compare. Skipping.")
+        print("   [Forgetting] Need at least 2 checkpoints to compare. Skipping.")
         return
         
     cols = df_pivot.columns
@@ -359,9 +359,9 @@ def plot_tabarena(df, output_dir, basename):
         
         plt.xlabel(f"{baseline}", fontsize=12)
         plt.ylabel(f"{other}", fontsize=12)
-        plt.title(f"TabArena Style Comparison (Spearman rho={rho:.4f})")
+        plt.title(f"Forgetting Comparison (Spearman rho={rho:.4f})")
         
-        save_plots(plt.gcf(), output_dir, f"tabarena_scatter_{baseline}_vs_{other}")
+        save_plots(plt.gcf(), output_dir, f"forgetting_scatter_{baseline}_vs_{other}")
 
 
 def plot_snp(df, output_dir, basename):
@@ -504,8 +504,8 @@ def main():
                     plot_hdlss(combined_df, output_dir, basename)
                 elif "openml" in basename.lower() and "widening" not in basename.lower():
                     plot_openml(combined_df, output_dir, basename)
-                    # Also run TabArena plot for OpenML results in comparison mode
-                    plot_tabarena(combined_df, output_dir, basename)
+                    # Also run Forgetting plot for OpenML results in comparison mode
+                    plot_forgetting(combined_df, output_dir, basename)
                 elif "snp" in basename.lower():
                     plot_snp(combined_df, output_dir, basename)
                 else:
@@ -551,9 +551,9 @@ def main():
             elif "openml" in basename.lower() and "widening" not in basename.lower():
                 print("   Detected OpenML Benchmark format.")
                 plot_openml(df, output_dir, basename)
-                # Also run TabArena plot for OpenML results
-                print("   Running TabArena plot...")
-                plot_tabarena(df, output_dir, basename)
+                # Also run Forgetting plot for OpenML results
+                print("   Running Forgetting plot...")
+                plot_forgetting(df, output_dir, basename)
             elif "snp" in basename.lower():
                 print("   Detected SNP Benchmark format.")
                 plot_snp(df, output_dir, basename)

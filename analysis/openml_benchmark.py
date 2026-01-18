@@ -178,10 +178,10 @@ if __name__ == "__main__":
     parser.add_argument("output_file", type=str)
     parser.add_argument("--suite_id", type=int, required=True, help="OpenML suite ID to process")
     parser.add_argument(
-        "--max_features", type=int, default=50000, help="Maximum number of features to consider"
+        "--max_features", type=int, default=500, help="Maximum number of features to consider"
     )
     parser.add_argument(
-        "--min_features", type=int, default=500, help="Minimum number of features to consider"
+        "--min_features", type=int, default=0, help="Minimum number of features to consider"
     )
     parser.add_argument(
         "--max_instances", type=int, default=10000, help="Maximum number of instances to consider"
