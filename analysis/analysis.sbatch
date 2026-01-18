@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=TabPFN-Wide-analysis
-#SBATCH --array=0-7
+#SBATCH --array=0-1
 
 #SBATCH --cpus-per-task=100
 #SBATCH --nodes=1
@@ -24,12 +24,12 @@ source training/init.sh
 # Define Jobs: Type:Value
 # TODO Uppdate array size
 JOBS=(
-    "MODEL:v2"
-    "MODEL:wide-v2-1.5k-nocat"
-    "MODEL:wide-v2-5k-nocat"
-    "MODEL:wide-v2-8k-nocat"
-    "MODEL:wide-v2-1.5k"
-    "MODEL:wide-v2-5k"
+    #"MODEL:v2"
+    #"MODEL:wide-v2-1.5k-nocat"
+    #"MODEL:wide-v2-5k-nocat"
+    #"MODEL:wide-v2-8k-nocat"
+    #"MODEL:wide-v2-1.5k"
+    #"MODEL:wide-v2-5k"
     "MODEL:tabicl"
     "MODEL:random_forest"
 )
