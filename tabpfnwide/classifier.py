@@ -126,14 +126,10 @@ class TabPFNWideClassifier(TabPFNClassifier):
         self.configs_ = configs
         self.inference_config_ = inference_config
 
-        if self.model_name != "v2":
-            # Manually override features_per_group to match the training behavior
-            # This is crucial because we are loading weights trained with grouping=1
-            # into a base model initialized with grouping=2
-            if hasattr(self, "features_per_group"):
-                model.features_per_group = self.features_per_group
-                self.configs_[0].features_per_group = self.features_per_group
+        model.features_per_group = self.features_per_group
+        self.configs_[0].features_per_group = self.features_per_group
 
+        if self.model_name != "v2":
             checkpoint = torch.load(self.model_path, map_location=self.device, weights_only=False)
 
             # Handle DDP-wrapped checkpoints and direct state dicts
@@ -147,6 +143,9 @@ class TabPFNWideClassifier(TabPFNClassifier):
         return model
 
     def fit(self, X, y):
+        # Store n_features_in_ for attention map cropping
+        self.n_features_in_ = X.shape[1]
+
         if self.save_attention_maps:
             for layer in self.model.transformer_encoder.layers:
                 if hasattr(layer, "self_attn_between_features"):
@@ -158,10 +157,22 @@ class TabPFNWideClassifier(TabPFNClassifier):
         return patched_fit(self, X, y, model=self.model)
 
     def get_attention_maps(self):
+        if not self.save_attention_maps:
+            raise ValueError("Attention maps were not saved during training.")
+
         maps = []
         for layer in self.model.transformer_encoder.layers:
             if hasattr(layer, "self_attn_between_features"):
                 attn = getattr(layer.self_attn_between_features, "attention_map", None)
                 if attn is not None:
-                    maps.append(attn.numpy())
+                    # Convert to numpy
+                    attn_np = attn.numpy()
+
+                    # Crop to valid features if n_features_in_ is known
+                    if hasattr(self, "n_features_in_"):
+                        n = self.n_features_in_
+                        if n <= attn_np.shape[0] and n <= attn_np.shape[1]:
+                            attn_np = attn_np[:n, :n]
+
+                    maps.append(attn_np)
         return maps
