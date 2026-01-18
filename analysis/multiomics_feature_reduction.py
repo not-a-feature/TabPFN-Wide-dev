@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from analysis.utils import PredictionResults
 from analysis.data import get_wide_validation_datasets
 from tabpfnwide.classifier import TabPFNWideClassifier
-from tabpfn import TabPFNClassifier
+
 from tabicl import TabICLClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
@@ -26,7 +26,6 @@ def main(
     output_file,
     device="cuda:0",
     omics_list=None,
-    config_path=None,
 ):
     """
     Runs feature reduction experiments on multi-omics datasets using a specified model and checkpoints.
@@ -36,7 +35,7 @@ def main(
         output_file (str): Path to the CSV file where results will be saved.
         device (str, optional): Device to run the model on (e.g., "cuda:0" or "cpu"). Defaults to "cuda:0".
         omics_list (list of str, optional): List of omics types to include. If None, defaults to "mRNA".
-        config_path (str, optional): Path to the config.json file. Defaults to None.
+
     For each checkpoint and a range of feature counts, the function:
     - Loads the model and checkpoint.
     - Iterates over validation splits of the dataset with reduced features.
@@ -62,19 +61,9 @@ def main(
         results = pd.read_csv(output_file)
     for checkpoint_path in checkpoint_paths:
         print(f"Initializing model from {checkpoint_path}")
-        if checkpoint_path == "stock":
-            clf = TabPFNClassifier(device=device, ignore_pretraining_limits=True)
-            name = "stock"
-        elif (
-            checkpoint_path == "v2"
-            or checkpoint_path.startswith("wide-v2")
-            or checkpoint_path == "default_n1g1"
-        ):
-            # Map legacy 'default_n1g1' to v2 if needed, or keep as is if it's a name
-            model_name = "v2" if checkpoint_path == "default_n1g1" else checkpoint_path
-
+        if checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
             clf = TabPFNWideClassifier(
-                model_name=model_name,
+                model_name=checkpoint_path,
                 device=device,
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
@@ -207,9 +196,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("output_file", type=str)
     parser.add_argument("--dataset", type=str, required=True)
-    parser.add_argument("--checkpoints_dir", type=str)
+
     parser.add_argument("--checkpoint_path", type=str)
-    parser.add_argument("--config_path", type=str)
+
     parser.add_argument("--omics", dest="omics_list", type=str, nargs="+", default=["mRNA"])
     parser.add_argument("--device", type=str, default="cuda:0")
 
@@ -221,15 +210,9 @@ if __name__ == "__main__":
     checkpoint_paths = []
     if args.checkpoint_path:
         checkpoint_paths.append(args.checkpoint_path)
-    elif args.checkpoints_dir:
-        checkpoint_paths = [
-            os.path.join(args.checkpoints_dir, cp)
-            for cp in os.listdir(args.checkpoints_dir)
-            if cp.endswith(".pt")
-        ]
 
     if not checkpoint_paths:
-        checkpoint_paths = ["stock"]
+        checkpoint_paths = ["v2"]
 
     omics_list = args.omics_list
     device = args.device
@@ -240,5 +223,4 @@ if __name__ == "__main__":
         output_file,
         device,
         omics_list,
-        config_path=args.config_path,
     )

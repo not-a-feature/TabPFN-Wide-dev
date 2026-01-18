@@ -17,15 +17,7 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
-if [ "$CHECKPOINT_PATH" == "default_n1g1" ] || [ "$CHECKPOINT_PATH" == "stock" ] || [ "$CHECKPOINT_PATH" == "v2" ] || [[ "$CHECKPOINT_PATH" == wide-v2* ]] || [ "$CHECKPOINT_PATH" == "tabicl" ] || [ "$CHECKPOINT_PATH" == "random_forest" ]; then
-    echo "Using default/valid model: $CHECKPOINT_PATH"
-    CONFIG_FILE=""
-else
-    CHECKPOINT_DIR=$(dirname "$CHECKPOINT_PATH")
-    CONFIG_FILE="${CHECKPOINT_DIR}/config.json"
-    echo "Using checkpoint: $CHECKPOINT_PATH"
-    echo "Using config: $CONFIG_FILE"
-fi
+
 
 echo "Output directory: $OUTPUT_DIR"
 
@@ -39,7 +31,7 @@ if [ ! -f "${OUTPUT_DIR}/hdlss_benchmark_results.csv" ]; then
         "benchmark_data/hdlss_new_data" \
         "${OUTPUT_DIR}/hdlss_benchmark_results.csv" \
         --checkpoint_path "$CHECKPOINT_PATH" \
-        --config_path "$CONFIG_FILE" \
+
         --max_features "$MAX_FEATURES"
 else
     echo "HDLSS Benchmark results exist. Skipping."
@@ -67,7 +59,7 @@ if [ ! -f "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" ]; then
             "benchmark_data/multiomics_benchmark_data" \
             "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" \
             --checkpoint_path "$CHECKPOINT_PATH" \
-            --config_path "$CONFIG_FILE" \
+
             --dataset "$dataset" \
             --omics "mrna"
     done
@@ -85,7 +77,7 @@ if [ ! -f "${OUTPUT_DIR}/openml_benchmark_results.csv" ]; then
         "${OUTPUT_DIR}/openml_benchmark_results.csv" \
         --suite_id 457 \
         --checkpoint_path "$CHECKPOINT_PATH" \
-        --config_path "$CONFIG_FILE"
+
 else
     echo "OpenML Benchmark results exist. Skipping."
 fi
@@ -99,7 +91,7 @@ if [ ! -d "${OUTPUT_DIR}/openml_widening" ]; then
         "${OUTPUT_DIR}/openml_widening" \
         --dataset_ids 1494 40536 \
         --checkpoint_path "$CHECKPOINT_PATH" \
-        --config_path "$CONFIG_FILE"
+
 else
     echo "OpenML Widening results directory exists. Skipping."
 fi
@@ -132,7 +124,7 @@ if [ ! -f "${OUTPUT_DIR}/widening_attention.pkl" ]; then
     python analysis/extract_widening_attention.py \
         "${OUTPUT_DIR}/widening_attention.pkl" \
         --checkpoint_path "$CHECKPOINT_PATH" \
-        --config_path "$CONFIG_FILE" \
+
         --openml_id 1494
 else
     echo "Widening Attention Extraction results exist. Skipping."

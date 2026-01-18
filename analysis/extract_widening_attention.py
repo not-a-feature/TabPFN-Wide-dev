@@ -9,10 +9,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 import argparse
 import pickle
-import json
 
 
-def main(device, openml_id, checkpoint_path, output, config_path):
+def main(device, openml_id, checkpoint_path, output):
     """
     Runs an analysis pipeline to evaluate attention patterns in a transformer-based model on tabular data with added noise and sparsity.
 
@@ -21,19 +20,12 @@ def main(device, openml_id, checkpoint_path, output, config_path):
         openml_id (int): The OpenML dataset ID to load.
         checkpoint_path (str): Path to the model checkpoint file.
         output (str): Path to save the output pickle file.
-        config_path (str): Path to the config.json file. Defaults to None.
+
     Description:
         - Loads the specified OpenML dataset and preprocesses it (encoding, shuffling).
         - Adds new features using either feature smearing or needle-in-a-haystack approach.
         - Saves attention maps from the model during inference to an output pickle file.
     """
-
-    if checkpoint_path == "stock":
-        print("Skipping attention extraction for stock model.")
-        return
-
-    n_estimators = 1
-    features_per_group = 1
 
     dataset = openml.datasets.get_dataset(openml_id)
     X, y, categorical_indicator, _ = dataset.get_data(target=dataset.default_target_attribute)
@@ -49,32 +41,14 @@ def main(device, openml_id, checkpoint_path, output, config_path):
         X, features_to_be_added=2000, sparsity=0.02, noise_std=1, include_original=False
     )
 
-    features_per_group = 1
-
-    if (
-        checkpoint_path == "default_n1g1"
-        or checkpoint_path == "v2"
-        or checkpoint_path.startswith("wide-v2")
-    ):
-        model_name = "v2" if checkpoint_path == "default_n1g1" else checkpoint_path
-        clf = TabPFNWideClassifier(
-            model_name=model_name,
-            device=device,
-            n_estimators=1,
-            features_per_group=1,
-            ignore_pretraining_limits=True,
-            save_attention_maps=True,
-        )
-
-    else:
-        clf = TabPFNWideClassifier(
-            model_path=checkpoint_path,
-            device=device,
-            n_estimators=n_estimators,
-            features_per_group=features_per_group,
-            ignore_pretraining_limits=True,
-            save_attention_maps=True,
-        )
+    clf = TabPFNWideClassifier(
+        model_name=checkpoint_path,
+        device=device,
+        n_estimators=1,
+        features_per_group=1,
+        ignore_pretraining_limits=True,
+        save_attention_maps=True,
+    )
 
     permutation = None
     attentions_to_last_column = {}
@@ -123,7 +97,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--checkpoint_path", type=str, required=True, help="Path to model checkpoint"
     )
-    parser.add_argument("--config_path", type=str)
 
     args = parser.parse_args()
     main(
@@ -131,5 +104,4 @@ if __name__ == "__main__":
         args.openml_id,
         args.checkpoint_path,
         args.output,
-        config_path=args.config_path,
     )

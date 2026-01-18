@@ -9,14 +9,12 @@ import warnings
 
 warnings.filterwarnings("ignore")
 import argparse
-import json
 
 
 def main(
     dataset_name,
     output_file,
     checkpoint_path,
-    config_path,
     device="cuda:0",
     omic="mrna",
 ):
@@ -26,7 +24,7 @@ def main(
         dataset_name (str): Name of the multi-omics dataset to use.
         output_file (str): Path to save the extracted attention maps (as a torch file).
         checkpoint_path (str): Path to the model checkpoint to load weights from.
-        config_path (str): Path to the config.json file.
+
         device (str, optional): Device to run the model on (default: "cuda:0").
         omic (str, optional): Omics data type to use from the dataset (default: "mrna").
     Description:
@@ -36,28 +34,14 @@ def main(
         - Runs inference to obtain predictions and attention maps.
         - Saves the extracted attention maps to the specified output file.
     """
-    if checkpoint_path == "stock":
-        print("Skipping attention extraction for stock model.")
-        return
-
-    if (
-        checkpoint_path == "default_n1g1"
-        or checkpoint_path == "v2"
-        or checkpoint_path.startswith("wide-v2")
-    ):
-        # Default/Named model settings
-        n_estimators = 1
-        features_per_group = 1
-
     ds_dict, labels = load_multiomics(dataset_name)
     mrna = ds_dict[omic]
     X, y = mrna.values, labels
     y = LabelEncoder().fit_transform(y)
     print(X.shape)
 
-    model_name = "v2" if checkpoint_path == "default_n1g1" else checkpoint_path
     clf = TabPFNWideClassifier(
-        model_name=model_name,
+        model_name=checkpoint_path,
         device=device,
         n_estimators=1,
         features_per_group=1,
@@ -94,7 +78,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--checkpoint_path", type=str, required=True, help="Path to the model checkpoint"
     )
-    parser.add_argument("--config_path", type=str)
+
     parser.add_argument("--device", type=str, default="cuda:0", help="Device to run the model on")
     parser.add_argument("--omic", type=str, default="mrna", help="Omic type to use (default: mRNA)")
 
@@ -103,7 +87,6 @@ if __name__ == "__main__":
         args.dataset_name,
         args.output_file,
         args.checkpoint_path,
-        args.config_path,
         args.device,
         args.omic,
     )

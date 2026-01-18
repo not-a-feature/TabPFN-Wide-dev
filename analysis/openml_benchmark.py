@@ -3,6 +3,7 @@ import numpy as np
 import os
 from sklearn.utils import shuffle
 import torch
+
 import openml
 from openml import tasks
 import warnings
@@ -13,8 +14,7 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.metrics import roc_auc_score
 from analysis.utils import PredictionResults
 from tabpfnwide.classifier import TabPFNWideClassifier
-from tabpfn import TabPFNClassifier
-from tabpfn.constants import ModelVersion
+
 from tabicl import TabICLClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
@@ -28,7 +28,6 @@ def main(
     min_features=0,
     max_instances=10000,
     checkpoints=[],
-    config_path=None,
     device="cuda:0",
 ):
     """
@@ -40,7 +39,7 @@ def main(
         min_features (int, optional): Minimum number of features required in a dataset. Defaults to 0.
         max_instances (int, optional): Maximum number of instances allowed in a dataset. Defaults to 10,000.
         checkpoints (list, optional): List of checkpoint file paths to evaluate. Use "default" for the base model. Defaults to [].
-        config_path (str, optional): Path to the config.json file. Defaults to None.
+
         device (str, optional): Device identifier for model computation (e.g., "cuda:0" or "cpu"). Defaults to "cuda:0".
     Description:
         - Filters OpenML tasks based on classification type, feature/instance/class count
@@ -68,17 +67,10 @@ def main(
         elif checkpoint_path == "random_forest":
             # Will be initialized in loop
             clf = None
-        elif checkpoint_path == "stock":
-            clf = TabPFNClassifier.create_default_for_version(ModelVersion.V2)
-            clf.device = device
-        elif (
-            checkpoint_path == "stock_2.5"
-            or checkpoint_path == "v2"
-            or checkpoint_path.startswith("wide-v2")
-        ):
-            name = "v2" if checkpoint_path == "stock_2.5" else checkpoint_path
+
+        elif checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
             clf = TabPFNWideClassifier(
-                model_name=name,
+                model_name=checkpoint_path,
                 device=device,
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
@@ -196,9 +188,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_instances", type=int, default=10000, help="Maximum number of instances to consider"
     )
-    parser.add_argument("--checkpoint_dir", type=str)
+
     parser.add_argument("--checkpoint_path", type=str)
-    parser.add_argument("--config_path", type=str)
+
     parser.add_argument("--device", type=str, default="cuda:0")
 
     args = parser.parse_args()
@@ -206,17 +198,11 @@ if __name__ == "__main__":
     checkpoints = []
     if args.checkpoint_path:
         checkpoints.append(args.checkpoint_path)
-    elif args.checkpoint_dir:
-        checkpoints = [
-            os.path.join(args.checkpoint_dir, f)
-            for f in os.listdir(args.checkpoint_dir)
-            if f.endswith(".pt")
-        ]
 
     if not checkpoints:
         checkpoints = ["v2"]
 
-    if not args.checkpoint_path and not args.checkpoint_dir:
+    if not args.checkpoint_path:
         checkpoints += ["tabicl", "random_forest"]
 
     main(
@@ -226,6 +212,5 @@ if __name__ == "__main__":
         min_features=args.min_features,
         max_instances=args.max_instances,
         checkpoints=checkpoints,
-        config_path=args.config_path,
         device=args.device,
     )

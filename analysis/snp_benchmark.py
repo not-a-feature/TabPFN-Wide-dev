@@ -19,8 +19,7 @@ from sklearn.impute import SimpleImputer
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from tabpfnwide.classifier import TabPFNWideClassifier
-from tabpfn import TabPFNClassifier
-from tabpfn.constants import ModelVersion
+
 
 warnings.filterwarnings("ignore")
 
@@ -64,7 +63,6 @@ def main(
     data_dir,
     output_file,
     checkpoints=[],
-    config_path=None,
     device="cuda:0",
     runs=[1, 2, 3],  # Default runs from original script
 ):
@@ -107,12 +105,9 @@ def main(
         print(f"Processing model: {model_name}")
 
         # Initialize model
-        if model_name == "stock":
-            clf = TabPFNClassifier.create_default_for_version(ModelVersion.V2)
-        elif model_name == "stock_2.5" or model_name == "v2" or model_name.startswith("wide-v2"):
-            name = "v2" if model_name == "stock_2.5" else model_name
+        if model_name == "v2" or model_name.startswith("wide-v2"):
             clf = TabPFNWideClassifier(
-                model_name=name,
+                model_name=model_name,
                 device=device,
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
@@ -251,12 +246,7 @@ if __name__ == "__main__":
         "data_dir", type=str, help="Path to directory containing SNP data (plink files, etc)"
     )
     parser.add_argument("output_file", type=str, help="Path to output CSV file for results")
-    parser.add_argument(
-        "--checkpoint_dir",
-        type=str,
-        default=None,
-        help="Path to directory containing checkpoint files",
-    )
+
     parser.add_argument(
         "--checkpoint_path",
         type=str,
@@ -273,12 +263,6 @@ if __name__ == "__main__":
     checkpoints = []
     if args.checkpoint_path:
         checkpoints.append(args.checkpoint_path)
-    elif args.checkpoint_dir:
-        checkpoints = [
-            os.path.join(args.checkpoint_dir, f)
-            for f in os.listdir(args.checkpoint_dir)
-            if f.endswith(".pt") or f.endswith(".ckpt")
-        ]
 
     if not checkpoints:
         checkpoints = ["v2"]  # Default

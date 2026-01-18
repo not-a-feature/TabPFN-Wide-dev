@@ -13,12 +13,11 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import roc_auc_score
 from sklearn.utils import shuffle
-from tabpfn import TabPFNClassifier
-from tabpfn.constants import ModelVersion
+
 from analysis.utils import PredictionResults, get_new_features
 from tabpfnwide.classifier import TabPFNWideClassifier
 
-import json
+
 import argparse
 
 
@@ -27,7 +26,6 @@ def main(
     output_file,
     device,
     checkpoints,
-    config_path=None,
     sparsity=0.01,
     feature_numbers=[0, 50, 500, 2000, 5000, 10000, 20000, 30000],
 ):
@@ -38,7 +36,7 @@ def main(
         output_file (str): Path to the CSV file where results will be saved.
         device (str or torch.device): Device to use for model inference (e.g., 'cpu' or 'cuda').
         checkpoints (list of str): List of checkpoint paths or classifier names to evaluate.
-        config_path (str, optional): Path to the config.json file. Defaults to None.
+
         sparsity (float, optional): Sparsity level for added features. Default is 0.01.
         feature_numbers (list of int, optional): List of target feature counts for widening. Default is [0, 50, 500, 2000, 5000, 10000, 20000, 30000].
     Description:
@@ -87,38 +85,16 @@ def main(
             pass  # Will be created in loop
         elif checkpoint_path == "random_forest":
             pass  # Will be created in loop
-        elif checkpoint_path == "stock":
-            clf = TabPFNClassifier.create_default_for_version(ModelVersion.V2)
-            clf.device = device
         elif checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
-             clf = TabPFNWideClassifier(
+            clf = TabPFNWideClassifier(
                 model_name=checkpoint_path,
                 device=device,
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
             )
-             name = checkpoint_path
+            name = checkpoint_path
         else:
-            config_file = (
-                config_path
-                if config_path
-                else os.path.join(os.path.dirname(checkpoint_path), "config.json")
-            )
-            with open(config_file, "r") as f:
-                config = json.load(f)
-                features_per_group = config["model_config"]["features_per_group"]
-                n_estimators = config["train_config"]["n_estimators"]
-
-            clf = TabPFNWideClassifier(
-                model_path=checkpoint_path,
-                device=device,
-                n_estimators=n_estimators,
-                features_per_group=features_per_group,
-                ignore_pretraining_limits=True,
-                save_attention_maps=False,
-            )
-
-            name = checkpoint_path.split("/")[-1]
+            raise ValueError(f"Unknown checkpoint: {checkpoint_path}")
 
         if checkpoint_path in ["tabicl", "random_forest"]:
             if X.isnull().values.any():
@@ -233,9 +209,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("output_folder", type=str)
     parser.add_argument("--dataset_ids", type=int, nargs="+", required=True)
-    parser.add_argument("--checkpoints_dir", type=str)
+
     parser.add_argument("--checkpoint_path", type=str)
-    parser.add_argument("--config_path", type=str)
+
     parser.add_argument("--sparsity", type=float, default=0.01)
     parser.add_argument(
         "--feature_numbers",
@@ -250,15 +226,9 @@ if __name__ == "__main__":
     checkpoint_paths = []
     if args.checkpoint_path:
         checkpoint_paths.append(args.checkpoint_path)
-    elif args.checkpoints_dir:
-        checkpoint_paths = [
-            os.path.join(args.checkpoints_dir, cp)
-            for cp in os.listdir(args.checkpoints_dir)
-            if cp.endswith(".pt")
-        ]
 
     if not checkpoint_paths:
-        checkpoint_paths = ["stock"]
+        checkpoint_paths = ["v2"]
 
     if not args.checkpoint_path:
         checkpoint_paths += ["tabicl", "random_forest"]
@@ -273,7 +243,6 @@ if __name__ == "__main__":
                 output_file,
                 args.device,
                 checkpoint_paths,
-                config_path=args.config_path,
                 sparsity=args.sparsity,
                 feature_numbers=args.feature_numbers,
             )
