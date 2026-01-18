@@ -30,7 +30,7 @@ fi
 echo "Output directory: $OUTPUT_DIR"
 
 # HDLSS Benchmark
-if [ "$CHECKPOINT_PATH" != "tabicl" ] && [ "$CHECKPOINT_PATH" != "random_forest" ]; then
+
 if [ ! -f "${OUTPUT_DIR}/hdlss_benchmark_results.csv" ]; then
     echo "----------------------------------------"
     echo "Running HDLSS Benchmark..."
@@ -44,7 +44,7 @@ if [ ! -f "${OUTPUT_DIR}/hdlss_benchmark_results.csv" ]; then
 else
     echo "HDLSS Benchmark results exist. Skipping."
 fi
-fi
+
 
 if [ "$RUN_HDLSS_ONLY" = "true" ]; then
     echo "HDLSS only mode enabled. Skipping other benchmarks."
@@ -56,7 +56,7 @@ if [ "$RUN_HDLSS_ONLY" = "true" ]; then
 fi
 
 # Multi-omics Feature Reduction
-if [ "$CHECKPOINT_PATH" != "tabicl" ] && [ "$CHECKPOINT_PATH" != "random_forest" ]; then
+
 if [ ! -f "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" ]; then
     echo "----------------------------------------"
     echo "Running Multi-omics Feature Reduction..."
@@ -74,7 +74,7 @@ if [ ! -f "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" ]; then
 else
     echo "Multi-omics Feature Reduction results exist. Skipping."
 fi
-fi
+
 
 # OpenML Benchmark
 if [ ! -f "${OUTPUT_DIR}/openml_benchmark_results.csv" ]; then
@@ -140,7 +140,7 @@ fi
 fi
 
 # SNP Benchmark
-if [ "$CHECKPOINT_PATH" != "tabicl" ] && [ "$CHECKPOINT_PATH" != "random_forest" ]; then
+
 if [ ! -f "${OUTPUT_DIR}/snp_benchmark_results.csv" ]; then
     echo "----------------------------------------"
     echo "Running SNP Benchmark..."
@@ -153,7 +153,7 @@ if [ ! -f "${OUTPUT_DIR}/snp_benchmark_results.csv" ]; then
 else
     echo "SNP Benchmark results exist. Skipping."
 fi
-fi
+
 
 # Plotting Results
 echo "----------------------------------------"

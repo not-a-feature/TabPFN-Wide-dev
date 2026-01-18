@@ -9,6 +9,9 @@ from analysis.utils import PredictionResults
 from analysis.data import get_wide_validation_datasets
 from tabpfnwide.classifier import TabPFNWideClassifier
 from tabpfn import TabPFNClassifier
+from tabicl import TabICLClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import SimpleImputer
 import warnings
 import json
 
@@ -60,10 +63,14 @@ def main(
         if checkpoint_path == "stock":
             clf = TabPFNClassifier(device=device, ignore_pretraining_limits=True)
             name = "stock"
-        elif checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2") or checkpoint_path == "default_n1g1":
+        elif (
+            checkpoint_path == "v2"
+            or checkpoint_path.startswith("wide-v2")
+            or checkpoint_path == "default_n1g1"
+        ):
             # Map legacy 'default_n1g1' to v2 if needed, or keep as is if it's a name
             model_name = "v2" if checkpoint_path == "default_n1g1" else checkpoint_path
-            
+
             clf = TabPFNWideClassifier(
                 model_name=model_name,
                 device=device,
@@ -71,6 +78,12 @@ def main(
                 save_attention_maps=False,
             )
             name = checkpoint_path
+        elif checkpoint_path == "tabicl":
+            clf = TabICLClassifier(device=device, n_estimators=1)
+            name = "tabicl"
+        elif checkpoint_path == "random_forest":
+            clf = RandomForestClassifier(n_jobs=4)
+            name = "random_forest"
         else:
             config_file = (
                 config_path
@@ -148,6 +161,12 @@ def main(
                 y_train = y_train_tensor.cpu().numpy().flatten()
                 X_test = X_test_tensor.cpu().numpy()
                 y_test = y_test_tensor.cpu().numpy().flatten()
+
+                if checkpoint_path in ["tabicl", "random_forest"]:
+                    if np.isnan(X_train).any():
+                        imp = SimpleImputer(strategy="most_frequent")
+                        X_train = imp.fit_transform(X_train)
+                        X_test = imp.transform(X_test)
 
                 clf.fit(X_train, y_train)
                 pred_probs = clf.predict_proba(X_test)

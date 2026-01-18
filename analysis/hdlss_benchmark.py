@@ -8,6 +8,9 @@ import torch
 import warnings
 import json
 import sys
+from tabicl import TabICLClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import SimpleImputer
 
 warnings.filterwarnings("ignore")
 
@@ -95,7 +98,11 @@ def main(
         if checkpoint_path == "stock":
             clf = TabPFNClassifier.create_default_for_version(ModelVersion.V2)
             clf.device = device
-        elif checkpoint_path == "stock_2.5" or checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
+        elif (
+            checkpoint_path == "stock_2.5"
+            or checkpoint_path == "v2"
+            or checkpoint_path.startswith("wide-v2")
+        ):
             name = "v2" if checkpoint_path == "stock_2.5" else checkpoint_path
             clf = TabPFNWideClassifier(
                 model_name=name,
@@ -103,6 +110,10 @@ def main(
                 ignore_pretraining_limits=True,
                 save_attention_maps=False,
             )
+        elif checkpoint_path == "tabicl":
+            clf = TabICLClassifier(device=device, n_estimators=1)
+        elif checkpoint_path == "random_forest":
+            clf = RandomForestClassifier(n_jobs=4)
         else:
             config_file = (
                 config_path
@@ -152,6 +163,11 @@ def main(
 
             try:
                 X, y = load_mat_file(mat_file)
+
+                if checkpoint_path in ["tabicl", "random_forest"]:
+                    if np.isnan(X).any():
+                        simple_imputer = SimpleImputer(strategy="most_frequent")
+                        X = simple_imputer.fit_transform(X)
 
                 if X is None or y is None:
                     print(f"Skipping {dataset_name}: Failed to load data")
@@ -283,7 +299,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--device", type=str, default="cuda:0", help="Device for computation (cuda:0 or cpu)"
     )
-
 
     args = parser.parse_args()
 

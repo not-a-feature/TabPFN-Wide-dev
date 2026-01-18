@@ -40,7 +40,15 @@ def plot_metric_vs_categorical(
         # Sort hue_col by median metric
         hue_order = df.groupby(hue_col)[metric].median().sort_values(ascending=False).index
 
-        sns.boxplot(data=df, x=hue_col, y=metric, order=hue_order, palette="tab10", hue=hue_col, legend=False)
+        sns.boxplot(
+            data=df,
+            x=hue_col,
+            y=metric,
+            order=hue_order,
+            palette="tab10",
+            hue=hue_col,
+            legend=False,
+        )
         plt.xlabel(hue_col.replace("_", " ").title() if not xlabel else xlabel)
         plt.ylabel(ylabel if ylabel else metric.replace("_", " ").title())
         plt.title(f"{title if title else basename} - Aggregated {metric}")
@@ -96,7 +104,17 @@ def plot_hdlss(df, output_dir, basename):
         if df["dataset_name"].nunique() > 1 and df["checkpoint"].nunique() > 1:
             plt.figure(figsize=(8, 6))
             order = df.groupby("checkpoint")[metric].mean().sort_values(ascending=False).index
-            sns.barplot(data=df, x="checkpoint", y=metric, errorbar="sd", capsize=0.1, order=order, palette="tab10", hue="checkpoint", legend=False)
+            sns.barplot(
+                data=df,
+                x="checkpoint",
+                y=metric,
+                errorbar="sd",
+                capsize=0.1,
+                order=order,
+                palette="tab10",
+                hue="checkpoint",
+                legend=False,
+            )
             plt.ylim(0, 1.05)
             plt.title(f"Aggregated {metric.replace('_', ' ').title()} - {basename}")
             plt.xlabel("Checkpoint")
@@ -118,7 +136,15 @@ def plot_hdlss(df, output_dir, basename):
 
                 plt.figure(figsize=(8, 6))
                 order = sorted(ds_df["checkpoint"].unique())
-                sns.barplot(data=ds_df, x="checkpoint", y=metric, order=order, palette="tab10", hue="checkpoint", legend=False)
+                sns.barplot(
+                    data=ds_df,
+                    x="checkpoint",
+                    y=metric,
+                    order=order,
+                    palette="tab10",
+                    hue="checkpoint",
+                    legend=False,
+                )
                 plt.ylim(0, 1.05)
                 plt.title(f"{ds} - {metric.replace('_', ' ').title()}")
                 plt.xlabel("Checkpoint")
@@ -154,7 +180,17 @@ def plot_openml(df, output_dir, basename):
         if df["task_id"].nunique() > 1 and df["checkpoint"].nunique() > 1:
             plt.figure(figsize=(8, 6))
             order = df.groupby("checkpoint")[metric].mean().sort_values(ascending=False).index
-            sns.barplot(data=df, x="checkpoint", y=metric, errorbar="sd", capsize=0.1, order=order, palette="tab10", hue="checkpoint", legend=False)
+            sns.barplot(
+                data=df,
+                x="checkpoint",
+                y=metric,
+                errorbar="sd",
+                capsize=0.1,
+                order=order,
+                palette="tab10",
+                hue="checkpoint",
+                legend=False,
+            )
             plt.ylim(0, 1.05)
             plt.title(f"Aggregated {metric.replace('_', ' ').title()} - {basename}")
             plt.xlabel("Checkpoint")
@@ -175,7 +211,15 @@ def plot_openml(df, output_dir, basename):
 
                 plt.figure(figsize=(8, 6))
                 order = sorted(task_df["checkpoint"].unique())
-                sns.barplot(data=task_df, x="checkpoint", y=metric, order=order, palette="tab10", hue="checkpoint", legend=False)
+                sns.barplot(
+                    data=task_df,
+                    x="checkpoint",
+                    y=metric,
+                    order=order,
+                    palette="tab10",
+                    hue="checkpoint",
+                    legend=False,
+                )
                 plt.ylim(0, 1.05)
                 plt.title(f"Task {task} - {metric.replace('_', ' ').title()}")
                 plt.xlabel("Checkpoint")
@@ -294,73 +338,75 @@ def plot_widening(df, output_dir, basename):
 
 def plot_forgetting(df, output_dir, basename):
     """
-    Scatter plot comparing two models (e.g., TabPFN-v2 vs TabPFN-Wide) 
+    Scatter plot comparing two models (e.g., TabPFN-v2 vs TabPFN-Wide)
     using 'roc_auc_score' from OpenML benchmark results.
     Ref: snp_analysis/tabarena_vis.ipynb
     """
     output_dir = os.path.join(output_dir, "forgetting")
     os.makedirs(output_dir, exist_ok=True)
-    
+
     # We expect 'task_id', 'checkpoint', 'roc_auc_score'
     if not all(col in df.columns for col in ["task_id", "checkpoint", "roc_auc_score"]):
         print("   [Forgetting] Missing columns for Forgetting plot. Skipping.")
+        return
+
+    # Filter for only v2 and wide-v2 models
+    df = df[df["checkpoint"].apply(lambda x: x == "v2" or str(x).startswith("wide-v2"))]
+    if df.empty:
+        print("   [Forgetting] No v2 or wide-v2 models found. Skipping.")
         return
 
     # Aggregate if multiple entries per task/checkpoint (e.g. folds)
     # Ensure task_id is numeric to handle int/str mismatch
     df["task_id"] = pd.to_numeric(df["task_id"], errors="coerce")
     df = df.dropna(subset=["task_id"])
-    
-    df_agg = (
-        df.groupby(["task_id", "checkpoint"])["roc_auc_score"]
-        .mean()
-        .reset_index()
-    )
-    
+
+    df_agg = df.groupby(["task_id", "checkpoint"])["roc_auc_score"].mean().reset_index()
+
     # Pivot to have checkpoints as columns
-    df_pivot = df_agg.pivot(index='task_id', columns='checkpoint', values='roc_auc_score')
-    
+    df_pivot = df_agg.pivot(index="task_id", columns="checkpoint", values="roc_auc_score")
+
     # Needs at least 2 columns to compare
     if df_pivot.shape[1] < 2:
         print("   [Forgetting] Need at least 2 checkpoints to compare. Skipping.")
         return
-        
+
     cols = df_pivot.columns
-    # Simple pairwise comparison: Compare the last column vs the first column 
+    # Simple pairwise comparison: Compare the last column vs the first column
     # (assuming sorted order, often baseline vs new model)
     # OR compare all against the first one.
-    
+
     baseline = cols[0]
     others = cols[1:]
-    
+
     import scipy.stats as stats
-    
+
     for other in others:
         df_xy = df_pivot[[baseline, other]].dropna()
         if df_xy.empty:
             continue
-            
+
         x_vals = df_xy[baseline]
         y_vals = df_xy[other]
-        
+
         rho, _ = stats.spearmanr(x_vals, y_vals)
-        
+
         plt.figure(figsize=(6, 6))
         plt.scatter(x_vals, y_vals, marker="x", s=100, linewidths=1.5, color="mediumblue")
-        
+
         # Plot diagonal
         # lims = [min(x_vals.min(), y_vals.min()), max(x_vals.max(), y_vals.max())]
-        lims = [0.5, 1.0] # Fixed range often better for AUC
+        lims = [0.5, 1.0]  # Fixed range often better for AUC
         plt.plot(lims, lims, "--", color="gray", linewidth=1.5)
-        
+
         plt.xlim(lims)
         plt.ylim(lims)
-        plt.gca().set_aspect('equal', adjustable='box')
-        
+        plt.gca().set_aspect("equal", adjustable="box")
+
         plt.xlabel(f"{baseline}", fontsize=12)
         plt.ylabel(f"{other}", fontsize=12)
         plt.title(f"Forgetting Comparison (Spearman rho={rho:.4f})")
-        
+
         save_plots(plt.gcf(), output_dir, f"forgetting_scatter_{baseline}_vs_{other}")
 
 
@@ -370,33 +416,31 @@ def plot_snp(df, output_dir, basename):
     # Make sure n_features is numeric
     if "n_features" in df.columns:
         df["n_features"] = pd.to_numeric(df["n_features"])
-    
+
     # Use checkpoint column for model name if available (aggregated), else 'model'
     hue_col = "checkpoint" if "checkpoint" in df.columns else "model"
-    
+
     # Clean up checkpoint names
     if hue_col in df.columns:
-        df[hue_col] = df[hue_col].apply(
-            lambda x: str(x).split("/")[-1].replace(".pt", "")
-        )
+        df[hue_col] = df[hue_col].apply(lambda x: str(x).split("/")[-1].replace(".pt", ""))
 
     # Metrics to plot
     metrics = [c for c in ["roc_auc", "accuracy"] if c in df.columns]
-    
+
     for metric in metrics:
         # 1. Faceted Plot by Polygenicity
         if "Polygenicity" in df.columns:
             plt.figure(figsize=(10, 6))
             g = sns.FacetGrid(df, col="Polygenicity", sharey=False, height=5, aspect=1.2)
             g.map_dataframe(
-                sns.lineplot, 
-                x="n_features", 
-                y=metric, 
-                hue=hue_col, 
-                style=hue_col, 
+                sns.lineplot,
+                x="n_features",
+                y=metric,
+                hue=hue_col,
+                style=hue_col,
                 markers=True,
                 palette="tab10",
-                err_kws={"alpha": 0.1}
+                err_kws={"alpha": 0.1},
             )
             g.add_legend()
             g.set_axis_labels("Number of Features", metric.replace("_", " ").title())
@@ -410,7 +454,7 @@ def plot_snp(df, output_dir, basename):
                 x="n_features",
                 y=metric,
                 hue=hue_col,
-                style=hue_col, 
+                style=hue_col,
                 markers=True,
                 palette="tab10",
             )
