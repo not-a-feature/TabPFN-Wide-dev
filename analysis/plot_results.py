@@ -52,7 +52,7 @@ def plot_metric_vs_categorical(
         plt.xlabel(hue_col.replace("_", " ").title() if not xlabel else xlabel)
         plt.ylabel(ylabel if ylabel else metric.replace("_", " ").title())
         plt.title(f"{title if title else basename} - Aggregated {metric}")
-        plt.ylim(0, 1.05)
+        plt.ylim(0.45, 1.05)
         save_plots(plt.gcf(), output_dir, f"{basename}_{metric}_aggregated_by_{hue_col}")
         return
 
@@ -62,7 +62,7 @@ def plot_metric_vs_categorical(
 
     sns.boxplot(data=df, x=x_col, y=metric, hue=hue_col, order=order, palette="tab10")
     plt.xticks(rotation=45, ha="right")
-    plt.ylim(0, 1.05)
+    plt.ylim(0.45, 1.05)
     plt.xlabel(xlabel if xlabel else x_col.replace("_", " ").title())
     plt.ylabel(ylabel if ylabel else metric.replace("_", " ").title())
     plt.title(title if title else f"{basename} - {metric} per {x_col}")
@@ -115,7 +115,7 @@ def plot_hdlss(df, output_dir, basename):
                 hue="checkpoint",
                 legend=False,
             )
-            plt.ylim(0, 1.05)
+            plt.ylim(0.45, 1.05)
             plt.title(f"Aggregated {metric.replace('_', ' ').title()} - {basename}")
             plt.xlabel("Checkpoint")
             plt.ylabel(metric.replace("_", " ").title())
@@ -145,7 +145,7 @@ def plot_hdlss(df, output_dir, basename):
                     hue="checkpoint",
                     legend=False,
                 )
-                plt.ylim(0, 1.05)
+                plt.ylim(0.45, 1.05)
                 plt.title(f"{ds} - {metric.replace('_', ' ').title()}")
                 plt.xlabel("Checkpoint")
                 plt.ylabel(metric.replace("_", " ").title())
@@ -191,7 +191,7 @@ def plot_openml(df, output_dir, basename):
                 hue="checkpoint",
                 legend=False,
             )
-            plt.ylim(0, 1.05)
+            plt.ylim(0.45, 1.05)
             plt.title(f"Aggregated {metric.replace('_', ' ').title()} - {basename}")
             plt.xlabel("Checkpoint")
             plt.ylabel(metric.replace("_", " ").title())
@@ -220,7 +220,7 @@ def plot_openml(df, output_dir, basename):
                     hue="checkpoint",
                     legend=False,
                 )
-                plt.ylim(0, 1.05)
+                plt.ylim(0.45, 1.05)
                 plt.title(f"Task {task} - {metric.replace('_', ' ').title()}")
                 plt.xlabel("Checkpoint")
                 plt.ylabel(metric.replace("_", " ").title())
@@ -237,7 +237,7 @@ def plot_grouping(df, output_dir, basename):
         plt.figure(figsize=(8, 6))
         # Group by features_per_group
         sns.boxplot(data=df, x="features_per_group", y=metric)
-        plt.ylim(0, 1.05)
+        plt.ylim(0.45, 1.05)
         plt.title(f"Impact of Grouping on {metric.replace('_', ' ').title()}")
         plt.xlabel("Features Per Group")
         plt.ylabel(metric.replace("_", " ").title())
@@ -271,7 +271,7 @@ def plot_multiomics(df, output_dir, basename):
                 palette="tab10",
                 err_kws={"alpha": 0.1},
             )
-            plt.ylim(0, 1.05)
+            plt.ylim(0.45, 1.05)
             plt.title(f"{ds} - {metric.replace('_', ' ').title()} vs Feature Count")
             plt.xlabel("Number of Features")
             plt.ylabel(metric.replace("_", " ").title())
@@ -311,7 +311,7 @@ def plot_widening(df, output_dir, basename):
                     palette="tab10",
                     err_kws={"alpha": 0.1},
                 )
-                plt.ylim(0, 1.05)
+                plt.ylim(0.45, 1.05)
                 plt.title(f"Dataset {ds} - {metric} vs Features Added")
                 plt.xlabel("Features Added")
                 plt.ylabel(metric.replace("_", " ").title())
@@ -329,7 +329,7 @@ def plot_widening(df, output_dir, basename):
                 palette="tab10",
                 err_kws={"alpha": 0.1},
             )
-            plt.ylim(0, 1.05)
+            plt.ylim(0.45, 1.05)
             plt.title(f"{basename} - {metric} vs Features Added")
             plt.xlabel("Features Added")
             plt.ylabel(metric.replace("_", " ").title())
@@ -396,7 +396,7 @@ def plot_forgetting(df, output_dir, basename):
 
         # Plot diagonal
         # lims = [min(x_vals.min(), y_vals.min()), max(x_vals.max(), y_vals.max())]
-        lims = [0.5, 1.0]  # Fixed range often better for AUC
+        lims = [0.45, 1.0]  # Fixed range often better for AUC
         plt.plot(lims, lims, "--", color="gray", linewidth=1.5)
 
         plt.xlim(lims)
@@ -445,6 +445,7 @@ def plot_snp(df, output_dir, basename):
             g.add_legend()
             g.set_axis_labels("Number of Features", metric.replace("_", " ").title())
             g.set_titles(col_template="Polygenicity: {col_name}")
+            g.set(ylim=(0.45, 1))
             save_plots(plt.gcf(), output_dir, f"{basename}_{metric}_by_polygenicity")
         else:
             # Fallback simple plot
@@ -458,6 +459,7 @@ def plot_snp(df, output_dir, basename):
                 markers=True,
                 palette="tab10",
             )
+            plt.ylim(0.45, 1.05)
             plt.title(f"{basename} - {metric.replace('_', ' ').title()}")
             plt.xlabel("Number of Features")
             plt.ylabel(metric.replace("_", " ").title())
