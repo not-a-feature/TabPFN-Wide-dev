@@ -45,7 +45,6 @@ def main(
         device=device,
         n_estimators=1,
         features_per_group=1,
-        ignore_pretraining_limits=True,
         save_attention_maps=True,
     )
 
@@ -56,11 +55,9 @@ def main(
     clf.fit(X_train, y_train)
     clf.predict_proba(X_test)
 
-    atts = clf.get_attention_maps()
-    # Convert numpy arrays back to tensors for compatibility with existing saving logic
-    atts = [torch.from_numpy(att) for att in atts]
-    atts = torch.stack(atts, dim=0)
-    torch.save(atts, f"{output_file}")
+    maps = clf.get_attention_maps().mean(maps, axis=0)
+    maps = torch.from_numpy(maps)
+    torch.save(maps, f"{output_file}")
 
 
 if __name__ == "__main__":

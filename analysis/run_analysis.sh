@@ -59,7 +59,6 @@ if [ ! -f "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" ]; then
             "benchmark_data/multiomics_benchmark_data" \
             "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" \
             --checkpoint_path "$CHECKPOINT_PATH" \
-
             --dataset "$dataset" \
             --omics "mrna"
     done
@@ -96,24 +95,23 @@ else
     echo "OpenML Widening results directory exists. Skipping."
 fi
 
-# Multi-omics Attention Extraction
-# if [ ! -f "${OUTPUT_DIR}/multiomics_attention.pt" ]; then
-#     echo "----------------------------------------"
-#     echo "Running Multi-omics Attention Extraction..."
-#     echo "----------------------------------------"
-#     for dataset in BRCA COAD GBM LGG OV; do
-#         echo "Processing dataset: $dataset"
-#         python analysis/extract_multi_omics_attention.py \
-#             "benchmark_data/multiomics_benchmark_data" \
-#             "${OUTPUT_DIR}/multiomics_attention.pt" \
-#             --checkpoint_path "$CHECKPOINT_PATH" \
-#             --config_path "$CONFIG_FILE" \
-#             --dataset "$dataset" \
-#             --omic "mrna"
-#     done
-# else
-#     echo "Multi-omics Attention Extraction results exist. Skipping."
-# fi
+#Multi-omics Attention Extraction
+if [ ! -f "${OUTPUT_DIR}/multiomics_attention.pt" ]; then
+    echo "----------------------------------------"
+    echo "Running Multi-omics Attention Extraction..."
+    echo "----------------------------------------"
+    for dataset in BRCA COAD GBM LGG OV; do
+        echo "Processing dataset: $dataset"
+        python analysis/extract_multi_omics_attention.py \
+            "benchmark_data/multiomics_benchmark_data" \
+            "${OUTPUT_DIR}/multiomics_attention.pt" \
+            --checkpoint_path "$CHECKPOINT_PATH" \
+            --dataset "$dataset" \
+            --omic "mrna"
+    done
+else
+    echo "Multi-omics Attention Extraction results exist. Skipping."
+fi
 
 # Widening Attention Extraction
 if [ "$CHECKPOINT_PATH" != "tabicl" ] && [ "$CHECKPOINT_PATH" != "random_forest" ]; then
