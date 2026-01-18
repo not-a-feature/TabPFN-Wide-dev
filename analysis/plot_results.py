@@ -40,7 +40,7 @@ def plot_metric_vs_categorical(
         # Sort hue_col by median metric
         hue_order = df.groupby(hue_col)[metric].median().sort_values(ascending=False).index
 
-        sns.boxplot(data=df, x=hue_col, y=metric, order=hue_order)
+        sns.boxplot(data=df, x=hue_col, y=metric, order=hue_order, palette="tab10")
         plt.xlabel(hue_col.replace("_", " ").title() if not xlabel else xlabel)
         plt.ylabel(ylabel if ylabel else metric.replace("_", " ").title())
         plt.title(f"{title if title else basename} - Aggregated {metric}")
@@ -52,7 +52,7 @@ def plot_metric_vs_categorical(
     # Sort x_col by median metric
     order = df.groupby(x_col)[metric].median().sort_values(ascending=False).index
 
-    sns.boxplot(data=df, x=x_col, y=metric, hue=hue_col, order=order)
+    sns.boxplot(data=df, x=x_col, y=metric, hue=hue_col, order=order, palette="tab10")
     plt.xticks(rotation=45, ha="right")
     plt.ylim(0, 1.05)
     plt.xlabel(xlabel if xlabel else x_col.replace("_", " ").title())
@@ -96,7 +96,7 @@ def plot_hdlss(df, output_dir, basename):
         if df["dataset_name"].nunique() > 1 and df["checkpoint"].nunique() > 1:
             plt.figure(figsize=(8, 6))
             order = df.groupby("checkpoint")[metric].mean().sort_values(ascending=False).index
-            sns.barplot(data=df, x="checkpoint", y=metric, errorbar="sd", capsize=0.1, order=order)
+            sns.barplot(data=df, x="checkpoint", y=metric, errorbar="sd", capsize=0.1, order=order, palette="tab10")
             plt.ylim(0, 1.05)
             plt.title(f"Aggregated {metric.replace('_', ' ').title()} - {basename}")
             plt.xlabel("Checkpoint")
@@ -118,7 +118,7 @@ def plot_hdlss(df, output_dir, basename):
 
                 plt.figure(figsize=(8, 6))
                 order = sorted(ds_df["checkpoint"].unique())
-                sns.barplot(data=ds_df, x="checkpoint", y=metric, order=order)
+                sns.barplot(data=ds_df, x="checkpoint", y=metric, order=order, palette="tab10")
                 plt.ylim(0, 1.05)
                 plt.title(f"{ds} - {metric.replace('_', ' ').title()}")
                 plt.xlabel("Checkpoint")
@@ -154,7 +154,7 @@ def plot_openml(df, output_dir, basename):
         if df["task_id"].nunique() > 1 and df["checkpoint"].nunique() > 1:
             plt.figure(figsize=(8, 6))
             order = df.groupby("checkpoint")[metric].mean().sort_values(ascending=False).index
-            sns.barplot(data=df, x="checkpoint", y=metric, errorbar="sd", capsize=0.1, order=order)
+            sns.barplot(data=df, x="checkpoint", y=metric, errorbar="sd", capsize=0.1, order=order, palette="tab10")
             plt.ylim(0, 1.05)
             plt.title(f"Aggregated {metric.replace('_', ' ').title()} - {basename}")
             plt.xlabel("Checkpoint")
@@ -175,7 +175,7 @@ def plot_openml(df, output_dir, basename):
 
                 plt.figure(figsize=(8, 6))
                 order = sorted(task_df["checkpoint"].unique())
-                sns.barplot(data=task_df, x="checkpoint", y=metric, order=order)
+                sns.barplot(data=task_df, x="checkpoint", y=metric, order=order, palette="tab10")
                 plt.ylim(0, 1.05)
                 plt.title(f"Task {task} - {metric.replace('_', ' ').title()}")
                 plt.xlabel("Checkpoint")
@@ -221,8 +221,9 @@ def plot_multiomics(df, output_dir, basename):
                 data=ds_df,
                 x="n_features",
                 y=metric,
-                hue="checkpoint",
-                marker="o",
+                style="checkpoint",
+                markers=True,
+                palette="tab10",
                 err_kws={"alpha": 0.1},
             )
             plt.ylim(0, 1.05)
@@ -260,7 +261,9 @@ def plot_widening(df, output_dir, basename):
                     x="features_added",
                     y=metric,
                     hue="checkpoint",
-                    marker="o",
+                    style="checkpoint",
+                    markers=True,
+                    palette="tab10",
                     err_kws={"alpha": 0.1},
                 )
                 plt.ylim(0, 1.05)
@@ -276,7 +279,9 @@ def plot_widening(df, output_dir, basename):
                 x="features_added",
                 y=metric,
                 hue="checkpoint",
-                marker="o",
+                style="checkpoint",
+                markers=True,
+                palette="tab10",
                 err_kws={"alpha": 0.1},
             )
             plt.ylim(0, 1.05)
@@ -301,6 +306,10 @@ def plot_tabarena(df, output_dir, basename):
         return
 
     # Aggregate if multiple entries per task/checkpoint (e.g. folds)
+    # Ensure task_id is numeric to handle int/str mismatch
+    df["task_id"] = pd.to_numeric(df["task_id"], errors="coerce")
+    df = df.dropna(subset=["task_id"])
+    
     df_agg = (
         df.groupby(["task_id", "checkpoint"])["roc_auc_score"]
         .mean()
