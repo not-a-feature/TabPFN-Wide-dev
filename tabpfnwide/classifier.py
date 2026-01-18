@@ -10,9 +10,10 @@ from tabpfn.utils import infer_random_state, infer_devices, update_encoder_param
 VALID_MODELS = [
     "v2",
     "wide-v2-1.5k",
-    "wide-v2-5k",
     "wide-v2-1.5k-nocat",
+    "wide-v2-5k",
     "wide-v2-5k-nocat",
+    "wide-v2-8k",
     "wide-v2-8k-nocat",
 ]
 
@@ -58,7 +59,6 @@ class TabPFNWideClassifier(TabPFNClassifier):
         super().__init__(
             device=device,
             n_estimators=n_estimators,
-            features_per_group=features_per_group,
             model_path=model_path,
             **kwargs,
         )
