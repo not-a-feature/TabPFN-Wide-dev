@@ -24,7 +24,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
         model_path="",
         device="cuda",
         n_estimators=1,
-        features_per_group=2,
+        features_per_group=1,
         save_attention_maps=False,
         **kwargs,
     ):
@@ -58,6 +58,7 @@ class TabPFNWideClassifier(TabPFNClassifier):
         super().__init__(
             device=device,
             n_estimators=n_estimators,
+            features_per_group=features_per_group,
             model_path=model_path,
             **kwargs,
         )
