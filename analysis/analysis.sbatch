@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=TabPFN-Wide-analysis
-#SBATCH --array=0-1
+#SBATCH --array=0-8
 
 #SBATCH --cpus-per-task=100
 #SBATCH --nodes=1
@@ -24,12 +24,13 @@ source training/init.sh
 # Define Jobs: Type:Value
 # TODO Uppdate array size
 JOBS=(
-    #"MODEL:v2"
-    #"MODEL:wide-v2-1.5k-nocat"
-    #"MODEL:wide-v2-5k-nocat"
-    #"MODEL:wide-v2-8k-nocat"
-    #"MODEL:wide-v2-1.5k"
-    #"MODEL:wide-v2-5k"
+    "MODEL:v2"
+    "MODEL:wide-v2-1.5k"
+    "MODEL:wide-v2-1.5k-nocat"
+    "MODEL:wide-v2-5k"
+    "MODEL:wide-v2-5k-nocat"
+    "MODEL:wide-v2-8k"
+    "MODEL:wide-v2-8k-nocat"
     "MODEL:tabicl"
     "MODEL:random_forest"
 )
@@ -59,9 +60,3 @@ RUN_HDLSS_ONLY=false
 # RUN_HDLSS_ONLY=${RUN_HDLSS_ONLY:-false}
 
 bash analysis/run_analysis.sh "$CHECKPOINT_PATH" "$OUTPUT_DIR" "$RUN_HDLSS_ONLY" 50000
-
-# If this is the last task, run the comparison script
-if [ "$SLURM_ARRAY_TASK_ID" -eq 7 ]; then
-    echo "Task ID 5: Running comparison plotting..."
-    bash analysis/compare_results.sh "${BASE_DIR_LOCAL}/analysis_results"
-fi
