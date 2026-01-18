@@ -69,10 +69,6 @@ def main(
     runs=[1, 2, 3],  # Default runs from original script
 ):
 
-    # Load PLINK data once if possible, but the original script does it inside the loop.
-    # Actually, the bim/fam/bed seems constant: "./data/test_chr-1"
-    # only causal and pheno change with run.
-
     plink_path = os.path.join(data_dir, "test_chr-1")
     if not os.path.exists(plink_path + ".bed"):
         print(f"Error: PLINK file not found at {plink_path}")
@@ -236,10 +232,6 @@ def main(
 
                         fold_accs.append(acc)
                         fold_aucs.append(auc)
-
-                        # Save fold level results? Original script does.
-                        # We will aggregate for now to keep CSV clean, as per hdlss_benchmark.
-                        # Actually, hdlss_benchmark saves per fold. Let's do that.
 
                         res_df = pd.concat(
                             [
