@@ -50,15 +50,15 @@ def test_model_loading_and_config():
     return True
 
 
-def test_attention_maps():
-    print("\n=== Testing Attention Map Correctness ===")
-
+def run_single_attention_test(categorical=False):
     available_models = get_available_models()
     if not available_models:
         print("No models available to test.")
         return False
 
     overall_pass = True
+    mode_str = "CATEGORICAL Test" if categorical else "NUMERICAL Test"
+    print(f"\n=== Testing Attention Map Correctness ({mode_str}) ===")
 
     # 1. Create synthetic dataset
     # 5 informative features
@@ -89,8 +89,27 @@ def test_attention_maps():
     informative_idxs = np.where(p < n_informative)[0]
     noise_idxs = np.where(p >= n_informative)[0]
 
+    # Handle Categorical conversion
+    if categorical:
+        import pandas as pd
+
+        X_df = pd.DataFrame(X_shuffled, columns=[f"feat_{i}" for i in range(n_features)])
+
+        # Convert a subset of informative and noise features to categorical (binned strings)
+        # Convert first 2 informative and first 20 noise features
+        cats_to_convert = np.concatenate([informative_idxs[:2], noise_idxs[:20]])
+
+        for idx in cats_to_convert:
+            col_name = X_df.columns[idx]
+            # Simple binning to create categories
+            X_df[col_name] = pd.qcut(X_df[col_name], q=10, duplicates="drop").astype(str)
+
+        X_input = X_df
+    else:
+        X_input = X_shuffled
+
     for model_name in available_models:
-        print(f"\n--- Testing Attention Map: {model_name} ---")
+        print(f"\n--- Testing Attention Map: {model_name} [{mode_str}] ---")
         try:
             # We use n_estimators=1, features_per_group=1 as required for save_attention_maps=True
             clf = TabPFNWideClassifier(
@@ -102,8 +121,8 @@ def test_attention_maps():
             )
 
             # Test using shuffled data but tracking importance via indices
-            clf.fit(X_shuffled, y)
-            clf.predict(X_shuffled)
+            clf.fit(X_input, y)
+            clf.predict(X_input)
             maps = clf.get_attention_maps()
 
             if not maps:
@@ -139,7 +158,7 @@ def test_attention_maps():
                 overall_pass = False
 
             # Strong Test
-            top_indices = np.argsort(importance)[::-1][:(n_informative)]
+            top_indices = np.argsort(importance)[::-1][: (n_informative * 2)]
 
             # Use sets for order-independent comparison
             # We want to check if the informative features are captured in the top K (where K > n_informative)
@@ -161,6 +180,17 @@ def test_attention_maps():
             overall_pass = False
 
     return overall_pass
+
+
+def test_attention_maps():
+    print("\n=== Running Consolidated Attention Map Tests ===")
+    # 2. Run categorical test
+    pass_categorical = run_single_attention_test(categorical=True)
+
+    # 1. Run standard numerical test
+    pass_numerical = run_single_attention_test(categorical=False)
+
+    return pass_numerical and pass_categorical
 
 
 def main():
