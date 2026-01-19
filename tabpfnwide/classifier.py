@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from scipy.sparse import csr_matrix, diags
 import os
 import dataclasses
 from tabpfn import TabPFNClassifier
@@ -192,28 +193,55 @@ class TabPFNWideClassifier(TabPFNClassifier):
         original_to_preprocessed = mapping_info["original_to_preprocessed"]
         n_preprocessed = mapping_info["n_preprocessed"]
 
+        # Build sparse mapping matrix P
+        # P[i, p] = 1 if original feature i maps to preprocessed feature p
+        rows = []
+        cols = []
+        data = []
+
+        for orig_idx, positions in original_to_preprocessed.items():
+            for pos in positions:
+                rows.append(orig_idx)
+                cols.append(pos)
+                data.append(1.0)
+
+        # Shape is (n_original, n_preprocessed_max)
+        # We use a sufficiently large shape to cover all indices found
+        max_col = max(cols) if cols else 0
+        n_matrix_cols = max(n_preprocessed, max_col + 1)
+
+        P = csr_matrix((data, (rows, cols)), shape=(n_original, n_matrix_cols))
+
         mapped_maps = []
         for raw_attn in raw_maps:
-            # Create output attention matrix for original features
-            mapped_attn = np.zeros((n_original, n_original), dtype=raw_attn.dtype)
+            curr_dim = raw_attn.shape[0]
 
-            # Aggregate attention: sum over all preprocessed positions that
-            # correspond to each original feature pair
-            for orig_i in range(n_original):
-                for orig_j in range(n_original):
-                    preprocessed_positions_i = original_to_preprocessed[orig_i]
-                    preprocessed_positions_j = original_to_preprocessed[orig_j]
+            # Match P columns to raw_attn dimensions
+            if P.shape[1] > curr_dim:
+                P_sliced = P[:, :curr_dim]
+            elif P.shape[1] < curr_dim:
+                # Slice raw_attn to match P columns
+                raw_attn = raw_attn[: P.shape[1], : P.shape[1]]
+                P_sliced = P
+            else:
+                P_sliced = P
 
-                    # Sum attention across all corresponding preprocessed positions
-                    attn_sum = 0.0
-                    count = 0
-                    for pi in preprocessed_positions_i:
-                        for pj in preprocessed_positions_j:
-                            if pi < raw_attn.shape[0] and pj < raw_attn.shape[1]:
-                                attn_sum += raw_attn[pi, pj]
-                                count += 1
-                    if count > 0:
-                        mapped_attn[orig_i, orig_j] = attn_sum / count  # Average
+            # Calculate normalization factors (counts of valid mappings)
+            row_sums = np.array(P_sliced.sum(axis=1)).flatten()
+            row_sums[row_sums == 0] = 1.0
+
+            # Create normalized mapping matrix
+            scale = 1.0 / row_sums
+            D = diags(scale)
+            P_norm = D @ P_sliced
+
+            # Compute mapped attention: P_norm @ raw_attn @ P_norm.T
+            temp = P_norm @ raw_attn  # (n_original, curr_dim)
+            mapped_attn = temp @ P_norm.T  # (n_original, n_original)
+
+            # Convert to dense array if needed
+            if hasattr(mapped_attn, "toarray"):
+                mapped_attn = mapped_attn.toarray()
 
             mapped_maps.append(mapped_attn)
 
