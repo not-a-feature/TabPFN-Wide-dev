@@ -8,7 +8,7 @@
 #SBATCH --partition=h100-ferranti # --partition=h100-ferranti h100-preemptable-ferranti
 #SBATCH --mem=100G
 
-#SBATCH --exclude=mlcbm[004] # Broken Node
+#SBATCH --exclude=mlcbm[004-005] # Broken Node
 
 #SBATCH --gres=gpu:1
 
