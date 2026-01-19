@@ -6,12 +6,9 @@ export PYTHONPATH=$PYTHONPATH:.
 
 CHECKPOINT_PATH="$1"
 OUTPUT_DIR="$2"
-RUN_HDLSS_ONLY="${3:-false}"
-RUN_HDLSS_ONLY="${3:-false}"
-MAX_FEATURES="${4:-50000}"
 
 if [ -z "$CHECKPOINT_PATH" ] || [ -z "$OUTPUT_DIR" ]; then
-    echo "Usage: $0 <checkpoint_path> <output_dir> [run_hdlss_only] [max_features]"
+    echo "Usage: $0 <checkpoint_path> <output_dir>"
     exit 1
 fi
 
@@ -30,9 +27,7 @@ if [ ! -f "${OUTPUT_DIR}/hdlss_benchmark_results.csv" ]; then
     python analysis/hdlss_benchmark.py \
         "benchmark_data/hdlss_new_data" \
         "${OUTPUT_DIR}/hdlss_benchmark_results.csv" \
-        --checkpoint_path "$CHECKPOINT_PATH" \
-
-        --max_features "$MAX_FEATURES"
+        --checkpoint_path "$CHECKPOINT_PATH" \ 
 else
     echo "HDLSS Benchmark results exist. Skipping."
 fi
@@ -76,7 +71,6 @@ if [ ! -f "${OUTPUT_DIR}/openml_benchmark_results.csv" ]; then
         "${OUTPUT_DIR}/openml_benchmark_results.csv" \
         --suite_id 457 \
         --checkpoint_path "$CHECKPOINT_PATH" \
-
 else
     echo "OpenML Benchmark results exist. Skipping."
 fi
@@ -122,7 +116,6 @@ if [ ! -f "${OUTPUT_DIR}/widening_attention.pkl" ]; then
     python analysis/extract_widening_attention.py \
         "${OUTPUT_DIR}/widening_attention.pkl" \
         --checkpoint_path "$CHECKPOINT_PATH" \
-
         --openml_id 1494
 else
     echo "Widening Attention Extraction results exist. Skipping."

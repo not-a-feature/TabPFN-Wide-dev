@@ -56,7 +56,4 @@ echo "Running analysis for: $JOB_INFO"
 echo "Checkpoint/Model: $CHECKPOINT_PATH"
 echo "Output directory: $OUTPUT_DIR"
 
-RUN_HDLSS_ONLY=false
-# RUN_HDLSS_ONLY=${RUN_HDLSS_ONLY:-false}
-
-bash analysis/run_analysis.sh "$CHECKPOINT_PATH" "$OUTPUT_DIR" "$RUN_HDLSS_ONLY" 50000
+bash analysis/run_analysis.sh "$CHECKPOINT_PATH" "$OUTPUT_DIR"
