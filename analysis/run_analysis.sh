@@ -14,8 +14,6 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
-
-
 echo "Output directory: $OUTPUT_DIR"
 
 # HDLSS Benchmark

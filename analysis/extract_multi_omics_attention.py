@@ -3,6 +3,10 @@ import warnings
 import torch
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from analysis.load_mm_data import load_multiomics
 from tabpfnwide.classifier import TabPFNWideClassifier
 import warnings
