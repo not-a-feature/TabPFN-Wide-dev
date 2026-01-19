@@ -58,9 +58,20 @@ def main(
     clf.fit(X_train, y_train)
     clf.predict_proba(X_test)
 
-    maps = clf.get_attention_maps().mean(maps, axis=0)
-    maps = torch.from_numpy(maps)
-    torch.save(maps, f"{output_file}")
+    avg_map = clf.get_attention_maps().mean(maps, axis=0)
+
+    # Get feature names
+    importance = avg_map.sum(axis=0)  # Importance per feature
+    top_indices = np.argsort(importance)[::-1][:20]
+    top_20_feature_names = X.columns[top_indices].tolist()
+
+    # Save to file
+    with open(f"{output_file}.txt", "w") as f:
+        for feature_name, importance_score in zip(top_20_feature_names, importance[top_indices]):
+            f.write(f"{feature_name}: {importance_score}\n")
+
+    maps = torch.from_numpy(avg_map)
+    torch.save(maps, f"{output_file}.pt")
 
 
 if __name__ == "__main__":

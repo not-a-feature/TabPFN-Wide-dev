@@ -33,15 +33,6 @@ else
 fi
 
 
-if [ "$RUN_HDLSS_ONLY" = "true" ]; then
-    echo "HDLSS only mode enabled. Skipping other benchmarks."
-    echo "----------------------------------------"
-    echo "Plotting Results (HDLSS Only)..."
-    echo "----------------------------------------"
-    python analysis/plot_results.py --input_dir "$OUTPUT_DIR"
-    exit 0
-fi
-
 # Multi-omics Feature Reduction
 
 if [ ! -f "${OUTPUT_DIR}/multiomics_feature_reduction_results.csv" ]; then
@@ -97,7 +88,7 @@ if [ ! -f "${OUTPUT_DIR}/multiomics_attention.pt" ]; then
         echo "Processing dataset: $dataset"
         python analysis/extract_multi_omics_attention.py \
             "benchmark_data/multiomics_benchmark_data" \
-            "${OUTPUT_DIR}/multiomics_attention.pt" \
+            "${OUTPUT_DIR}/multiomics_attention" \
             --checkpoint_path "$CHECKPOINT_PATH" \
             --dataset "$dataset" \
             --omic "mrna"
