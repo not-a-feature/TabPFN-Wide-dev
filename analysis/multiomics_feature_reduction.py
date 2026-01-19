@@ -89,9 +89,6 @@ def main(
             20000,
             25000,
             30000,
-            40000,
-            50000,
-            60000,
             0,
         ]:
             # Get already completed folds for this dataset+checkpoint+n_features combo

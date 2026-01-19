@@ -69,6 +69,7 @@ def main(
                 "dataset_id",
                 "fold",
                 "checkpoint",
+                "sparsity",
                 "features",
                 "features_added",
                 "accuracy",
@@ -188,6 +189,7 @@ def main(
                                     if checkpoint_path not in other_classifiers
                                     else checkpoint_path
                                 ),
+                                "sparsity": sparsity,
                                 "features": X_new.shape[1],
                                 "features_added": features_added,
                                 "accuracy": accuracy,
@@ -223,16 +225,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    checkpoint_paths = []
-    if args.checkpoint_path:
-        checkpoint_paths.append(args.checkpoint_path)
-
-    if not checkpoint_paths:
-        checkpoint_paths = ["v2"]
-
-    if not args.checkpoint_path:
-        checkpoint_paths += ["tabicl", "random_forest"]
-
     for dataset_id in args.dataset_ids:
         output_file = os.path.join(args.output_folder, f"{dataset_id}.csv")
         if not os.path.exists(args.output_folder):
@@ -242,7 +234,7 @@ if __name__ == "__main__":
                 dataset_id,
                 output_file,
                 args.device,
-                checkpoint_paths,
+                args.checkpoint_path,
                 sparsity=args.sparsity,
                 feature_numbers=args.feature_numbers,
             )

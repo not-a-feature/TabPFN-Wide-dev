@@ -283,10 +283,14 @@ def plot_multiomics(df, output_dir, basename):
             save_plots(plt.gcf(), output_dir, f"{basename}_{ds}_{metric}_feature_curve")
 
 
-def plot_widening(df, output_dir, basename):
-    """Plotting logic for OpenML Widening."""
+def plot_widening(df, output_dir, basename, comparison_mode=False):
+    """Plotting logic for OpenML Widening with multiple sparsity support.
+
+    For single model mode: creates plots showing all sparsities on one graph.
+    For comparison mode: creates one plot per sparsity for all models.
+    """
     output_dir = os.path.join(output_dir, "widening")
-    # Line plot: x=features_added, y=metric, hue=checkpoint
+    # Line plot: x=features_added, y=metric, hue=checkpoint or sparsity
     metrics = [c for c in ["accuracy", "roc_auc_score"] if c in df.columns]
 
     if "checkpoint" in df.columns:
@@ -294,46 +298,116 @@ def plot_widening(df, output_dir, basename):
             lambda x: str(x).split("/")[-1].replace(".pt", "")
         )
 
+    # Check if sparsity column exists
+    has_sparsity = "sparsity" in df.columns
+
+    # Get unique sparsities if available
+    sparsities = df["sparsity"].unique() if has_sparsity else [None]
+    # Get unique checkpoints
+    checkpoints = df["checkpoint"].unique() if "checkpoint" in df.columns else [None]
+
     for metric in metrics:
-        # Separate plot per Dataset ID if multiple
-        if "dataset_id" in df.columns:
-            datasets = df["dataset_id"].unique()
-            for ds in datasets:
-                ds_df = df[df["dataset_id"] == ds]
-                plt.figure(figsize=(10, 6))
+        # Get datasets
+        datasets = df["dataset_id"].unique() if "dataset_id" in df.columns else [None]
+
+        for ds in datasets:
+            ds_df = df[df["dataset_id"] == ds] if ds is not None else df
+            ds_label = f"Dataset {ds}" if ds is not None else basename
+
+            if comparison_mode and has_sparsity:
+                # COMPARISON MODE: One plot per sparsity, showing all checkpoints
+                for sparsity in sparsities:
+                    sparsity_df = ds_df[ds_df["sparsity"] == sparsity]
+                    if sparsity_df.empty:
+                        continue
+
+                    plt.figure(figsize=(10, 6))
+                    sns.lineplot(
+                        data=sparsity_df,
+                        x="features_added",
+                        y=metric,
+                        hue="checkpoint",
+                        style="checkpoint",
+                        markers=True,
+                        palette="tab10",
+                        err_kws={"alpha": 0.1},
+                    )
+                    plt.ylim(0.45, 1.05)
+                    plt.title(f"{ds_label} - {metric} (Sparsity={sparsity})")
+                    plt.xlabel("Features Added")
+                    plt.ylabel(metric.replace("_", " ").title())
+                    plt.legend(title="Model", bbox_to_anchor=(1.05, 1), loc="upper left")
+                    save_plots(
+                        plt.gcf(),
+                        output_dir,
+                        f"{basename}_{ds}_{metric}_sparsity_{sparsity}_comparison",
+                    )
+
+            elif has_sparsity and len(sparsities) > 1:
+                # SINGLE MODEL MODE with multiple sparsities: Plot all sparsities together
+                plt.figure(figsize=(12, 6))
+                # Use sparsity as hue for differentiating curves
+                ds_df["sparsity_label"] = ds_df["sparsity"].apply(lambda x: f"Sparsity={x}")
                 sns.lineplot(
                     data=ds_df,
                     x="features_added",
                     y=metric,
-                    hue="checkpoint",
-                    style="checkpoint",
+                    hue="sparsity_label",
+                    style="sparsity_label",
                     markers=True,
                     palette="tab10",
                     err_kws={"alpha": 0.1},
                 )
                 plt.ylim(0.45, 1.05)
-                plt.title(f"Dataset {ds} - {metric} vs Features Added")
+                plt.title(f"{ds_label} - {metric} vs Features Added")
+                plt.xlabel("Features Added")
+                plt.ylabel(metric.replace("_", " ").title())
+                plt.legend(title="Sparsity", bbox_to_anchor=(1.05, 1), loc="upper left")
+                save_plots(plt.gcf(), output_dir, f"{basename}_{ds}_{metric}_all_sparsities")
+
+                # Also create per-sparsity plots for detailed view
+                per_sparsity_dir = os.path.join(output_dir, "per_sparsity")
+                for sparsity in sparsities:
+                    sparsity_df = ds_df[ds_df["sparsity"] == sparsity]
+                    if sparsity_df.empty:
+                        continue
+
+                    plt.figure(figsize=(10, 6))
+                    sns.lineplot(
+                        data=sparsity_df,
+                        x="features_added",
+                        y=metric,
+                        hue="checkpoint" if len(checkpoints) > 1 else None,
+                        style="checkpoint" if len(checkpoints) > 1 else None,
+                        markers=True,
+                        palette="tab10",
+                        err_kws={"alpha": 0.1},
+                    )
+                    plt.ylim(0.45, 1.05)
+                    plt.title(f"{ds_label} - {metric} (Sparsity={sparsity})")
+                    plt.xlabel("Features Added")
+                    plt.ylabel(metric.replace("_", " ").title())
+                    save_plots(
+                        plt.gcf(), per_sparsity_dir, f"{basename}_{ds}_{metric}_sparsity_{sparsity}"
+                    )
+            else:
+                # No sparsity column or only one sparsity - original behavior
+                plt.figure(figsize=(10, 6))
+                sns.lineplot(
+                    data=ds_df,
+                    x="features_added",
+                    y=metric,
+                    hue="checkpoint" if len(checkpoints) > 1 else None,
+                    style="checkpoint" if len(checkpoints) > 1 else None,
+                    markers=True,
+                    palette="tab10",
+                    err_kws={"alpha": 0.1},
+                )
+                plt.ylim(0.45, 1.05)
+                plt.title(f"{ds_label} - {metric} vs Features Added")
                 plt.xlabel("Features Added")
                 plt.ylabel(metric.replace("_", " ").title())
                 save_plots(plt.gcf(), output_dir, f"{basename}_{ds}_{metric}_widening_curve")
-        else:
-            # Fallback if no dataset_id column
-            plt.figure(figsize=(10, 6))
-            sns.lineplot(
-                data=df,
-                x="features_added",
-                y=metric,
-                hue="checkpoint",
-                style="checkpoint",
-                markers=True,
-                palette="tab10",
-                err_kws={"alpha": 0.1},
-            )
-            plt.ylim(0.45, 1.05)
-            plt.title(f"{basename} - {metric} vs Features Added")
-            plt.xlabel("Features Added")
-            plt.ylabel(metric.replace("_", " ").title())
-            save_plots(plt.gcf(), output_dir, f"{basename}_{metric}_widening_curve")
 
 
 def plot_forgetting(df, output_dir, basename):
@@ -539,7 +613,10 @@ def main():
                 # This is likely an OpenML widening file
                 basename = "openml_widening"
                 plot_widening(
-                    combined_df, output_dir, f"widening_dataset_{filename.replace('.csv', '')}"
+                    combined_df,
+                    output_dir,
+                    f"widening_dataset_{filename.replace('.csv', '')}",
+                    comparison_mode=True,
                 )
             else:
                 if "multiomics" in basename.lower():
@@ -606,7 +683,7 @@ def main():
             elif basename.isdigit() or "widening" in os.path.dirname(csv_file).lower():
                 print("   Detected OpenML Widening format.")
                 # For widening, we might want to save plots in the same folder as the CSV
-                plot_widening(df, os.path.dirname(csv_file), basename)
+                plot_widening(df, os.path.dirname(csv_file), basename, comparison_mode=False)
             else:
                 print(f"   Skipping {basename}: filename pattern not recognized.")
 

@@ -64,18 +64,23 @@ else
     echo "OpenML Benchmark results exist. Skipping."
 fi
 
-# OpenML Widening
-if [ ! -d "${OUTPUT_DIR}/openml_widening" ]; then
-    echo "----------------------------------------"
-    echo "Running OpenML Widening..."
-    echo "----------------------------------------"
-    python analysis/openml_widening.py \
-        "${OUTPUT_DIR}/openml_widening" \
-        --dataset_ids 54 188 1049 1067 1468 1494 40982 40984 41157 46921 46930 46940 46980 \
-        --checkpoint_path "$CHECKPOINT_PATH"
-else
-    echo "OpenML Widening results directory exists. Skipping."
-fi
+# OpenML Widening with multiple sparsity values
+SPARSITIES=(0 0.02 0.25 0.5)
+for SPARSITY in "${SPARSITIES[@]}"; do
+    WIDENING_DIR="${OUTPUT_DIR}/openml_widening/sparsity_${SPARSITY}"
+    if [ ! -d "$WIDENING_DIR" ]; then
+        echo "----------------------------------------"
+        echo "Running OpenML Widening with sparsity=${SPARSITY}..."
+        echo "----------------------------------------"
+        python analysis/openml_widening.py \
+            "$WIDENING_DIR" \
+            --dataset_ids 54 188 1049 1067 1468 1494 40982 40984 41157 46921 46930 46940 46980 \
+            --checkpoint_path "$CHECKPOINT_PATH" \
+            --sparsity "$SPARSITY"
+    else
+        echo "OpenML Widening (sparsity=${SPARSITY}) results exist. Skipping."
+    fi
+done
 
 #Multi-omics Attention Extraction
 # if [ ! -f "${OUTPUT_DIR}/multiomics_attention.pt" ]; then
