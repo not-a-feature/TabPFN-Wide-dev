@@ -65,7 +65,7 @@ def run_single_attention_test(categorical=False):
     n_features = 95
     n_informative = 5
     n_samples = 300
-
+    check_top_k = 10
     # Generate ordered data first to identify informative features easily
     X, y = make_classification(
         n_samples=n_samples,
@@ -158,7 +158,7 @@ def run_single_attention_test(categorical=False):
                 overall_pass = False
 
             # Strong Test
-            top_indices = np.argsort(importance)[::-1][: (n_informative * 2)]
+            top_indices = np.argsort(importance)[::-1][:check_top_k]
 
             # Use sets for order-independent comparison
             # We want to check if the informative features are captured in the top K (where K > n_informative)
