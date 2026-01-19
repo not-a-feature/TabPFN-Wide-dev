@@ -27,7 +27,7 @@ if [ ! -f "${OUTPUT_DIR}/hdlss_benchmark_results.csv" ]; then
     python analysis/hdlss_benchmark.py \
         "benchmark_data/hdlss_new_data" \
         "${OUTPUT_DIR}/hdlss_benchmark_results.csv" \
-        --checkpoint_path "$CHECKPOINT_PATH" \ 
+        --checkpoint_path "$CHECKPOINT_PATH" 
 else
     echo "HDLSS Benchmark results exist. Skipping."
 fi
@@ -70,7 +70,7 @@ if [ ! -f "${OUTPUT_DIR}/openml_benchmark_results.csv" ]; then
     python analysis/openml_benchmark.py \
         "${OUTPUT_DIR}/openml_benchmark_results.csv" \
         --suite_id 457 \
-        --checkpoint_path "$CHECKPOINT_PATH" \
+        --checkpoint_path "$CHECKPOINT_PATH"
 else
     echo "OpenML Benchmark results exist. Skipping."
 fi
@@ -83,8 +83,7 @@ if [ ! -d "${OUTPUT_DIR}/openml_widening" ]; then
     python analysis/openml_widening.py \
         "${OUTPUT_DIR}/openml_widening" \
         --dataset_ids 1494 40536 \
-        --checkpoint_path "$CHECKPOINT_PATH" \
-
+        --checkpoint_path "$CHECKPOINT_PATH"
 else
     echo "OpenML Widening results directory exists. Skipping."
 fi
