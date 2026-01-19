@@ -71,7 +71,7 @@ if [ ! -d "${OUTPUT_DIR}/openml_widening" ]; then
     echo "----------------------------------------"
     python analysis/openml_widening.py \
         "${OUTPUT_DIR}/openml_widening" \
-        --dataset_ids 1494 40536 \
+        --dataset_ids 54 188 1049 1067 1468 1494 40982 40984 41157 46921 46930 46940 46980 \
         --checkpoint_path "$CHECKPOINT_PATH"
 else
     echo "OpenML Widening results directory exists. Skipping."
