@@ -94,14 +94,24 @@ def main(
             60000,
             0,
         ]:
-            exists = (
-                (results["n_features"] == n_features)
-                & (results["checkpoint"] == name)
-                & (results["dataset_name"] == dataset_name)
-            ).any()
-            if exists:
-                print(f"Skipping {dataset_name} with {n_features} features, already exists")
+            # Get already completed folds for this dataset+checkpoint+n_features combo
+            completed_folds = set(
+                results[
+                    (results["n_features"] == n_features)
+                    & (results["checkpoint"] == name)
+                    & (results["dataset_name"] == dataset_name)
+                ]["fold"].values
+            )
+            expected_folds = 5  # n_splits=5, n_repeats=1
+            if len(completed_folds) == expected_folds:
+                print(
+                    f"Skipping {dataset_name} with {n_features} features, all {expected_folds} folds complete"
+                )
                 continue
+            elif len(completed_folds) > 0:
+                print(
+                    f"Resuming {dataset_name} with {n_features} features: {len(completed_folds)}/{expected_folds} folds complete"
+                )
             print(f"Validating {dataset_name} with {n_features} features")
             if hasattr(clf, "model"):
                 clf.model.to(device)
@@ -116,17 +126,11 @@ def main(
                     omics=omics_list,
                 )
             ):
+                # Skip already completed folds
+                if i in completed_folds:
+                    continue
+
                 X_train_tensor, y_train_tensor, X_test_tensor, y_test_tensor = dataset
-                exists = (
-                    (results["n_features"] == X_train_tensor.shape[-1])
-                    & (results["checkpoint"] == name)
-                    & (results["dataset_name"] == dataset_name)
-                ).any()
-                if exists and i == 0:
-                    print(
-                        f"Skipping {dataset_name} with {X_train_tensor.shape[-1]} features, already exists"
-                    )
-                    break
 
                 # Convert tensors to numpy for TabPFNClassifier
                 X_train = X_train_tensor.cpu().numpy()

@@ -93,13 +93,14 @@ def main(
             res_df = pd.read_csv(output_file)
 
         for task_id in openml_df["tid"].values:
+            checkpoint_id = checkpoint_path.split("/")[-1]
 
-            if (
-                (res_df["task_id"] == task_id)
-                & (res_df["checkpoint"] == checkpoint_path.split("/")[-1])
-            ).any():
-                print(f"Skipping task ID {task_id}, already processed")
-                continue
+            # Get already completed folds for this task+checkpoint
+            completed_folds = set(
+                res_df[(res_df["task_id"] == task_id) & (res_df["checkpoint"] == checkpoint_id)][
+                    "fold"
+                ].values
+            )
             try:
                 task = openml.tasks.get_task(int(task_id))
                 dataset = task.get_dataset()
@@ -123,7 +124,21 @@ def main(
                     n_splits=3, n_repeats=10 if X.shape[0] < 2500 else 3, random_state=42
                 )
 
+                expected_folds = skf.get_n_splits() * skf.n_repeats
+                if len(completed_folds) == expected_folds:
+                    print(
+                        f"Skipping task ID {task_id}, all {expected_folds} folds already complete"
+                    )
+                    continue
+                elif len(completed_folds) > 0:
+                    print(
+                        f"Resuming task ID {task_id}: {len(completed_folds)}/{expected_folds} folds complete"
+                    )
+
                 for fold, (train_idx, test_idx) in enumerate(skf.split(X, y)):
+                    if fold in completed_folds:
+                        continue
+
                     X_train, X_test = X[train_idx], X[test_idx]
                     y_train, y_test = y[train_idx], y[test_idx]
 

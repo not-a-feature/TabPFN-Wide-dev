@@ -138,17 +138,16 @@ def main(
             pheno.set_index("Sample", inplace=True)
 
             for n_f in feature_counts:
-                # Check if already processed
                 model_identifier = model_name.split("/")[-1]
-                if (
-                    (res_df["dataset"] == dataset_name)
-                    & (res_df["model"] == model_identifier)
-                    & (res_df["n_features"] == n_f)
-                ).any():
-                    print(
-                        f"Skipping {dataset_name} with {n_f} features for {model_identifier}, already processed."
-                    )
-                    continue
+
+                # Get already completed folds for this dataset+model+n_features combo
+                completed_folds = set(
+                    res_df[
+                        (res_df["dataset"] == dataset_name)
+                        & (res_df["model"] == model_identifier)
+                        & (res_df["n_features"] == n_f)
+                    ]["fold"].values
+                )
 
                 print(f"  Run {run}, Features {n_f}")
 
@@ -180,7 +179,21 @@ def main(
                 fold_accs = []
                 fold_aucs = []
 
+                expected_folds = strat_kf.get_n_splits()
+                if len(completed_folds) == expected_folds:
+                    print(
+                        f"Skipping {dataset_name} with {n_f} features for {model_identifier}, all {expected_folds} folds complete"
+                    )
+                    continue
+                elif len(completed_folds) > 0:
+                    print(
+                        f"Resuming {dataset_name} with {n_f} features: {len(completed_folds)}/{expected_folds} folds complete"
+                    )
+
                 for fold, (train_idx, test_idx) in enumerate(strat_kf.split(X, y)):
+                    if fold + 1 in completed_folds:  # fold column uses 1-indexed values
+                        continue
+
                     X_train, X_test = X[train_idx], X[test_idx]
                     y_train, y_test = y[train_idx], y[test_idx]
 

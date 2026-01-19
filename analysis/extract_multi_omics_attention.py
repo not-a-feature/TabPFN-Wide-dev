@@ -4,6 +4,7 @@ import torch
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import sys
+import numpy as np
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -62,7 +63,9 @@ def main(
     clf.fit(X_train, y_train)
     clf.predict_proba(X_test)
 
-    avg_map = clf.get_attention_maps().mean(maps, axis=0)
+    # Get attention maps and average over layers
+    maps = clf.get_attention_maps()
+    avg_map = np.mean(maps, axis=0)
 
     # Get feature names
     importance = avg_map.sum(axis=0)  # Importance per feature

@@ -125,14 +125,15 @@ def main(
 
         for mat_file in mat_files:
             dataset_name = os.path.basename(mat_file).replace(".mat", "")
+            checkpoint_id = checkpoint_path.split("/")[-1]
 
-            # Check if this dataset has already been processed with this checkpoint
-            if (
-                (res_df["dataset_name"] == dataset_name)
-                & (res_df["checkpoint"] == checkpoint_path.split("/")[-1])
-            ).any():
-                print(f"Skipping dataset {dataset_name}, already processed")
-                continue
+            # Get already completed folds for this dataset+checkpoint
+            completed_folds = set(
+                res_df[
+                    (res_df["dataset_name"] == dataset_name)
+                    & (res_df["checkpoint"] == checkpoint_id)
+                ]["fold"].values
+            )
 
             try:
                 X, y = load_mat_file(mat_file)
@@ -185,7 +186,21 @@ def main(
                     n_splits=3, n_repeats=10 if X.shape[0] < 2500 else 3, random_state=42
                 )
 
+                expected_folds = skf.get_n_splits() * skf.n_repeats
+                if len(completed_folds) == expected_folds:
+                    print(
+                        f"Skipping dataset {dataset_name}, all {expected_folds} folds already complete"
+                    )
+                    continue
+                elif len(completed_folds) > 0:
+                    print(
+                        f"Resuming dataset {dataset_name}: {len(completed_folds)}/{expected_folds} folds complete"
+                    )
+
                 for fold, (train_idx, test_idx) in enumerate(skf.split(X, y)):
+                    if fold in completed_folds:
+                        continue
+
                     X_train, X_test = X[train_idx], X[test_idx]
                     y_train, y_test = y[train_idx], y[test_idx]
 
