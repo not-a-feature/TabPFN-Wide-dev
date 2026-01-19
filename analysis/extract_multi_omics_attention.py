@@ -40,6 +40,9 @@ def main(
     y = LabelEncoder().fit_transform(y)
     print(X.shape)
 
+    if checkpoint_path == "random_forest" or checkpoint_path == "tabicl":
+        return
+
     clf = TabPFNWideClassifier(
         model_name=checkpoint_path,
         device=device,
