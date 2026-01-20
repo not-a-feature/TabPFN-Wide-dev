@@ -13,6 +13,60 @@ plt.rcParams["pdf.fonttype"] = 42
 plt.rcParams["ps.fonttype"] = 42
 
 
+# Hard-coded model configuration for consistent plotting
+MODEL_CONFIG = {
+    "v2": {"color": "#1f77b4", "order": 0, "label": "TabPFN v2"},
+    "wide-v2-1.5k": {"color": "#ff7f0e", "order": 1, "label": "Wide (1.5k)"},
+    "wide-v2-1.5k-nocat": {"color": "#ffbb78", "order": 2, "label": "Wide (1.5k, No-Cat)"},
+    "wide-v2-5k": {"color": "#2ca02c", "order": 3, "label": "Wide (5k)"},
+    "wide-v2-5k-nocat": {"color": "#98df8a", "order": 4, "label": "Wide (5k, No-Cat)"},
+    "wide-v2-8k": {"color": "#d62728", "order": 5, "label": "Wide (8k)"},
+    "wide-v2-8k-nocat": {"color": "#ff9896", "order": 6, "label": "Wide (8k, No-Cat)"},
+    "tabicl": {"color": "#9467bd", "order": 9, "label": "TabICL"},
+    "random_forest": {"color": "#5D4037", "order": 10, "label": "Random Forest"},
+}
+
+
+def get_model_style(df, hue_col="checkpoint"):
+    """
+    Returns palette and order for plotting based on MODEL_CONFIG.
+    Also applies labels to the dataframe column in-place.
+    """
+    if hue_col not in ["checkpoint", "model"]:
+        # Fallback for non-model categorical plots
+        unique_vals = df[hue_col].unique()
+        return None, sorted(unique_vals)
+
+    # Apply labels to the column in-place
+    label_map = {k: v["label"] for k, v in MODEL_CONFIG.items()}
+    df[hue_col] = df[hue_col].apply(lambda x: label_map.get(x, x))
+
+    models = df[hue_col].unique()
+    label_to_config = {v["label"]: v for v in MODEL_CONFIG.values()}
+
+    # Filter known models and sort by order
+    known_models = sorted(
+        [m for m in models if m in label_to_config],
+        key=lambda m: label_to_config[m]["order"],
+    )
+
+    # Handle unknown models (append keeping alphabetical order)
+    unknown_models = sorted([m for m in models if m not in label_to_config])
+
+    # Combined order
+    order = known_models + unknown_models
+
+    # Create palette
+    palette = {}
+    for m in models:
+        if m in label_to_config:
+            palette[m] = label_to_config[m]["color"]
+        else:
+            palette[m] = "#333333"  # Dark Grey for unknown
+
+    return palette, order
+
+
 def clean_checkpoint_names(df, col="checkpoint"):
     """Clean checkpoint names by removing file extensions and paths."""
     if col in df.columns:
@@ -59,9 +113,15 @@ def plot_categorical_comparison(
     if df.empty:
         return
 
+    df = df.copy()
+
     unique_x = df[x_col].nunique()
 
-    # Fallback to aggregated view if too many categories
+    # Clean data
+    df = df.dropna(subset=[y_col])
+    if df.empty:
+        print(f"Skipping plot for {y_col} - No valid data.")
+        return
     if unique_x > agg_threshold:
         print(f"Comparison has {unique_x} categories for {x_col}, switching to aggregated view.")
 
@@ -101,22 +161,89 @@ def plot_categorical_comparison(
     # Standard Plot
     plt.figure(figsize=(10, 6))
 
-    # Sort x axis by median metric value
+    # Seaborn 0.13.x has a bug when hue == x that causes UnboundLocalError.
+    # Workaround: use hue=x with legend=False when we want colors on x.
+    use_hue = hue_col and hue_col != x_col
+
+    # Determine which column to use for colors
+    color_col = hue_col if use_hue else (x_col if x_col in ["checkpoint", "model"] else None)
+
+    # Get fixed palette and order if applicable
+    # Note: get_model_style transforms the column values to labels in-place
+    palette = "tab10"
+    color_order = None
+    if color_col in ["checkpoint", "model"]:
+        palette, color_order = get_model_style(df, color_col)
+
+    # Sort x axis by median metric value (AFTER label transformation)
     order = df.groupby(x_col)[y_col].median().sort_values(ascending=False).index
 
     if plot_type == "box":
-        sns.boxplot(data=df, x=x_col, y=y_col, hue=hue_col, order=order, palette="tab10")
+        if use_hue:
+            sns.boxplot(
+                data=df,
+                x=x_col,
+                y=y_col,
+                hue=hue_col,
+                order=order,
+                hue_order=color_order,
+                palette=palette,
+            )
+        elif color_col:
+            # Use hue=x for coloring, but disable legend (Seaborn 0.13 compatible)
+            sns.boxplot(
+                data=df,
+                x=x_col,
+                y=y_col,
+                hue=x_col,
+                order=order,
+                hue_order=color_order,
+                palette=palette,
+                legend=False,
+            )
+        else:
+            sns.boxplot(
+                data=df,
+                x=x_col,
+                y=y_col,
+                order=order,
+            )
     elif plot_type == "bar":
-        sns.barplot(
-            data=df,
-            x=x_col,
-            y=y_col,
-            hue=hue_col,
-            order=order,
-            palette="tab10",
-            errorbar="sd",
-            capsize=0.1,
-        )
+        if use_hue:
+            sns.barplot(
+                data=df,
+                x=x_col,
+                y=y_col,
+                hue=hue_col,
+                order=order,
+                hue_order=color_order,
+                palette=palette,
+                errorbar="sd",
+                capsize=0.1,
+            )
+        elif color_col:
+            # Use hue=x for coloring, but disable legend (Seaborn 0.13 compatible)
+            sns.barplot(
+                data=df,
+                x=x_col,
+                y=y_col,
+                hue=x_col,
+                order=order,
+                hue_order=color_order,
+                palette=palette,
+                errorbar="sd",
+                capsize=0.1,
+                legend=False,
+            )
+        else:
+            sns.barplot(
+                data=df,
+                x=x_col,
+                y=y_col,
+                order=order,
+                errorbar="sd",
+                capsize=0.1,
+            )
 
     plt.xticks(rotation=45, ha="right")
     plt.ylim(ylim)
@@ -124,13 +251,19 @@ def plot_categorical_comparison(
     plt.ylabel(ylabel if ylabel else format_metric(y_col))
     plt.title(title if title else f"{basename} - {y_col}")
 
-    if hue_col and df[hue_col].nunique() > 1:
-        plt.legend(
-            bbox_to_anchor=(1.05, 1),
-            loc="upper left",
-            title=hue_col.replace("_", " ").title(),
-        )
-
+    # Handle legend: remove if not needed, reposition if needed
+    ax = plt.gca()
+    legend = ax.get_legend()
+    if legend is not None:
+        if use_hue and df[hue_col].nunique() > 1:
+            sns.move_legend(
+                ax,
+                "upper left",
+                bbox_to_anchor=(1.05, 1),
+                title=hue_col.replace("_", " ").title(),
+            )
+        else:
+            legend.remove()
     save_plots(plt.gcf(), output_dir, f"{basename}_{y_col}_per_{x_col}{suffix}")
 
 
@@ -149,6 +282,7 @@ def plot_line_comparison(
     suffix="",
     smoothing=0,
 ):
+    df = df.copy()
     if smoothing > 0:
         # Apply smoothing per group
         if hue_col:
@@ -162,11 +296,17 @@ def plot_line_comparison(
             df[y_col] = df[y_col].rolling(window=smoothing, min_periods=1, center=True).mean()
 
     # Filter out the 14k outlier
-    if x_col == "n_features":
-        # Check if we have data around 14000
-        mask = (df[x_col] > 12000) & (df[x_col] < 14500)
-        if mask.any():
-            pass
+    # if x_col == "n_features":
+    #     # Check if we have data around 14000
+    #     mask = (df[x_col] > 13000) & (df[x_col] < 14800)
+    #     if mask.any():
+    #         pass
+
+    # Get fixed palette and order if applicable
+    palette = "tab10"
+    hue_order = None
+    if hue_col in ["checkpoint", "model"]:
+        palette, hue_order = get_model_style(df, hue_col)
 
     plt.figure(figsize=(10, 6))
     sns.lineplot(
@@ -174,9 +314,11 @@ def plot_line_comparison(
         x=x_col,
         y=y_col,
         hue=hue_col,
+        hue_order=hue_order,
         style=style_col,
+        style_order=hue_order if style_col == hue_col else None,
         markers=True,
-        palette="tab10",
+        palette=palette,
         err_kws={"alpha": 0.05},
     )
     plt.ylim(ylim)
@@ -357,6 +499,10 @@ def plot_multiomics_overview(df, output_dir, basename):
         df_agg = df.groupby("checkpoint")[metric].agg(["mean", "std"]).reset_index()
         df_agg = df_agg.sort_values("mean", ascending=False)
 
+        # Custom logic for bar colors in overview
+        palette, _ = get_model_style(df_agg, "checkpoint")
+        bar_colors = [palette.get(x, "#333333") for x in df_agg["checkpoint"]]
+
         plt.figure(figsize=(10, 6))
         x_pos = np.arange(len(df_agg))
         plt.bar(
@@ -364,7 +510,7 @@ def plot_multiomics_overview(df, output_dir, basename):
             df_agg["mean"],
             yerr=df_agg["std"],
             capsize=5,
-            color=sns.color_palette("tab10", len(df_agg)),
+            color=bar_colors,
             edgecolor="black",
             linewidth=0.8,
         )
@@ -411,9 +557,12 @@ def plot_multiomics_overview(df, output_dir, basename):
         df_agg = df.groupby(["n_features", "checkpoint"])[metric].mean().reset_index()
 
         baseline_name = "v2"
-        # Check if baseline exists
-        if baseline_name in df_agg["checkpoint"].unique():
-            df_baseline = df_agg[df_agg["checkpoint"] == baseline_name][["n_features", metric]]
+        baseline_label = MODEL_CONFIG.get(baseline_name, {}).get("label", baseline_name)
+        unique_checkpoints = df_agg["checkpoint"].unique()
+        actual_baseline = baseline_label if baseline_label in unique_checkpoints else baseline_name
+
+        if actual_baseline in unique_checkpoints:
+            df_baseline = df_agg[df_agg["checkpoint"] == actual_baseline][["n_features", metric]]
             df_baseline = df_baseline.rename(columns={metric: "baseline_score"})
 
             df_merged = pd.merge(df_agg, df_baseline, on="n_features", how="left")
@@ -421,7 +570,7 @@ def plot_multiomics_overview(df, output_dir, basename):
 
             # Remove baseline from plot (relative score 0) if desired, or keep to show 0 line
             # Usually better to drop the baseline line itself if it's just 0
-            df_plot = df_merged[df_merged["checkpoint"] != baseline_name]
+            df_plot = df_merged[df_merged["checkpoint"] != actual_baseline]
 
             if not df_plot.empty:
                 plot_line_comparison(
@@ -433,10 +582,10 @@ def plot_multiomics_overview(df, output_dir, basename):
                     output_dir=output_dir,
                     basename=basename,
                     xlabel="Number of Features",
-                    ylabel=f"Relative {format_metric(metric)} (vs {baseline_name})",
+                    ylabel=f"Relative {format_metric(metric)} (vs {actual_baseline})",
                     title=f"Multiomics Overview - Relative {format_metric(metric)}",
                     suffix=f"_{metric}_overview_relative",
-                    ylim=(-0.2, 0.2),  # Adjust ylim for relative plots
+                    ylim=(-0.5, 0.25),  # Adjust ylim for relative plots
                     smoothing=5,  # Added smoothing
                 )
 
@@ -570,9 +719,13 @@ def plot_widening_relative(df, output_dir, basename, baseline_name="v2"):
         )
 
     # 2. Relative Performance
-    df_baseline = df_agg[df_agg["checkpoint"] == baseline_name].copy()
+    baseline_label = MODEL_CONFIG.get(baseline_name, {}).get("label", baseline_name)
+    unique_checkpoints = df_agg["checkpoint"].unique()
+    actual_baseline = baseline_label if baseline_label in unique_checkpoints else baseline_name
+
+    df_baseline = df_agg[df_agg["checkpoint"] == actual_baseline].copy()
     if df_baseline.empty:
-        print(f"Baseline '{baseline_name}' not found for relative plots.")
+        print(f"Baseline '{actual_baseline}' not found for relative plots.")
         return
 
     df_baseline = df_baseline.rename(columns={metric: "baseline_score"}).drop(
@@ -584,9 +737,11 @@ def plot_widening_relative(df, output_dir, basename, baseline_name="v2"):
 
     for sp in unique_sparsities:
         sp_df = df_merged[df_merged["sparsity"] == sp].sort_values("features")
-        sp_df = sp_df[sp_df["checkpoint"] != baseline_name]
+        sp_df = sp_df[sp_df["checkpoint"] != actual_baseline].copy()
         if sp_df.empty:
             continue
+
+        palette, hue_order = get_model_style(sp_df, "checkpoint")
 
         plt.figure(figsize=(10, 6))
         sns.lineplot(
@@ -594,14 +749,17 @@ def plot_widening_relative(df, output_dir, basename, baseline_name="v2"):
             x="features",
             y="relative_score",
             hue="checkpoint",
+            hue_order=hue_order,
             style="checkpoint",
+            style_order=hue_order,
             markers=True,
-            palette="tab10",
+            palette=palette,
         )
+        plt.ylim(-0.1, 0.35)
         plt.axhline(0, color="black", linestyle="--", linewidth=1)
-        plt.title(f"Relative AUROC vs {baseline_name} (Sparsity={sp})")
+        plt.title(f"Relative AUROC vs {actual_baseline} (Sparsity={sp})")
         plt.xlabel("Total Features")
-        plt.ylabel(f"Relative AUROC (vs {baseline_name})")
+        plt.ylabel(f"Relative AUROC (vs {actual_baseline})")
         plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
         save_plots(plt.gcf(), output_dir, f"{basename}_relative_auc_sparsity_{sp}")
 
@@ -614,8 +772,20 @@ def plot_forgetting(df, output_dir, basename):
     if not all(col in df.columns for col in required_cols):
         return
 
+    df = df.copy()
+
     # Filter
-    df = df[df["checkpoint"].apply(lambda x: x == "v2" or str(x).startswith("wide-v2"))]
+    # Filter: include v2 and wide models (supporting both raw and labeled names)
+    def is_target(x):
+        x_str = str(x)
+        return (
+            x_str == "v2"
+            or x_str == "TabPFN v2"
+            or x_str.startswith("wide-v2")
+            or x_str.startswith("Wide")
+        )
+
+    df = df[df["checkpoint"].apply(is_target)]
     if df.empty:
         return
 
@@ -644,10 +814,10 @@ def plot_forgetting(df, output_dir, basename):
 
         plt.figure(figsize=(6, 6))
         plt.scatter(x_vals, y_vals, marker="x", s=100, linewidths=1.5, color="mediumblue")
-        plt.plot([0.45, 1.0], [0.45, 1.0], "--", color="gray", linewidth=1.5)
+        plt.plot([0.5, 1.0], [0.5, 1.0], "--", color="gray", linewidth=1.5)
 
-        plt.xlim(0.45, 1.0)
-        plt.ylim(0.45, 1.0)
+        plt.xlim(0.5, 1.0)
+        plt.ylim(0.5, 1.0)
         plt.gca().set_aspect("equal", adjustable="box")
         plt.xlabel(f"{baseline}", fontsize=12)
         plt.ylabel(f"{other}", fontsize=12)
@@ -658,6 +828,7 @@ def plot_forgetting(df, output_dir, basename):
 def plot_snp(df, output_dir, basename):
     """Plotting logic for SNP benchmarks."""
     output_dir = os.path.join(output_dir, "snp")
+    df = df.copy()
     if "n_features" in df.columns:
         df["n_features"] = pd.to_numeric(df["n_features"])
 
@@ -669,15 +840,19 @@ def plot_snp(df, output_dir, basename):
     for metric in metrics:
         if "Polygenicity" in df.columns:
             plt.figure(figsize=(10, 6))
+            palette, hue_order = get_model_style(df, hue_col)
+
             g = sns.FacetGrid(df, col="Polygenicity", sharey=False, height=5, aspect=1.2)
             g.map_dataframe(
                 sns.lineplot,
                 x="n_features",
                 y=metric,
                 hue=hue_col,
+                hue_order=hue_order,
                 style=hue_col,
+                style_order=hue_order,
                 markers=True,
-                palette="tab10",
+                palette=palette,
                 err_kws={"alpha": 0.05},
             )
             g.add_legend()
