@@ -22,6 +22,7 @@ def main(
     checkpoint_path,
     device="cuda:0",
     omic="mrna",
+    subsample_features=None,
 ):
     """
     Extracts and saves attention maps from a trained transformer-based model on multi-omics data.
@@ -56,21 +57,36 @@ def main(
         save_attention_maps=True,
     )
 
-    model = clf.model
-
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    clf.fit(X_train, y_train)
-    clf.predict_proba(X_test)
+    avg_maps = []
 
-    # Get attention maps and average over layers
-    maps = clf.get_attention_maps()
-    avg_map = np.mean(maps, axis=0)
+    if subsample_features is None:
+        clf.fit(X_train, y_train)
+        clf.predict_proba(X_test)
+        avg_maps = clf.get_attention_maps().mean(axis=0)
+    else:
+        n_features = X.shape[1]
+        for i in range(0, n_features, subsample_features):
+            end = min(i + subsample_features, n_features)
+            print(f"Processing features {i} to {end}...")
+
+            X_train_sub = X_train[:, i:end]
+            X_test_sub = X_test[:, i:end]
+
+            clf.fit(X_train_sub, y_train)
+            clf.predict_proba(X_test_sub)
+
+            # Get attention maps and average over layers/heads for this chunk
+            chunk_maps = clf.get_attention_maps().mean(axis=0)
+            avg_maps.append(chunk_maps)
+
+        avg_map = np.concatenate(avg_maps, axis=0)
 
     # Get feature names
     importance = avg_map.sum(axis=0)  # Importance per feature
     top_indices = np.argsort(importance)[::-1][:20]
-    top_20_feature_names = X.columns[top_indices].tolist()
+    top_20_feature_names = mrna.columns[top_indices].tolist()
 
     # Save to file
     with open(f"{output_file}.txt", "w") as f:
@@ -99,6 +115,12 @@ if __name__ == "__main__":
 
     parser.add_argument("--device", type=str, default="cuda:0", help="Device to run the model on")
     parser.add_argument("--omic", type=str, default="mrna", help="Omic type to use (default: mRNA)")
+    parser.add_argument(
+        "--subsample_features",
+        type=int,
+        default=None,
+        help="Number of features to process at a time (default: None = all features)",
+    )
 
     args = parser.parse_args()
     main(
@@ -107,4 +129,5 @@ if __name__ == "__main__":
         args.checkpoint_path,
         args.device,
         args.omic,
+        args.subsample_features,
     )
