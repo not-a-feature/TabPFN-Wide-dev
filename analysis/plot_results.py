@@ -102,7 +102,7 @@ def plot_categorical_comparison(
     ylabel=None,
     title=None,
     plot_type="box",
-    ylim=(0.45, 1.05),
+    ylim=(0.4, 1.05),
     suffix="",
     agg_threshold=40,
 ):
@@ -278,7 +278,7 @@ def plot_line_comparison(
     xlabel=None,
     ylabel=None,
     title=None,
-    ylim=(0.45, 1.05),
+    ylim=(0.4, 1.05),
     suffix="",
     smoothing=0,
 ):
@@ -296,11 +296,11 @@ def plot_line_comparison(
             df[y_col] = df[y_col].rolling(window=smoothing, min_periods=1, center=True).mean()
 
     # Filter out the 14k outlier
-    # if x_col == "n_features":
-    #     # Check if we have data around 14000
-    #     mask = (df[x_col] > 13000) & (df[x_col] < 14800)
-    #     if mask.any():
-    #         pass
+    if x_col == "n_features":
+        # Check if we have data around 14000
+        mask = (df[x_col] > 13000) & (df[x_col] < 14800)
+        if mask.any():
+            df = df[~mask]
 
     # Get fixed palette and order if applicable
     palette = "tab10"
@@ -585,7 +585,7 @@ def plot_multiomics_overview(df, output_dir, basename):
                     ylabel=f"Relative {format_metric(metric)} (vs {actual_baseline})",
                     title=f"Multiomics Overview - Relative {format_metric(metric)}",
                     suffix=f"_{metric}_overview_relative",
-                    ylim=(-0.5, 0.25),  # Adjust ylim for relative plots
+                    ylim=(-0.05, 0.5),  # Adjust ylim for relative plots
                     smoothing=5,  # Added smoothing
                 )
 
@@ -858,7 +858,7 @@ def plot_snp(df, output_dir, basename):
             g.add_legend()
             g.set_axis_labels("Number of Features", format_metric(metric))
             g.set_titles(col_template="Polygenicity: {col_name}")
-            g.set(ylim=(0.45, 1))
+            g.set(ylim=(0.4, 1))
             save_plots(plt.gcf(), output_dir, f"{basename}_{metric}_by_polygenicity")
         else:
             plot_line_comparison(
