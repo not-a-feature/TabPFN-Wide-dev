@@ -182,15 +182,114 @@ def run_single_attention_test(categorical=False):
     return overall_pass
 
 
+def test_attention_to_label():
+    """Test that get_attention_to_label() correctly identifies informative features."""
+    available_models = get_available_models()
+    if not available_models:
+        print("No models available to test.")
+        return False
+
+    print("\n=== Testing Attention to Label ===")
+    overall_pass = True
+
+    n_features = 50
+    n_informative = 5
+    n_samples = 200
+
+    X, y = make_classification(
+        n_samples=n_samples,
+        n_features=n_features,
+        n_informative=n_informative,
+        n_redundant=0,
+        n_repeated=0,
+        shuffle=False,
+        random_state=42,
+    )
+
+    # Shuffle features and track indices
+    rng = np.random.RandomState(42)
+    perm = rng.permutation(n_features)
+    X_shuffled = X[:, perm]
+
+    informative_idxs = np.where(perm < n_informative)[0]
+    noise_idxs = np.where(perm >= n_informative)[0]
+
+    for model_name in available_models:
+        print(f"\n--- Testing Attention to Label: {model_name} ---")
+        try:
+            clf = TabPFNWideClassifier(
+                model_name=model_name,
+                device="cpu",
+                n_estimators=1,
+                features_per_group=1,
+                save_attention_maps=True,
+            )
+
+            clf.fit(X_shuffled, y)
+            clf.predict(X_shuffled)
+
+            attn_to_label = clf.get_attention_to_label()
+
+            # Verify shape
+            if attn_to_label.shape != (n_features,):
+                print(
+                    f"  FAILURE ({model_name}): Expected shape ({n_features},), got {attn_to_label.shape}"
+                )
+                overall_pass = False
+                continue
+
+            informative_attn = attn_to_label[informative_idxs].mean()
+            noise_attn = attn_to_label[noise_idxs].mean()
+
+            print(f"  Mean attention to label (Informative): {informative_attn:.4f}")
+            print(f"  Mean attention to label (Noise):       {noise_attn:.4f}")
+
+            if informative_attn > noise_attn:
+                print(
+                    f"  SUCCESS ({model_name}): Informative features attend more to label (Weak Test)."
+                )
+            else:
+                print(
+                    f"  FAILURE ({model_name}): Noise features attend more (or equal) to label (Weak Test)."
+                )
+                overall_pass = False
+
+            # Strong Test: Check if informative features are in top-k
+            check_top_k = n_informative * 2
+            top_indices = np.argsort(attn_to_label)[::-1][:check_top_k]
+
+            if set(informative_idxs).issubset(set(top_indices)):
+                print(
+                    f"  SUCCESS ({model_name}): All informative features in top {check_top_k} (Strong Test)."
+                )
+            else:
+                print(
+                    f"  FAILURE ({model_name}): Not all informative features in top {check_top_k} (Strong Test)."
+                )
+                print(f"    Expected: {set(informative_idxs.tolist())}")
+                print(f"    Got top {check_top_k}: {set(top_indices.tolist())}")
+                overall_pass = False
+
+        except Exception:
+            print(f"  ERROR ({model_name}): Exception occurred.")
+            traceback.print_exc()
+            overall_pass = False
+
+    return overall_pass
+
+
 def test_attention_maps():
     print("\n=== Running Consolidated Attention Map Tests ===")
+    # 3. Run attention-to-label test
+    pass_attn_to_label = test_attention_to_label()
+
     # 2. Run categorical test
     pass_categorical = run_single_attention_test(categorical=True)
 
     # 1. Run standard numerical test
     pass_numerical = run_single_attention_test(categorical=False)
 
-    return pass_numerical and pass_categorical
+    return pass_numerical and pass_categorical and pass_attn_to_label
 
 
 def main():
