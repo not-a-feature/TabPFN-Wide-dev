@@ -361,3 +361,56 @@ class TabPFNWideClassifier(TabPFNClassifier):
         map to preprocessed token positions.
         """
         return self._get_feature_mapping_info()
+
+    def get_attention_to_label(self):
+        """Return attention scores showing how much the label attends to each feature.
+
+        In TabPFN's architecture, the label (y) is concatenated as the last token
+        in the feature dimension. This method extracts how much the label token
+        (as a query) attends to each feature (as keys), indicating feature
+        importance for the prediction.
+
+        Returns:
+            numpy array of shape (n_features_in_,) where each value represents
+            how much the label token attends to that original input feature,
+            averaged across all transformer layers.
+        """
+        if not self.save_attention_maps:
+            raise ValueError("Attention maps were not saved during training.")
+
+        n_original = self.n_features_in_
+
+        # Get the preprocessing mapping info
+        mapping_info = self._get_feature_mapping_info()
+        assert mapping_info is not None, "Could not get feature mapping info."
+
+        original_to_preprocessed = mapping_info["original_to_preprocessed"]
+
+        # Collect attention from label to features from each layer
+        layer_attentions = []
+        for layer in self.model.transformer_encoder.layers:
+            if hasattr(layer, "self_attn_between_features"):
+                attn = getattr(layer.self_attn_between_features, "attention_map", None)
+                if attn is not None:
+                    raw_attn = attn.numpy()
+                    # Last ROW = how much the label (query) attends to each feature (key)
+                    # Shape: (n_preprocessed,) - excludes label-to-label self-attention
+                    label_attn_to_features = raw_attn[-1, :-1]
+                    layer_attentions.append(label_attn_to_features)
+
+        assert layer_attentions, "No attention maps found."
+
+        # Average across layers
+        avg_attn_to_label = np.mean(layer_attentions, axis=0)
+
+        # Map preprocessed positions back to original features
+        # Each original feature may map to multiple preprocessed positions
+        result = np.zeros(n_original)
+        for orig_idx in range(n_original):
+            positions = original_to_preprocessed.get(orig_idx, [orig_idx])
+            # Filter positions that are within bounds
+            valid_positions = [p for p in positions if p < len(avg_attn_to_label)]
+            if valid_positions:
+                result[orig_idx] = np.mean([avg_attn_to_label[p] for p in valid_positions])
+
+        return result
