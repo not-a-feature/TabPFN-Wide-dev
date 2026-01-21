@@ -839,27 +839,39 @@ def plot_snp(df, output_dir, basename):
 
     for metric in metrics:
         if "Polygenicity" in df.columns:
-            plt.figure(figsize=(10, 6))
+            # Create one plot file per Polygenicity value
             palette, hue_order = get_model_style(df, hue_col)
 
-            g = sns.FacetGrid(df, col="Polygenicity", sharey=False, height=5, aspect=1.2)
-            g.map_dataframe(
-                sns.lineplot,
-                x="n_features",
-                y=metric,
-                hue=hue_col,
-                hue_order=hue_order,
-                style=hue_col,
-                style_order=hue_order,
-                markers=True,
-                palette=palette,
-                err_kws={"alpha": 0.05},
-            )
-            g.add_legend()
-            g.set_axis_labels("Number of Features", format_metric(metric))
-            g.set_titles(col_template="Polygenicity: {col_name}")
-            g.set(ylim=(0.4, 1))
-            save_plots(plt.gcf(), output_dir, f"{basename}_{metric}_by_polygenicity")
+            for polygenicity in sorted(df["Polygenicity"].unique()):
+                poly_df = df[df["Polygenicity"] == polygenicity]
+                if poly_df.empty:
+                    continue
+
+                plt.figure(figsize=(10, 6))
+                sns.lineplot(
+                    data=poly_df,
+                    x="n_features",
+                    y=metric,
+                    hue=hue_col,
+                    hue_order=hue_order,
+                    style=hue_col,
+                    style_order=hue_order,
+                    markers=True,
+                    palette=palette,
+                    err_kws={"alpha": 0.05},
+                )
+                plt.ylim(0.4, 1)
+                plt.xlabel("Number of Features")
+                plt.ylabel(format_metric(metric))
+                plt.title(f"Polygenicity: {polygenicity}")
+                plt.legend(
+                    bbox_to_anchor=(1.05, 1),
+                    loc="upper left",
+                    title=hue_col.replace("_", " ").title(),
+                )
+                save_plots(
+                    plt.gcf(), output_dir, f"{basename}_{metric}_polygenicity_{polygenicity}"
+                )
         else:
             plot_line_comparison(
                 df,
