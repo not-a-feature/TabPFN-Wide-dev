@@ -323,7 +323,7 @@ def plot_line_comparison(
             df = df.sort_values(by=x_col)
             df[y_col] = df[y_col].rolling(window=smoothing, min_periods=1, center=True).mean()
 
-    # Filter out the 14k outlier
+    # Filter out the dataset coverage problem
     if x_col == "n_features":
         # Check if we have data around 14000
         mask = (df[x_col] > 13000) & (df[x_col] < 14800)
@@ -357,9 +357,9 @@ def plot_line_comparison(
 
     if hue_col:
         plt.legend(
-            bbox_to_anchor=(1.05, 1),
-            loc="upper left",
+            loc="best",
             title=hue_col.replace("_", " ").title(),
+            frameon=False,
         )
 
     save_plots(plt.gcf(), output_dir, f"{basename}_{y_col}_vs_{x_col}{suffix}")
@@ -792,7 +792,7 @@ def plot_widening_relative(df, output_dir, basename, baseline_name="v2"):
 
         plt.xlabel("Total Features")
         plt.ylabel(f"Relative AUROC (vs {actual_baseline})")
-        plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+        plt.legend(loc="best", frameon=False)
         save_plots(plt.gcf(), output_dir, f"{basename}_relative_auc_sparsity_{sp}")
 
 
@@ -900,9 +900,9 @@ def plot_snp(df, output_dir, basename):
                 plt.ylabel(format_metric(metric))
                 plt.title(f"{model_name} - {format_metric(metric)} across Polygenicities")
                 plt.legend(
-                    bbox_to_anchor=(1.05, 1),
-                    loc="upper left",
+                    loc="best",
                     title="Polygenicity",
+                    frameon=False,
                 )
                 save_plots(plt.gcf(), output_dir, f"{basename}_{metric}_all_polygenicities")
 
@@ -938,9 +938,9 @@ def plot_snp(df, output_dir, basename):
                     # So title is redundant. Removing it to be consistent with previous changes.
                     # plt.title(f"Polygenicity: {polygenicity}")
                     plt.legend(
-                        bbox_to_anchor=(1.05, 1),
-                        loc="upper left",
+                        loc="best",
                         title=hue_col.replace("_", " ").title(),
+                        frameon=False,
                     )
                     save_plots(
                         plt.gcf(), output_dir, f"{basename}_{metric}_polygenicity_{polygenicity}"
@@ -1019,7 +1019,7 @@ def plot_reduced_widening_relative(df, output_dir, basename, baseline_name="v2")
 
     # Publication styling
     with sns.plotting_context("paper", font_scale=1.6):
-        fig, ax = plt.subplots(figsize=(8, 6))
+        fig, ax = plt.subplots(figsize=(8, 8))
         sns.lineplot(
             data=sp_df,
             x="features",
@@ -1039,7 +1039,7 @@ def plot_reduced_widening_relative(df, output_dir, basename, baseline_name="v2")
         ax.axhline(0, color="black", linestyle="--", linewidth=1)
         ax.set_xlabel("Total Features", fontsize=14)
         ax.set_ylabel(f"Relative AUROC (vs {actual_baseline})", fontsize=14)
-        ax.legend(loc="upper right", fontsize=11, framealpha=0.9)
+        ax.legend(loc="best", fontsize=11, frameon=False)
         plt.tight_layout()
         save_plots(fig, output_dir, f"{basename}_relative_auc_sparsity_{sp}_reduced")
 
@@ -1076,7 +1076,7 @@ def plot_reduced_snp(df, output_dir, basename):
 
     # Publication styling
     with sns.plotting_context("paper", font_scale=1.6):
-        fig, ax = plt.subplots(figsize=(8, 6))
+        fig, ax = plt.subplots(figsize=(8, 8))
         sns.lineplot(
             data=poly_df,
             x="n_features",
@@ -1093,12 +1093,346 @@ def plot_reduced_snp(df, output_dir, basename):
             err_kws={"alpha": 0.1},
             ax=ax,
         )
-        ax.set_ylim(0.5, 0.85)
+        ax.set_ylim(0.4, 1)
         ax.set_xlabel("Number of Features", fontsize=14)
         ax.set_ylabel(format_metric(metric), fontsize=14)
-        ax.legend(loc="lower right", fontsize=11, framealpha=0.9)
+        ax.legend(loc="best", fontsize=11, frameon=False)
         plt.tight_layout()
         save_plots(fig, output_dir, f"{basename}_{metric}_polygenicity_{polygenicity}_reduced")
+
+
+def plot_snp_relative(df, output_dir, basename, baseline_name="v2"):
+    """
+    Plot SNP AUROC relative to a baseline model.
+    """
+    output_dir = os.path.join(output_dir, "snp")
+    metric = "roc_auc"
+    if metric not in df.columns:
+        return
+    if "Polygenicity" not in df.columns:
+        return
+
+    df = df.copy()
+    if "n_features" in df.columns:
+        df["n_features"] = pd.to_numeric(df["n_features"])
+
+    hue_col = "checkpoint" if "checkpoint" in df.columns else "model"
+    df = clean_checkpoint_names(df, col=hue_col)
+
+    # Aggregate
+    group_cols = [hue_col, "Polygenicity", "n_features"]
+    df_agg = df.groupby(group_cols)[metric].mean().reset_index()
+
+    # Get baseline
+    baseline_label = MODEL_CONFIG.get(baseline_name, {}).get("label", baseline_name)
+    unique_checkpoints = df_agg[hue_col].unique()
+    actual_baseline = baseline_label if baseline_label in unique_checkpoints else baseline_name
+
+    df_baseline = df_agg[df_agg[hue_col] == actual_baseline].copy()
+    if df_baseline.empty:
+        return
+
+    df_baseline = df_baseline.rename(columns={metric: "baseline_score"}).drop(columns=[hue_col])
+
+    df_merged = pd.merge(df_agg, df_baseline, on=["Polygenicity", "n_features"], how="left")
+    df_merged["relative_score"] = df_merged[metric] - df_merged["baseline_score"]
+
+    # Plot for each Polygenicity
+    for poly in df_merged["Polygenicity"].unique():
+        poly_df = df_merged[df_merged["Polygenicity"] == poly]
+        # remove baseline from plot
+        poly_df = poly_df[poly_df[hue_col] != actual_baseline]
+
+        if poly_df.empty:
+            continue
+
+        plot_line_comparison(
+            poly_df,
+            x_col="n_features",
+            y_col="relative_score",
+            hue_col=hue_col,
+            style_col=hue_col,
+            output_dir=output_dir,
+            basename=basename,
+            xlabel="Number of Features",
+            ylabel=f"Relative {format_metric(metric)} (vs {actual_baseline})",
+            title=f"Relative {format_metric(metric)} - Polygenicity {poly}",
+            suffix=f"_{metric}_polygenicity_{poly}_relative",
+            ylim=(-0.2, 0.35),
+        )
+
+
+def plot_reduced_snp_relative(df, output_dir, basename, baseline_name="v2"):
+    """Reduced plot for SNP relative performance."""
+    output_dir = os.path.join(output_dir, "reduced_plots")
+
+    df = df.copy()
+    if "n_features" in df.columns:
+        df["n_features"] = pd.to_numeric(df["n_features"])
+
+    hue_col = "checkpoint" if "checkpoint" in df.columns else "model"
+    df = clean_checkpoint_names(df, col=hue_col)
+    df = filter_to_reduced_models(df, col=hue_col)
+
+    if df.empty:
+        return
+
+    metric = "roc_auc"
+    if metric not in df.columns:
+        return
+    if "Polygenicity" not in df.columns:
+        return
+
+    # Filter to Polygenicity 0.01
+    polygenicity = 0.01
+    df = df[df["Polygenicity"] == polygenicity]
+    if df.empty:
+        return
+
+    # Aggregate
+    group_cols = [hue_col, "n_features"]
+    df_agg = df.groupby(group_cols)[metric].mean().reset_index()
+
+    # Calculate Relative
+    baseline_label = MODEL_CONFIG.get(baseline_name, {}).get("label", baseline_name)
+    unique_checkpoints = df_agg[hue_col].unique()
+    actual_baseline = baseline_label if baseline_label in unique_checkpoints else baseline_name
+
+    df_baseline = df_agg[df_agg[hue_col] == actual_baseline].copy()
+    if df_baseline.empty:
+        return
+
+    df_baseline = df_baseline.rename(columns={metric: "baseline_score"}).drop(columns=[hue_col])
+
+    df_merged = pd.merge(df_agg, df_baseline, on=["n_features"], how="left")
+    df_merged["relative_score"] = df_merged[metric] - df_merged["baseline_score"]
+
+    # Remove baseline from plot
+    df_plot = df_merged[df_merged[hue_col] != actual_baseline].copy()
+    if df_plot.empty:
+        return
+
+    palette, hue_order, dashes = get_model_style(df_plot, hue_col)
+
+    with sns.plotting_context("paper", font_scale=1.6):
+        fig, ax = plt.subplots(figsize=(8, 8))
+        sns.lineplot(
+            data=df_plot,
+            x="n_features",
+            y="relative_score",
+            hue=hue_col,
+            hue_order=hue_order,
+            style=hue_col,
+            style_order=hue_order,
+            markers=True,
+            dashes=dashes if dashes else True,
+            palette=palette,
+            linewidth=2.5,
+            markersize=8,
+            ax=ax,
+        )
+        ax.axhline(0, color="black", linestyle="--", linewidth=1)
+        # ax.set_ylim(-0.05, 0.25)
+        ax.set_xlabel("Number of Features", fontsize=14)
+        ax.set_ylabel(f"Relative {format_metric(metric)} (vs {actual_baseline})", fontsize=14)
+        ax.legend(loc="best", fontsize=11, frameon=False)
+        plt.tight_layout()
+        save_plots(
+            fig, output_dir, f"{basename}_{metric}_polygenicity_{polygenicity}_reduced_relative"
+        )
+
+
+def plot_reduced_snp_relative_polygenicity_comparison(df, output_dir, basename, baseline_name="v2"):
+    """
+    Reduced plot for SNP relative performance: wide-v2-5k vs v2 over all polygenicities.
+    """
+    output_dir = os.path.join(output_dir, "reduced_plots")
+
+    df = df.copy()
+    if "n_features" in df.columns:
+        df["n_features"] = pd.to_numeric(df["n_features"])
+
+    hue_col = "checkpoint" if "checkpoint" in df.columns else "model"
+    df = clean_checkpoint_names(df, col=hue_col)
+
+    metric = "roc_auc"
+    if metric not in df.columns:
+        return
+    if "Polygenicity" not in df.columns:
+        return
+
+    # Aggregate
+    group_cols = [hue_col, "Polygenicity", "n_features"]
+    df_agg = df.groupby(group_cols)[metric].mean().reset_index()
+
+    # Get baseline
+    baseline_label = MODEL_CONFIG.get(baseline_name, {}).get("label", baseline_name)
+    unique_checkpoints = df_agg[hue_col].unique()
+    actual_baseline = baseline_label if baseline_label in unique_checkpoints else baseline_name
+
+    df_baseline = df_agg[df_agg[hue_col] == actual_baseline].copy()
+    if df_baseline.empty:
+        return
+
+    df_baseline = df_baseline.rename(columns={metric: "baseline_score"}).drop(columns=[hue_col])
+
+    df_merged = pd.merge(df_agg, df_baseline, on=["Polygenicity", "n_features"], how="left")
+    df_merged["relative_score"] = df_merged[metric] - df_merged["baseline_score"]
+
+    # Filter for the specific comparison model: "Wide (5k)" or "wide-v2-5k"
+    target_candidates = ["wide-v2-5k", "Wide (5k)"]
+    df_plot = df_merged[df_merged[hue_col].isin(target_candidates)].copy()
+
+    if df_plot.empty:
+        return
+
+    # Convert Polygenicity to categorical for proper hue ordering/shading
+    df_plot["Polygenicity"] = df_plot["Polygenicity"].astype(str)
+    poly_order = sorted(df_plot["Polygenicity"].unique(), key=lambda x: float(x))
+
+    with sns.plotting_context("paper", font_scale=1.6):
+        fig, ax = plt.subplots(figsize=(8, 8))
+        sns.lineplot(
+            data=df_plot,
+            x="n_features",
+            y="relative_score",
+            hue="Polygenicity",
+            hue_order=poly_order,
+            style="Polygenicity",
+            style_order=poly_order,
+            markers=True,
+            dashes=False,
+            palette="Greens",  # Shades of green
+            linewidth=2.5,
+            markersize=8,
+            ax=ax,
+        )
+        ax.axhline(0, color="black", linestyle="--", linewidth=1)
+        ax.set_xlabel("Number of Features", fontsize=14)
+        ax.set_ylabel(f"Relative {format_metric(metric)} (vs {actual_baseline})", fontsize=14)
+        ax.legend(loc="best", fontsize=11, frameon=False, title="Polygenicity")
+        plt.tight_layout()
+        save_plots(
+            fig,
+            output_dir,
+            f"{basename}_{metric}_reduced_relative_polygenicity_comparison",
+        )
+
+
+def plot_reduced_multiomics_overview(df, output_dir, basename):
+    """Reduced plot for Multiomics Overview (Absolute)."""
+    output_dir = os.path.join(output_dir, "reduced_plots")
+    metrics = [c for c in ["roc_auc", "roc_auc_score"] if c in df.columns]
+    df = clean_checkpoint_names(df)
+    df = filter_to_reduced_models(df)
+
+    if df.empty:
+        return
+
+    # Filter to max 17500 features
+    if "n_features" in df.columns:
+        df = df[df["n_features"] <= 17500]
+        # Filter out the dataset coverage problem
+        mask = (df["n_features"] > 13000) & (df["n_features"] < 14800)
+        if mask.any():
+            df = df[~mask]
+
+    for metric in metrics:
+        palette, hue_order, dashes = get_model_style(df, "checkpoint")
+
+        # Line plot: Average metric vs n_features (Absolute)
+        with sns.plotting_context("paper", font_scale=1.6):
+            fig, ax = plt.subplots(figsize=(8, 6))
+            sns.lineplot(
+                data=df,
+                x="n_features",
+                y=metric,
+                hue="checkpoint",
+                hue_order=hue_order,
+                style="checkpoint",
+                style_order=hue_order,
+                markers=True,
+                dashes=dashes if dashes else True,
+                palette=palette,
+                linewidth=2.5,
+                markersize=8,
+                err_kws={"alpha": 0.1},
+                ax=ax,
+            )
+            ax.set_ylim(0.45, 1.05)
+            ax.set_xlabel("Number of Features", fontsize=14)
+            ax.set_ylabel(f"Average {format_metric(metric)}", fontsize=14)
+            ax.legend(loc="best", fontsize=11, frameon=False)
+            plt.tight_layout()
+            save_plots(fig, output_dir, f"{basename}_{metric}_overview_features_reduced")
+
+
+def plot_reduced_multiomics_overview_relative(df, output_dir, basename, baseline_name="v2"):
+    """Reduced plot for Multiomics Overview (Relative)."""
+    output_dir = os.path.join(output_dir, "reduced_plots")
+    metrics = [c for c in ["roc_auc", "roc_auc_score"] if c in df.columns]
+    df = clean_checkpoint_names(df)
+    df = filter_to_reduced_models(df)
+
+    if df.empty:
+        return
+
+    # Filter to max 17500 features
+    if "n_features" in df.columns:
+        df = df[df["n_features"] <= 17500]
+        # Filter out the dataset coverage problem
+        mask = (df["n_features"] > 13000) & (df["n_features"] < 14800)
+        if mask.any():
+            df = df[~mask]
+
+    for metric in metrics:
+        # Group by n_features and checkpoint
+        df_agg = df.groupby(["n_features", "checkpoint"])[metric].mean().reset_index()
+
+        baseline_label = MODEL_CONFIG.get(baseline_name, {}).get("label", baseline_name)
+        unique_checkpoints = df_agg["checkpoint"].unique()
+        actual_baseline = baseline_label if baseline_label in unique_checkpoints else baseline_name
+
+        if actual_baseline not in unique_checkpoints:
+            continue
+
+        df_baseline = df_agg[df_agg["checkpoint"] == actual_baseline][["n_features", metric]]
+        df_baseline = df_baseline.rename(columns={metric: "baseline_score"})
+
+        df_merged = pd.merge(df_agg, df_baseline, on="n_features", how="left")
+        df_merged["relative_score"] = df_merged[metric] - df_merged["baseline_score"]
+
+        df_plot = df_merged[df_merged["checkpoint"] != actual_baseline].copy()
+
+        if df_plot.empty:
+            continue
+
+        palette, hue_order, dashes = get_model_style(df_plot, "checkpoint")
+
+        with sns.plotting_context("paper", font_scale=1.6):
+            fig, ax = plt.subplots(figsize=(8, 8))
+            sns.lineplot(
+                data=df_plot,
+                x="n_features",
+                y="relative_score",
+                hue="checkpoint",
+                hue_order=hue_order,
+                style="checkpoint",
+                style_order=hue_order,
+                markers=True,
+                dashes=dashes if dashes else True,
+                palette=palette,
+                linewidth=2.5,
+                markersize=8,
+                ax=ax,
+            )
+            ax.set_ylim(-0.05, 0.4)
+            ax.axhline(0, color="black", linestyle="--", linewidth=1)
+            ax.set_xlabel("Number of Features", fontsize=14)
+            ax.set_ylabel(f"Relative {format_metric(metric)} (vs {actual_baseline})", fontsize=14)
+            ax.legend(loc="best", fontsize=11, frameon=False)
+            plt.tight_layout()
+            save_plots(fig, output_dir, f"{basename}_{metric}_overview_relative_reduced")
 
 
 def clean_basename(basename):
@@ -1141,6 +1475,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_dir", type=str, default=None)
     parser.add_argument("--compare_mode", action="store_true")
+    parser.add_argument("--reduced", action="store_true", help="Generate only reduced plots")
     args = parser.parse_args()
 
     cwd = os.getcwd()
@@ -1173,9 +1508,10 @@ def main():
 
         if widening_dfs:
             all_widening_df = pd.concat(widening_dfs, ignore_index=True)
-            plot_widening_relative(
-                all_widening_df, output_dir, "openml_widening_average", baseline_name="v2"
-            )
+            if not args.reduced:
+                plot_widening_relative(
+                    all_widening_df, output_dir, "openml_widening_average", baseline_name="v2"
+                )
             # Reduced plot for widening
             plot_reduced_widening_relative(
                 all_widening_df.copy(), output_dir, "openml_widening_average", baseline_name="v2"
@@ -1190,19 +1526,33 @@ def main():
             basename = clean_basename(os.path.splitext(filename)[0])
 
             if "multiomics" in basename.lower():
-                plot_multiomics(combined_df, output_dir, basename)
-                plot_multiomics_overview(combined_df, output_dir, basename)
+                if not args.reduced:
+                    plot_multiomics(combined_df, output_dir, basename)
+                    plot_multiomics_overview(combined_df, output_dir, basename)
+
+                # Reduced plots for multiomics
+                plot_reduced_multiomics_overview(combined_df.copy(), output_dir, basename)
+                plot_reduced_multiomics_overview_relative(combined_df.copy(), output_dir, basename)
             elif "grouping" in basename.lower():
-                plot_grouping(combined_df, output_dir, basename)
+                if not args.reduced:
+                    plot_grouping(combined_df, output_dir, basename)
             elif "hdlss" in basename.lower():
-                plot_hdlss(combined_df, output_dir, basename)
+                if not args.reduced:
+                    plot_hdlss(combined_df, output_dir, basename)
             elif "openml" in basename.lower() and "widening" not in basename.lower():
-                plot_openml(combined_df, output_dir, basename)
-                plot_forgetting(combined_df, output_dir, basename)
+                if not args.reduced:
+                    plot_openml(combined_df, output_dir, basename)
+                    plot_forgetting(combined_df, output_dir, basename)
             elif "snp" in basename.lower():
-                plot_snp(combined_df, output_dir, basename)
+                if not args.reduced:
+                    plot_snp(combined_df, output_dir, basename)
+                    plot_snp_relative(combined_df.copy(), output_dir, basename)
                 # Reduced plot for SNP
                 plot_reduced_snp(combined_df.copy(), output_dir, basename)
+                plot_reduced_snp_relative(combined_df.copy(), output_dir, basename)
+                plot_reduced_snp_relative_polygenicity_comparison(
+                    combined_df.copy(), output_dir, basename
+                )
 
     else:
         # Single directory mode
