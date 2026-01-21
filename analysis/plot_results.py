@@ -962,7 +962,6 @@ def plot_snp(df, output_dir, basename):
 # Models to include in reduced plots (using raw checkpoint names)
 REDUCED_MODELS = ["v2", "wide-v2-5k", "tabicl", "random_forest"]
 REDUCED_MODELS_LABELS = ["TabPFN v2", "Wide (5k)", "TabICL", "Random Forest"]
-W
 
 
 def filter_to_reduced_models(df, col="checkpoint"):
