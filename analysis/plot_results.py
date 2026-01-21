@@ -117,7 +117,10 @@ def save_plots(fig, output_dir, filename_prefix):
 
 def format_metric(metric):
     """Format metric name for display."""
-    return metric.replace("_", " ").title()
+    metric = metric.replace("_", " ").title()
+    if metric == "Roc Auc":
+        return "AUROC"
+    return
 
 
 def plot_categorical_comparison(
@@ -134,6 +137,7 @@ def plot_categorical_comparison(
     ylim=(0.4, 1.05),
     suffix="",
     agg_threshold=40,
+    figsize=(10, 6),
 ):
     """
     Generic plotting function for categorical comparisons.
@@ -158,7 +162,7 @@ def plot_categorical_comparison(
         if hue_col:
             hue_order = df.groupby(hue_col)[y_col].median().sort_values(ascending=False).index
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=figsize)
         sns.boxplot(
             data=df,
             x=hue_col,
@@ -188,7 +192,7 @@ def plot_categorical_comparison(
         return
 
     # Standard Plot
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=figsize)
 
     # Seaborn 0.13.x has a bug when hue == x that causes UnboundLocalError.
     # Workaround: use hue=x with legend=False when we want colors on x.
@@ -566,6 +570,7 @@ def plot_multiomics_overview(df, output_dir, basename):
             xlabel="Checkpoint",
             title=f"Multiomics Overview - {format_metric(metric)} Distribution",
             suffix=f"_{metric}_overview_boxplot",
+            figsize=(6, 6),
         )
 
         # 3. Line plot: Average metric vs n_features (Absolute)
@@ -932,10 +937,6 @@ def plot_snp(df, output_dir, basename):
                     plt.ylim(0.4, 1)
                     plt.xlabel("Number of Features")
                     plt.ylabel(format_metric(metric))
-                    # Title removed as per previous request if filename is sufficient?
-                    # But here title has Polygenicity info.
-                    # Filename: {basename}_{metric}_polygenicity_{polygenicity}
-                    # So title is redundant. Removing it to be consistent with previous changes.
                     # plt.title(f"Polygenicity: {polygenicity}")
                     plt.legend(
                         loc="best",
@@ -1033,6 +1034,8 @@ def plot_reduced_widening_relative(df, output_dir, basename, baseline_name="v2")
             palette=palette,
             linewidth=2.5,
             markersize=8,
+            errorbar="sd",
+            err_kws={"alpha": 0.1},
             ax=ax,
         )
         ax.set_ylim(-0.05, 0.25)
@@ -1230,6 +1233,8 @@ def plot_reduced_snp_relative(df, output_dir, basename, baseline_name="v2"):
             linewidth=2.5,
             markersize=8,
             ax=ax,
+            errorbar="sd",
+            err_kws={"alpha": 0.1},
         )
         ax.axhline(0, color="black", linestyle="--", linewidth=1)
         # ax.set_ylim(-0.05, 0.25)
@@ -1244,7 +1249,8 @@ def plot_reduced_snp_relative(df, output_dir, basename, baseline_name="v2"):
 
 def plot_reduced_snp_relative_polygenicity_comparison(df, output_dir, basename, baseline_name="v2"):
     """
-    Reduced plot for SNP relative performance: wide-v2-5k vs v2 over all polygenicities.
+    Reduced plot for SNP relative performance: One plot per model vs v2 (baseline) over all polygenicities.
+    Generates a separate plot for every model found in the dataframe (excluding the baseline).
     """
     output_dir = os.path.join(output_dir, "reduced_plots")
 
@@ -1265,7 +1271,7 @@ def plot_reduced_snp_relative_polygenicity_comparison(df, output_dir, basename, 
     group_cols = [hue_col, "Polygenicity", "n_features"]
     df_agg = df.groupby(group_cols)[metric].mean().reset_index()
 
-    # Get baseline
+    # Get baseline (v2 without smearing -> initial performance at min features)
     baseline_label = MODEL_CONFIG.get(baseline_name, {}).get("label", baseline_name)
     unique_checkpoints = df_agg[hue_col].unique()
     actual_baseline = baseline_label if baseline_label in unique_checkpoints else baseline_name
@@ -1274,49 +1280,125 @@ def plot_reduced_snp_relative_polygenicity_comparison(df, output_dir, basename, 
     if df_baseline.empty:
         return
 
-    df_baseline = df_baseline.rename(columns={metric: "baseline_score"}).drop(columns=[hue_col])
+    # Filter baseline to minimum n_features (initial performance)
+    min_features = df_baseline["n_features"].min()
+    df_baseline = df_baseline[df_baseline["n_features"] == min_features].copy()
 
-    df_merged = pd.merge(df_agg, df_baseline, on=["Polygenicity", "n_features"], how="left")
+    df_baseline = df_baseline.rename(columns={metric: "baseline_score"}).drop(
+        columns=[hue_col, "n_features"]
+    )
+
+    # Merge on Polygenicity only (broadcasting baseline score across all feature counts)
+    df_merged = pd.merge(df_agg, df_baseline, on=["Polygenicity"], how="left")
     df_merged["relative_score"] = df_merged[metric] - df_merged["baseline_score"]
 
-    # Filter for the specific comparison model: "Wide (5k)" or "wide-v2-5k"
-    target_candidates = ["wide-v2-5k", "Wide (5k)"]
-    df_plot = df_merged[df_merged[hue_col].isin(target_candidates)].copy()
+    # Iterate over all models except baseline
+    unique_models = [m for m in df_merged[hue_col].unique() if m != actual_baseline]
 
-    if df_plot.empty:
+    for model_name in unique_models:
+        df_plot = df_merged[df_merged[hue_col] == model_name].copy()
+        if df_plot.empty:
+            continue
+
+        # Get config info
+        config = MODEL_CONFIG.get(model_name.removesuffix("-nocat"), {})
+        model_color = config.get("color", "#333333")
+        model_label = config.get("label", model_name)
+
+        # Convert Polygenicity to categorical for proper hue ordering/shading
+        df_plot["Polygenicity"] = df_plot["Polygenicity"].astype(str)
+        poly_order = sorted(df_plot["Polygenicity"].unique(), key=lambda x: float(x))
+
+        # Generate Palette: gradient based on model color
+        # Skip the first few very light colors to ensure visibility
+        try:
+            palette = sns.light_palette(model_color, n_colors=len(poly_order) + 3)[3:]
+        except Exception:
+            palette = "viridis"  # Fallback
+
+        safe_model_name = model_name.replace(" ", "_").replace("(", "").replace(")", "").lower()
+
+        with sns.plotting_context("paper", font_scale=1.6):
+            fig, ax = plt.subplots(figsize=(8, 8))
+            sns.lineplot(
+                data=df_plot,
+                x="n_features",
+                y="relative_score",
+                hue="Polygenicity",
+                hue_order=poly_order,
+                style="Polygenicity",
+                style_order=poly_order,
+                markers=True,
+                dashes=False,
+                palette=palette,
+                linewidth=2.5,
+                markersize=8,
+                ax=ax,
+                errorbar="sd",
+                err_kws={"alpha": 0.1},
+            )
+            ax.axhline(0, color="black", linestyle="--", linewidth=1)
+            ax.set_xlabel("Number of Features", fontsize=14)
+            ax.set_ylabel(f"Relative {format_metric(metric)} (vs {actual_baseline})", fontsize=14)
+            ax.legend(loc="best", fontsize=11, frameon=False, title="Polygenicity")
+            # ax.set_title(f"{model_label}", fontsize=16)
+            ax.set_ylim((0.025, -0.55))
+            plt.tight_layout()
+            save_plots(
+                fig,
+                output_dir,
+                f"{basename}_{metric}_{safe_model_name}_reduced_relative_polygenicity_comparison",
+            )
+
+
+def plot_reduced_snp_average_poly(df, output_dir, basename):
+    """Reduced plot for SNP benchmark averaging over all polygenicities."""
+    output_dir = os.path.join(output_dir, "reduced_plots")
+    df = df.copy()
+    if "n_features" in df.columns:
+        df["n_features"] = pd.to_numeric(df["n_features"])
+
+    hue_col = "checkpoint" if "checkpoint" in df.columns else "model"
+    df = clean_checkpoint_names(df, col=hue_col)
+    df = filter_to_reduced_models(df, col=hue_col)
+
+    if df.empty:
         return
 
-    # Convert Polygenicity to categorical for proper hue ordering/shading
-    df_plot["Polygenicity"] = df_plot["Polygenicity"].astype(str)
-    poly_order = sorted(df_plot["Polygenicity"].unique(), key=lambda x: float(x))
+    metric = "roc_auc"
+    if metric not in df.columns:
+        return
+
+    if "Polygenicity" not in df.columns:
+        return
+
+    palette, hue_order, dashes = get_model_style(df, hue_col)
 
     with sns.plotting_context("paper", font_scale=1.6):
         fig, ax = plt.subplots(figsize=(8, 8))
         sns.lineplot(
-            data=df_plot,
+            data=df,
             x="n_features",
-            y="relative_score",
-            hue="Polygenicity",
-            hue_order=poly_order,
-            style="Polygenicity",
-            style_order=poly_order,
+            y=metric,
+            hue=hue_col,
+            hue_order=hue_order,
+            style=hue_col,
+            style_order=hue_order,
             markers=True,
-            dashes=False,
-            palette="Greens",  # Shades of green
+            dashes=dashes if dashes else True,
+            palette=palette,
             linewidth=2.5,
             markersize=8,
+            errorbar="sd",
+            err_kws={"alpha": 0.1},
             ax=ax,
         )
-        ax.axhline(0, color="black", linestyle="--", linewidth=1)
+        ax.set_ylim(0.4, 1)
         ax.set_xlabel("Number of Features", fontsize=14)
-        ax.set_ylabel(f"Relative {format_metric(metric)} (vs {actual_baseline})", fontsize=14)
-        ax.legend(loc="best", fontsize=11, frameon=False, title="Polygenicity")
+        ax.set_ylabel(f"Average {format_metric(metric)}", fontsize=14)
+        ax.legend(loc="best", fontsize=11, frameon=False)
         plt.tight_layout()
-        save_plots(
-            fig,
-            output_dir,
-            f"{basename}_{metric}_reduced_relative_polygenicity_comparison",
-        )
+        save_plots(fig, output_dir, f"{basename}_{metric}_average_poly_reduced")
 
 
 def plot_reduced_multiomics_overview(df, output_dir, basename):
@@ -1356,6 +1438,7 @@ def plot_reduced_multiomics_overview(df, output_dir, basename):
                 palette=palette,
                 linewidth=2.5,
                 markersize=8,
+                errorbar="sd",
                 err_kws={"alpha": 0.1},
                 ax=ax,
             )
@@ -1365,6 +1448,170 @@ def plot_reduced_multiomics_overview(df, output_dir, basename):
             ax.legend(loc="best", fontsize=11, frameon=False)
             plt.tight_layout()
             save_plots(fig, output_dir, f"{basename}_{metric}_overview_features_reduced")
+
+
+def generate_multiomics_latex_table(df, output_dir, basename):
+    """
+    Generate a LaTeX table for Multiomics AUROC (Dataset columns x Model rows).
+    Includes: TabPFN v2, Wide (1.5k, 5k, 8k), TabICL, Random Forest.
+    """
+    output_dir = os.path.join(output_dir, "reduced_plots")
+    os.makedirs(output_dir, exist_ok=True)
+
+    metric = "roc_auc_score"
+    if metric not in df.columns:
+        if "roc_auc" in df.columns:
+            metric = "roc_auc"
+        else:
+            return
+
+    if "n_features" in df.columns:
+        df["n_features"] = pd.to_numeric(df["n_features"], errors="coerce")
+
+    df = clean_checkpoint_names(df)
+
+    # Define models to include (labels directly or mapped)
+    # The user requested: TabPFN v2, Wide (1.5k), Wide (5k), Wide (8k), TabICL, Random Forest
+    # We map them to the labels present in the dataframe (after clean_checkpoint_names and get_model_style logic)
+    # Note: get_model_style converts to labels. We should likely rely on what clean_checkpoint_names produces first,
+    # or apply the label map manually.
+
+    # Ideally, we follow the same filtering/labeling logic as plots
+    df_labeled = df.copy()
+    label_map = {k: v["label"] for k, v in MODEL_CONFIG.items()}
+    df_labeled["checkpoint"] = df_labeled["checkpoint"].apply(lambda x: label_map.get(x, x))
+
+    target_models = [
+        "TabPFN v2",
+        "Wide (1.5k)",
+        "Wide (5k)",
+        "Wide (8k)",
+        "TabICL",
+        "Random Forest",
+    ]
+
+    df_filtered = df_labeled[df_labeled["checkpoint"].isin(target_models)].copy()
+
+    if df_filtered.empty:
+        print("No matching models found for LaTeX table.")
+        return
+
+    # Select samples with Max Features per dataset to simulate "full" dataset performance
+    # For Wide models, they often run on various feature counts. We want the info from
+    # their respective "max feature" run or the run matching their name
+    # (e.g. Wide 1.5k should be at 1.5k features... but usually we just take the best or max available).
+    # The prompt implies for "TabPFN-Wide 5k" we want the performance... likely at max features available in that run.
+
+    # Let's take the entry with the MAXIMUM n_features for each (dataset, checkpoint) pair.
+    # This assumes the CSV contains results for curve evaluation.
+    if "n_features" in df_filtered.columns:
+        idx = df_filtered.groupby(["dataset_name", "checkpoint"])["n_features"].idxmax()
+        df_filtered = df_filtered.loc[idx]
+
+    # Aggregate: Mean and Std over seeds/folds if multiple entries exist
+    # (Though idxmax above selects a single row if unique. If multiple folds/seeds are separate rows
+    # but share n_features, we need to handle that. Usually `n_features` is constant for a dataset/model combo in one file?
+    # If there are multiple seeds, they might be averaged already or present as separate rows.)
+
+    # Let's check if we have multiple entries per (dataset, checkpoint)
+    # If the dataframe has multiple rows per (dataset, checkpoint) at max n_features (e.g. multiple seeds),
+    # we should average them.
+    # The previous logic used `idxmax` which picks ONE. If there are multiple with same max features, it picks one.
+    # Correct logic: find max n_features value, then filter data to that n_features.
+
+    if "n_features" in df_filtered.columns:
+        # 1. Find max features per group
+        max_feat_df = (
+            df_labeled.groupby(["dataset_name", "checkpoint"])["n_features"].max().reset_index()
+        )
+        # 2. Merge back to get all rows matching max features
+        df_filtered = pd.merge(
+            df_labeled, max_feat_df, on=["dataset_name", "checkpoint", "n_features"]
+        )
+        # 3. Filter to target models again
+        df_filtered = df_filtered[df_filtered["checkpoint"].isin(target_models)]
+
+    # Now aggregate mean/std
+    df_agg = (
+        df_filtered.groupby(["dataset_name", "checkpoint"])[metric]
+        .agg(["mean", "std"])
+        .reset_index()
+    )
+
+    # Pivot: Dataset as columns, Checkpoint as rows
+    pivot_mean = df_agg.pivot(index="checkpoint", columns="dataset_name", values="mean")
+    pivot_std = df_agg.pivot(index="checkpoint", columns="dataset_name", values="std")
+
+    # Reorder rows
+    pivot_mean = pivot_mean.reindex(target_models)
+    pivot_std = pivot_std.reindex(target_models)
+
+    # Drop rows that are all NaN (models not present)
+    pivot_mean = pivot_mean.dropna(how="all")
+    pivot_std = pivot_std.loc[pivot_mean.index]  # Align
+
+    if pivot_mean.empty:
+        return
+
+    # Generate LaTeX
+    latex_str = (
+        "\\begin{table}[h]\n\\centering\n\\begin{tabular}{l"
+        + "c" * len(pivot_mean.columns)
+        + "}\n\\toprule\n"
+    )
+
+    # Header
+    col_names = pivot_mean.columns.tolist()
+    header_row = "Dataset & " + " & ".join(col_names) + " \\\\\n"
+
+    # Feature counts header (optional, if we can get max features per dataset)
+    # n_features for each dataset (just taking the max found in data)
+    n_feats = []
+    for ds in col_names:
+        feat_val = df_filtered[df_filtered["dataset_name"] == ds]["n_features"].max()
+        n_feats.append(f"{int(feat_val):,}" if pd.notnull(feat_val) else "-")
+
+    features_row = "\\#features & " + " & ".join(n_feats) + " \\\\\n"
+
+    latex_str += header_row + features_row + "\\midrule\n"
+
+    # Body
+    for model in pivot_mean.index:
+        row_str = f"{model} "
+        for ds in pivot_mean.columns:
+            mean = pivot_mean.loc[model, ds]
+            std = pivot_std.loc[model, ds]
+
+            if pd.isna(mean):
+                row_str += "& - "
+                continue
+
+            # Determine if this is the best in column (bold)
+            col_means = pivot_mean[ds]
+            best_mean = col_means.max()
+            is_best = abs(mean - best_mean) < 1e-4
+
+            val_str = f"{mean:.3f} \\pm {std:.3f}"
+            if pd.isna(std):  # If only one seed/fold
+                val_str = f"{mean:.3f}"
+
+            if is_best:
+                val_str = f"\\textbf{{{val_str}}}"
+
+            row_str += f"& {val_str} "
+
+        row_str += "\\\\\n"
+
+        # Add midrule after Wide 8k to separate baselines? (Optional formatting)
+        if "Wide (8k)" in model:
+            latex_str += "\\midrule\n"
+
+    latex_str += "\\bottomrule\n\\end{tabular}\n\\caption{Multiomics AUROC Comparison}\n\\label{tab:multiomics_auroc}\n\\end{table}"
+
+    with open(os.path.join(output_dir, f"{basename}_multiomics_auroc_table.tex"), "w") as f:
+        f.write(latex_str)
+
+    print(f"Saved LaTeX table: {output_dir}/{basename}_multiomics_auroc_table.tex")
 
 
 def plot_reduced_multiomics_overview_relative(df, output_dir, basename, baseline_name="v2"):
@@ -1386,8 +1633,20 @@ def plot_reduced_multiomics_overview_relative(df, output_dir, basename, baseline
             df = df[~mask]
 
     for metric in metrics:
-        # Group by n_features and checkpoint
-        df_agg = df.groupby(["n_features", "checkpoint"])[metric].mean().reset_index()
+        # Group by n_features and checkpoint AND dataset_name to allow paired comparison
+        if "dataset_name" not in df.columns:
+            # Fallback if dataset_name is missing
+            df_agg = df.groupby(["n_features", "checkpoint"])[metric].mean().reset_index()
+            # We can't do paired relative per dataset if we don't have dataset names,
+            # so we fall back to difference of means (no error bars possible on the difference itself easily)
+            # But the user asked for error bars. We'll proceed with normal aggregation but note this limitation.
+            # Ideally we assume dataset_name is present for multiomics.
+        else:
+            df_agg = (
+                df.groupby(["dataset_name", "n_features", "checkpoint"])[metric]
+                .mean()
+                .reset_index()
+            )
 
         baseline_label = MODEL_CONFIG.get(baseline_name, {}).get("label", baseline_name)
         unique_checkpoints = df_agg["checkpoint"].unique()
@@ -1396,10 +1655,20 @@ def plot_reduced_multiomics_overview_relative(df, output_dir, basename, baseline
         if actual_baseline not in unique_checkpoints:
             continue
 
-        df_baseline = df_agg[df_agg["checkpoint"] == actual_baseline][["n_features", metric]]
-        df_baseline = df_baseline.rename(columns={metric: "baseline_score"})
+        if "dataset_name" in df_agg.columns:
+            # Paired relative score calculation
+            df_baseline = df_agg[df_agg["checkpoint"] == actual_baseline][
+                ["dataset_name", "n_features", metric]
+            ]
+            df_baseline = df_baseline.rename(columns={metric: "baseline_score"})
 
-        df_merged = pd.merge(df_agg, df_baseline, on="n_features", how="left")
+            df_merged = pd.merge(df_agg, df_baseline, on=["dataset_name", "n_features"], how="left")
+        else:
+            # Fallback to averaged baseline
+            df_baseline = df_agg[df_agg["checkpoint"] == actual_baseline][["n_features", metric]]
+            df_baseline = df_baseline.rename(columns={metric: "baseline_score"})
+            df_merged = pd.merge(df_agg, df_baseline, on="n_features", how="left")
+
         df_merged["relative_score"] = df_merged[metric] - df_merged["baseline_score"]
 
         df_plot = df_merged[df_merged["checkpoint"] != actual_baseline].copy()
@@ -1424,6 +1693,8 @@ def plot_reduced_multiomics_overview_relative(df, output_dir, basename, baseline
                 palette=palette,
                 linewidth=2.5,
                 markersize=8,
+                errorbar="sd",
+                err_kws={"alpha": 0.1},
                 ax=ax,
             )
             ax.set_ylim(-0.05, 0.4)
@@ -1531,8 +1802,10 @@ def main():
                     plot_multiomics_overview(combined_df, output_dir, basename)
 
                 # Reduced plots for multiomics
+                # Reduced plots for multiomics
                 plot_reduced_multiomics_overview(combined_df.copy(), output_dir, basename)
                 plot_reduced_multiomics_overview_relative(combined_df.copy(), output_dir, basename)
+                generate_multiomics_latex_table(combined_df.copy(), output_dir, basename)
             elif "grouping" in basename.lower():
                 if not args.reduced:
                     plot_grouping(combined_df, output_dir, basename)
@@ -1553,6 +1826,7 @@ def main():
                 plot_reduced_snp_relative_polygenicity_comparison(
                     combined_df.copy(), output_dir, basename
                 )
+                plot_reduced_snp_average_poly(combined_df.copy(), output_dir, basename)
 
     else:
         # Single directory mode
