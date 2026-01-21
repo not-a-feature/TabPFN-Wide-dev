@@ -1,0 +1,19 @@
+\begin{table}[h]
+\centering
+\begin{tabular}{lccccc}
+\toprule
+Dataset & BRCA & COAD & GBM & LGG & OV \\
+\#features & 18,206 & 17,261 & 18,614 & 14,260 & 14,229 \\
+\midrule
+TabPFN v2 & 0.723 & - & 0.731 & 0.982 & 0.830 \\
+Wide (1.5k) & 0.954 & - & 0.959 & 0.995 & \textbf{0.991} \\
+Wide (5k) & \textbf{0.980} & - & \textbf{0.972} & \textbf{0.999} & 0.981 \\
+Wide (8k) & 0.953 & - & 0.961 & \textbf{0.999} & 0.983 \\
+\midrule
+TabICL & 0.940 & - & 0.912 & 0.992 & 0.895 \\
+Random Forest & 0.970 & - & 0.953 & 0.997 & 0.970 \\
+\bottomrule
+\end{tabular}
+\caption{Multiomics AUROC Comparison}
+\label{tab:multiomics_auroc}
+\end{table}

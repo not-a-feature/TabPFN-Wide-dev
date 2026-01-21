@@ -6,6 +6,7 @@ import glob
 import numpy as np
 import argparse
 import scipy.stats as stats
+import textwrap
 
 # Set style for scientific plotting
 sns.set_theme(style="whitegrid", context="paper", font_scale=1.2)
@@ -137,7 +138,10 @@ def plot_categorical_comparison(
     ylim=(0.4, 1.05),
     suffix="",
     agg_threshold=40,
+    agg_threshold=40,
     figsize=(10, 6),
+    xticks_rotation=45,
+    wrap_width=None,
 ):
     """
     Generic plotting function for categorical comparisons.
@@ -278,7 +282,27 @@ def plot_categorical_comparison(
                 capsize=0.1,
             )
 
-    plt.xticks(rotation=45, ha="right")
+    if wrap_width:
+        locs, labels = plt.xticks()
+        # If labels are empty (sometimes happens if drawn lazily), we might need to set them from order
+        # But usually sns sets them.
+        # Let's try to get current tick labels.
+        current_labels = [l.get_text() for l in plt.gca().get_xticklabels()]
+        if not current_labels and isinstance(order, pd.Index):
+            current_labels = order.tolist()
+
+        # If we still have labels
+        if current_labels:
+            wrapped_labels = [textwrap.fill(txt, width=wrap_width) for txt in current_labels]
+            plt.xticks(
+                plt.xticks()[0],
+                wrapped_labels,
+                rotation=xticks_rotation,
+                ha="center" if xticks_rotation == 0 else "right",
+            )
+    else:
+        plt.xticks(rotation=xticks_rotation, ha="center" if xticks_rotation == 0 else "right")
+
     plt.ylim(ylim)
     plt.xlabel(xlabel if xlabel else x_col.replace("_", " ").title())
     plt.ylabel(ylabel if ylabel else format_metric(y_col))
@@ -571,6 +595,9 @@ def plot_multiomics_overview(df, output_dir, basename):
             title=f"Multiomics Overview - {format_metric(metric)} Distribution",
             suffix=f"_{metric}_overview_boxplot",
             figsize=(6, 6),
+            xticks_rotation=0,
+            wrap_width=10,
+            ylim=(0.5, 1.0),
         )
 
         # 3. Line plot: Average metric vs n_features (Absolute)
@@ -1477,11 +1504,31 @@ def generate_multiomics_latex_table(df, output_dir, basename):
     # or apply the label map manually.
 
     # Ideally, we follow the same filtering/labeling logic as plots
-    df_labeled = df.copy()
+    # Extended label map for table generation
     label_map = {k: v["label"] for k, v in MODEL_CONFIG.items()}
-    df_labeled["checkpoint"] = df_labeled["checkpoint"].apply(lambda x: label_map.get(x, x))
 
-    target_models = [
+    # Helper to canonicalize to the Display Label
+    def get_display_label(name):
+        # 1. Check if name is a known key (raw name)
+        if name in label_map:
+            return label_map[name]
+        # 2. Check if name is already a Display Label (value)
+        if name in label_map.values():
+            return name
+        # 3. Fallback: Check case-insensitive match against keys
+        name_lower = str(name).lower()
+        if name_lower in label_map:
+            return label_map[name_lower]
+        return None
+
+    df_filtered = df.copy()
+    df_filtered["display_label"] = df_filtered["checkpoint"].apply(get_display_label)
+
+    # Filter valid
+    df_filtered = df_filtered.dropna(subset=["display_label"])
+    df_filtered["checkpoint"] = df_filtered["display_label"]  # Standardize
+
+    target_models_order = [
         "TabPFN v2",
         "Wide (1.5k)",
         "Wide (5k)",
@@ -1490,7 +1537,8 @@ def generate_multiomics_latex_table(df, output_dir, basename):
         "Random Forest",
     ]
 
-    df_filtered = df_labeled[df_labeled["checkpoint"].isin(target_models)].copy()
+    # Filter to only the ones we strictly want
+    df_filtered = df_filtered[df_filtered["checkpoint"].isin(target_models_order)]
 
     if df_filtered.empty:
         print("No matching models found for LaTeX table.")
@@ -1522,14 +1570,14 @@ def generate_multiomics_latex_table(df, output_dir, basename):
     if "n_features" in df_filtered.columns:
         # 1. Find max features per group
         max_feat_df = (
-            df_labeled.groupby(["dataset_name", "checkpoint"])["n_features"].max().reset_index()
+            df_filtered.groupby(["dataset_name", "checkpoint"])["n_features"].max().reset_index()
         )
         # 2. Merge back to get all rows matching max features
         df_filtered = pd.merge(
-            df_labeled, max_feat_df, on=["dataset_name", "checkpoint", "n_features"]
+            df_filtered, max_feat_df, on=["dataset_name", "checkpoint", "n_features"]
         )
         # 3. Filter to target models again
-        df_filtered = df_filtered[df_filtered["checkpoint"].isin(target_models)]
+        df_filtered = df_filtered[df_filtered["checkpoint"].isin(target_models_order)]
 
     # Now aggregate mean/std
     df_agg = (
@@ -1539,12 +1587,13 @@ def generate_multiomics_latex_table(df, output_dir, basename):
     )
 
     # Pivot: Dataset as columns, Checkpoint as rows
+    # Pivot: Dataset as columns, Checkpoint as rows
     pivot_mean = df_agg.pivot(index="checkpoint", columns="dataset_name", values="mean")
     pivot_std = df_agg.pivot(index="checkpoint", columns="dataset_name", values="std")
 
     # Reorder rows
-    pivot_mean = pivot_mean.reindex(target_models)
-    pivot_std = pivot_std.reindex(target_models)
+    pivot_mean = pivot_mean.reindex(target_models_order)
+    pivot_std = pivot_std.reindex(target_models_order)
 
     # Drop rows that are all NaN (models not present)
     pivot_mean = pivot_mean.dropna(how="all")
@@ -1601,6 +1650,7 @@ def generate_multiomics_latex_table(df, output_dir, basename):
             row_str += f"& {val_str} "
 
         row_str += "\\\\\n"
+        latex_str += row_str
 
         # Add midrule after Wide 8k to separate baselines? (Optional formatting)
         if "Wide (8k)" in model:
