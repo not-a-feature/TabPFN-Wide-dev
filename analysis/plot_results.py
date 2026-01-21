@@ -108,11 +108,11 @@ def save_plots(fig, output_dir, filename_prefix):
     """Save figure as PDF and PNG."""
     os.makedirs(output_dir, exist_ok=True)
     pdf_path = os.path.join(output_dir, f"{filename_prefix}.pdf")
-    png_path = os.path.join(output_dir, f"{filename_prefix}.png")
+    # png_path = os.path.join(output_dir, f"{filename_prefix}.png")
 
     fig.savefig(pdf_path, bbox_inches="tight", dpi=300)
-    fig.savefig(png_path, bbox_inches="tight", dpi=300)
-    print(f"Saved plots:\n  {pdf_path}\n  {png_path}")
+    # fig.savefig(png_path, bbox_inches="tight", dpi=300)
+    print(f"Saved plots:\n  {pdf_path}")
     plt.close(fig)
 
 
@@ -137,7 +137,6 @@ def plot_categorical_comparison(
     plot_type="box",
     ylim=(0.4, 1.05),
     suffix="",
-    agg_threshold=40,
     agg_threshold=40,
     figsize=(10, 6),
     xticks_rotation=45,
@@ -420,7 +419,7 @@ def plot_hdlss(df, output_dir, basename):
                 output_dir=output_dir,
                 basename=basename,
                 plot_type="bar",
-                xlabel="Checkpoint",
+                # xlabel="Checkpoint",
                 title=f"Aggregated {format_metric(metric)}",
                 suffix="_overall_bar",
             )
@@ -440,7 +439,7 @@ def plot_hdlss(df, output_dir, basename):
                     output_dir=per_dataset_dir,
                     basename=f"{basename}_{ds}",
                     plot_type="bar",
-                    xlabel="Checkpoint",
+                    # xlabel="Checkpoint",
                     title=f"{ds} - {format_metric(metric)}",
                     suffix="_comparison",
                 )
@@ -475,7 +474,7 @@ def plot_openml(df, output_dir, basename):
                 output_dir=output_dir,
                 basename=basename,
                 plot_type="bar",
-                xlabel="Checkpoint",
+                # xlabel="Checkpoint",
                 title=f"Aggregated {format_metric(metric)}",
                 suffix="_overall_bar",
             )
@@ -496,7 +495,7 @@ def plot_openml(df, output_dir, basename):
                     output_dir=per_task_dir,
                     basename=f"{basename}_task_{task}",
                     plot_type="bar",
-                    xlabel="Checkpoint",
+                    # xlabel="Checkpoint",
                     title=f"Task {task} - {format_metric(metric)}",
                     suffix="_comparison",
                 )
@@ -577,7 +576,7 @@ def plot_multiomics_overview(df, output_dir, basename):
         )
         plt.xticks(x_pos, df_agg["checkpoint"], rotation=45, ha="right")
         plt.ylim(0.45, 1.05)
-        plt.xlabel("Checkpoint")
+        # plt.xlabel("Checkpoint")
         plt.ylabel(f"Average {format_metric(metric)}")
 
         plt.tight_layout()
@@ -591,7 +590,7 @@ def plot_multiomics_overview(df, output_dir, basename):
             hue_col="checkpoint",
             output_dir=output_dir,
             basename=basename,
-            xlabel="Checkpoint",
+            # xlabel="Checkpoint",
             title=f"Multiomics Overview - {format_metric(metric)} Distribution",
             suffix=f"_{metric}_overview_boxplot",
             figsize=(6, 6),
@@ -1477,157 +1476,105 @@ def plot_reduced_multiomics_overview(df, output_dir, basename):
             save_plots(fig, output_dir, f"{basename}_{metric}_overview_features_reduced")
 
 
-def generate_multiomics_latex_table(df, output_dir, basename):
+def _generate_multiomics_latex_table(df, output_dir, basename, metric, metric_display_name):
     """
-    Generate a LaTeX table for Multiomics AUROC (Dataset columns x Model rows).
-    Includes: TabPFN v2, Wide (1.5k, 5k, 8k), TabICL, Random Forest.
+    Generate a LaTeX table for Multiomics metrics (Dataset columns x Model rows).
+
+    Args:
+        df: DataFrame with multiomics results
+        output_dir: Output directory for the table
+        basename: Base name for the output file
+        metric: Column name for the metric (e.g., "roc_auc", "accuracy")
+        metric_display_name: Display name for the metric in caption (e.g., "AUROC", "Accuracy")
     """
-    output_dir = os.path.join(output_dir, "reduced_plots")
     os.makedirs(output_dir, exist_ok=True)
 
-    metric = "roc_auc_score"
     if metric not in df.columns:
-        if "roc_auc" in df.columns:
-            metric = "roc_auc"
-        else:
-            return
+        print(f"Metric '{metric}' not found in columns for LaTeX table.")
+        return
 
+    df = df.copy()
     if "n_features" in df.columns:
         df["n_features"] = pd.to_numeric(df["n_features"], errors="coerce")
 
     df = clean_checkpoint_names(df)
 
-    # Define models to include (labels directly or mapped)
-    # The user requested: TabPFN v2, Wide (1.5k), Wide (5k), Wide (8k), TabICL, Random Forest
-    # We map them to the labels present in the dataframe (after clean_checkpoint_names and get_model_style logic)
-    # Note: get_model_style converts to labels. We should likely rely on what clean_checkpoint_names produces first,
-    # or apply the label map manually.
-
-    # Ideally, we follow the same filtering/labeling logic as plots
-    # Extended label map for table generation
+    # Label map for display
     label_map = {k: v["label"] for k, v in MODEL_CONFIG.items()}
 
-    # Helper to canonicalize to the Display Label
     def get_display_label(name):
-        # 1. Check if name is a known key (raw name)
         if name in label_map:
             return label_map[name]
-        # 2. Check if name is already a Display Label (value)
         if name in label_map.values():
             return name
-        # 3. Fallback: Check case-insensitive match against keys
         name_lower = str(name).lower()
         if name_lower in label_map:
             return label_map[name_lower]
         return None
 
-    df_filtered = df.copy()
-    df_filtered["display_label"] = df_filtered["checkpoint"].apply(get_display_label)
-
-    # Filter valid
-    df_filtered = df_filtered.dropna(subset=["display_label"])
-    df_filtered["checkpoint"] = df_filtered["display_label"]  # Standardize
+    df["display_label"] = df["checkpoint"].apply(get_display_label)
+    df = df.dropna(subset=["display_label"])
+    df["checkpoint"] = df["display_label"]
 
     target_models_order = [
         "TabPFN v2",
         "Wide (1.5k)",
+        "Wide (1.5k, No-Cat)",
         "Wide (5k)",
+        "Wide (5k, No-Cat)",
         "Wide (8k)",
+        "Wide (8k, No-Cat)",
         "TabICL",
         "Random Forest",
     ]
 
-    # Filter to only the ones we strictly want
-    df_filtered = df_filtered[df_filtered["checkpoint"].isin(target_models_order)]
+    df = df[df["checkpoint"].isin(target_models_order)]
 
-    if df_filtered.empty:
-        print("No matching models found for LaTeX table.")
+    if df.empty:
+        print(f"No matching models found for {metric_display_name} LaTeX table.")
         return
 
-    # Select samples with Max Features per dataset to simulate "full" dataset performance
-    # For Wide models, they often run on various feature counts. We want the info from
-    # their respective "max feature" run or the run matching their name
-    # (e.g. Wide 1.5k should be at 1.5k features... but usually we just take the best or max available).
-    # The prompt implies for "TabPFN-Wide 5k" we want the performance... likely at max features available in that run.
+    # For each (dataset, checkpoint), select rows at maximum n_features
+    if "n_features" in df.columns:
+        max_feat = df.groupby(["dataset_name", "checkpoint"])["n_features"].transform("max")
+        df = df[df["n_features"] == max_feat]
 
-    # Let's take the entry with the MAXIMUM n_features for each (dataset, checkpoint) pair.
-    # This assumes the CSV contains results for curve evaluation.
-    if "n_features" in df_filtered.columns:
-        idx = df_filtered.groupby(["dataset_name", "checkpoint"])["n_features"].idxmax()
-        df_filtered = df_filtered.loc[idx]
+    # Aggregate mean/std over folds
+    df_agg = df.groupby(["dataset_name", "checkpoint"])[metric].agg(["mean", "std"]).reset_index()
 
-    # Aggregate: Mean and Std over seeds/folds if multiple entries exist
-    # (Though idxmax above selects a single row if unique. If multiple folds/seeds are separate rows
-    # but share n_features, we need to handle that. Usually `n_features` is constant for a dataset/model combo in one file?
-    # If there are multiple seeds, they might be averaged already or present as separate rows.)
-
-    # Let's check if we have multiple entries per (dataset, checkpoint)
-    # If the dataframe has multiple rows per (dataset, checkpoint) at max n_features (e.g. multiple seeds),
-    # we should average them.
-    # The previous logic used `idxmax` which picks ONE. If there are multiple with same max features, it picks one.
-    # Correct logic: find max n_features value, then filter data to that n_features.
-
-    if "n_features" in df_filtered.columns:
-        # 1. Find max features per group
-        max_feat_df = (
-            df_filtered.groupby(["dataset_name", "checkpoint"])["n_features"].max().reset_index()
-        )
-        # 2. Merge back to get all rows matching max features
-        df_filtered = pd.merge(
-            df_filtered, max_feat_df, on=["dataset_name", "checkpoint", "n_features"]
-        )
-        # 3. Filter to target models again
-        df_filtered = df_filtered[df_filtered["checkpoint"].isin(target_models_order)]
-
-    # Now aggregate mean/std
-    df_agg = (
-        df_filtered.groupby(["dataset_name", "checkpoint"])[metric]
-        .agg(["mean", "std"])
-        .reset_index()
-    )
-
-    # Pivot: Dataset as columns, Checkpoint as rows
-    # Pivot: Dataset as columns, Checkpoint as rows
+    # Pivot: Dataset columns, Model rows
     pivot_mean = df_agg.pivot(index="checkpoint", columns="dataset_name", values="mean")
     pivot_std = df_agg.pivot(index="checkpoint", columns="dataset_name", values="std")
 
-    # Reorder rows
-    pivot_mean = pivot_mean.reindex(target_models_order)
-    pivot_std = pivot_std.reindex(target_models_order)
-
-    # Drop rows that are all NaN (models not present)
-    pivot_mean = pivot_mean.dropna(how="all")
-    pivot_std = pivot_std.loc[pivot_mean.index]  # Align
+    # Reorder rows according to target order
+    pivot_mean = pivot_mean.reindex(target_models_order).dropna(how="all")
+    pivot_std = pivot_std.reindex(target_models_order).loc[pivot_mean.index]
 
     if pivot_mean.empty:
+        print(f"No data for {metric_display_name} LaTeX table after aggregation.")
         return
 
-    # Generate LaTeX
-    latex_str = (
-        "\\begin{table}[h]\n\\centering\n\\begin{tabular}{l"
-        + "c" * len(pivot_mean.columns)
-        + "}\n\\toprule\n"
-    )
-
-    # Header
     col_names = pivot_mean.columns.tolist()
-    header_row = "Dataset & " + " & ".join(col_names) + " \\\\\n"
 
-    # Feature counts header (optional, if we can get max features per dataset)
-    # n_features for each dataset (just taking the max found in data)
+    # Get max n_features per dataset for header
     n_feats = []
     for ds in col_names:
-        feat_val = df_filtered[df_filtered["dataset_name"] == ds]["n_features"].max()
+        feat_val = df[df["dataset_name"] == ds]["n_features"].max()
         n_feats.append(f"{int(feat_val):,}" if pd.notnull(feat_val) else "-")
 
-    features_row = "\\#features & " + " & ".join(n_feats) + " \\\\\n"
+    # Build LaTeX
+    latex_str = (
+        "\\begin{table}[h]\n\\centering\n\\begin{tabular}{l"
+        + "c" * len(col_names)
+        + "}\n\\toprule\n"
+    )
+    latex_str += "Model & " + " & ".join(col_names) + " \\\\\n"
+    latex_str += "\\#features & " + " & ".join(n_feats) + " \\\\\n"
+    latex_str += "\\midrule\n"
 
-    latex_str += header_row + features_row + "\\midrule\n"
-
-    # Body
     for model in pivot_mean.index:
         row_str = f"{model} "
-        for ds in pivot_mean.columns:
+        for ds in col_names:
             mean = pivot_mean.loc[model, ds]
             std = pivot_std.loc[model, ds]
 
@@ -1635,15 +1582,10 @@ def generate_multiomics_latex_table(df, output_dir, basename):
                 row_str += "& - "
                 continue
 
-            # Determine if this is the best in column (bold)
-            col_means = pivot_mean[ds]
-            best_mean = col_means.max()
+            best_mean = pivot_mean[ds].max()
             is_best = abs(mean - best_mean) < 1e-4
 
-            val_str = f"{mean:.3f} \\pm {std:.3f}"
-            if pd.isna(std):  # If only one seed/fold
-                val_str = f"{mean:.3f}"
-
+            val_str = f"{mean:.3f} \\pm {std:.3f}" if pd.notna(std) else f"{mean:.3f}"
             if is_best:
                 val_str = f"\\textbf{{{val_str}}}"
 
@@ -1652,16 +1594,43 @@ def generate_multiomics_latex_table(df, output_dir, basename):
         row_str += "\\\\\n"
         latex_str += row_str
 
-        # Add midrule after Wide 8k to separate baselines? (Optional formatting)
-        if "Wide (8k)" in model:
+        if model == "Wide (8k, No-Cat)":
             latex_str += "\\midrule\n"
 
-    latex_str += "\\bottomrule\n\\end{tabular}\n\\caption{Multiomics AUROC Comparison}\n\\label{tab:multiomics_auroc}\n\\end{table}"
+    metric_label = metric_display_name.lower().replace(" ", "_")
+    latex_str += f"\\bottomrule\n\\end{{tabular}}\n\\caption{{Multiomics {metric_display_name} Comparison}}\n\\label{{tab:multiomics_{metric_label}}}\n\\end{{table}}"
 
-    with open(os.path.join(output_dir, f"{basename}_multiomics_auroc_table.tex"), "w") as f:
+    out_file = os.path.join(output_dir, f"{basename}_multiomics_{metric_label}_table.tex")
+    with open(out_file, "w") as f:
         f.write(latex_str)
 
-    print(f"Saved LaTeX table: {output_dir}/{basename}_multiomics_auroc_table.tex")
+    print(f"Saved LaTeX table: {out_file}")
+
+
+def generate_multiomics_latex_table(df, output_dir, basename):
+    """
+    Generate LaTeX tables for Multiomics benchmarks (AUROC and Accuracy).
+    """
+    output_dir = os.path.join(output_dir, "reduced_plots")
+
+    # Determine available metrics
+    auroc_metric = None
+    if "roc_auc" in df.columns:
+        auroc_metric = "roc_auc"
+    elif "roc_auc_score" in df.columns:
+        auroc_metric = "roc_auc_score"
+
+    accuracy_metric = "accuracy" if "accuracy" in df.columns else None
+
+    # Generate AUROC table
+    if auroc_metric:
+        _generate_multiomics_latex_table(df.copy(), output_dir, basename, auroc_metric, "AUROC")
+
+    # Generate Accuracy table
+    if accuracy_metric:
+        _generate_multiomics_latex_table(
+            df.copy(), output_dir, basename, accuracy_metric, "Accuracy"
+        )
 
 
 def plot_reduced_multiomics_overview_relative(df, output_dir, basename, baseline_name="v2"):
