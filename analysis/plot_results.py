@@ -1585,9 +1585,13 @@ def _generate_multiomics_latex_table(df, output_dir, basename, metric, metric_di
             best_mean = pivot_mean[ds].max()
             is_best = abs(mean - best_mean) < 1e-4
 
-            val_str = f"{mean:.3f} \\pm {std:.3f}" if pd.notna(std) else f"{mean:.3f}"
+            val_str = f"${mean:.3f} \\pm {std:.3f}$" if pd.notna(std) else f"${mean:.3f}$"
             if is_best:
-                val_str = f"\\textbf{{{val_str}}}"
+                val_str = (
+                    f"$\\textbf{{{mean:.3f} \\pm {std:.3f}}}$"
+                    if pd.notna(std)
+                    else f"$\\textbf{{{mean:.3f}}}$"
+                )
 
             row_str += f"& {val_str} "
 
