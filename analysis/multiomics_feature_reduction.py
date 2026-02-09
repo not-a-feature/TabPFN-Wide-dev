@@ -191,7 +191,7 @@ def main(
                     ],
                     ignore_index=True,
                 )
-            if hasattr(clf, "model"):
+            if hasattr(clf, "model") and hasattr(clf.model, "to"):
                 clf.model.to("cpu")
             results.to_csv(output_file, index=False)
 
