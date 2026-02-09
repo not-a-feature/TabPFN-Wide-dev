@@ -1476,6 +1476,48 @@ def plot_reduced_multiomics_overview(df, output_dir, basename):
             save_plots(fig, output_dir, f"{basename}_{metric}_overview_features_reduced")
 
 
+def plot_reduced_multiomics_overview_boxplot(df, output_dir, basename):
+    """
+    Reduced Boxplot distribution (Wide only, no-cat excluded).
+    Saves to 'reduced_plots' subdirectory.
+    """
+    output_dir = os.path.join(output_dir, "reduced_plots")
+    metrics = [c for c in ["roc_auc", "roc_auc_score"] if c in df.columns]
+
+    # Filter to max 17500 features (same as overview)
+    if "n_features" in df.columns:
+        df = df[df["n_features"] <= 17500]
+
+    # Filter logic: Wide models only (exclude nocat) + v2 baseline
+    df_reduced = df[
+        (df["checkpoint"] == "v2")
+        | (
+            df["checkpoint"].str.contains("wide", case=False)
+            & ~df["checkpoint"].str.contains("nocat", case=False)
+        )
+    ].copy()
+
+    if df_reduced.empty:
+        return
+
+    for metric in metrics:
+        plot_categorical_comparison(
+            df_reduced,
+            x_col="checkpoint",
+            y_col=metric,
+            hue_col="checkpoint",
+            output_dir=output_dir,
+            basename=basename,
+            # xlabel="Checkpoint",
+            title=f"Multiomics Overview (Reduced) - {format_metric(metric)} Distribution",
+            suffix=f"_{metric}_overview_boxplot_reduced",
+            figsize=(6, 6),
+            xticks_rotation=45,
+            wrap_width=10,
+            ylim=(0.5, 1.0),
+        )
+
+
 def _generate_multiomics_latex_table(df, output_dir, basename, metric, metric_display_name):
     """
     Generate a LaTeX table for Multiomics metrics (Dataset columns x Model rows).
@@ -1827,6 +1869,7 @@ def main():
                 # Reduced plots for multiomics
                 # Reduced plots for multiomics
                 plot_reduced_multiomics_overview(combined_df.copy(), output_dir, basename)
+                plot_reduced_multiomics_overview_boxplot(combined_df.copy(), output_dir, basename)
                 plot_reduced_multiomics_overview_relative(combined_df.copy(), output_dir, basename)
                 generate_multiomics_latex_table(combined_df.copy(), output_dir, basename)
             elif "grouping" in basename.lower():
