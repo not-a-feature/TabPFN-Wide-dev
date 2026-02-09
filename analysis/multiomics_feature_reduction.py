@@ -119,7 +119,7 @@ def main(
                     f"Resuming {dataset_name} with {n_features} features: {len(completed_folds)}/{expected_folds} folds complete"
                 )
             print(f"Validating {dataset_name} with {n_features} features")
-            if hasattr(clf, "model") and clf.model is not None:
+            if hasattr(clf, "model") and clf.model is not None and hasattr(clf.model, "to"):
                 clf.model.to(device)
                 clf.model.eval()
             for i, dataset in enumerate(
