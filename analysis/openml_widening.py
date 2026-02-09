@@ -14,7 +14,14 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import roc_auc_score
 from sklearn.utils import shuffle
 
+from sklearn.utils import shuffle
+import sys
+import os
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from analysis.utils import PredictionResults, get_new_features
+from analysis.baselines import XGBoostClassifierWrapper
 from tabpfnwide.classifier import TabPFNWideClassifier
 
 
@@ -79,11 +86,13 @@ def main(
             ]
         )
 
-    other_classifiers = ["tabicl", "random_forest"]
+    other_classifiers = ["tabicl", "random_forest", "xgboost"]
     clf = None
     if checkpoint_path == "tabicl":
         pass  # Will be created in loop
     elif checkpoint_path == "random_forest":
+        pass  # Will be created in loop
+    elif checkpoint_path == "xgboost":
         pass  # Will be created in loop
     elif checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
         clf = TabPFNWideClassifier(
@@ -96,7 +105,7 @@ def main(
     else:
         raise ValueError(f"Unknown checkpoint: {checkpoint_path}")
 
-    if checkpoint_path in ["tabicl", "random_forest"]:
+    if checkpoint_path in ["tabicl", "random_forest", "xgboost"]:
         if X.isnull().values.any():
             simple_imputer = SimpleImputer(strategy="most_frequent")
             X = pd.DataFrame(simple_imputer.fit_transform(X), columns=X.columns)
@@ -115,6 +124,8 @@ def main(
             clf = TabICLClassifier(device=device, n_estimators=1)
         elif checkpoint_path == "random_forest":
             clf = RandomForestClassifier(n_jobs=4)
+        elif checkpoint_path == "xgboost":
+            clf = XGBoostClassifierWrapper(device=device)
 
         if feature_number != 0 and feature_number < X.shape[1]:
             print(
@@ -146,7 +157,9 @@ def main(
                     lambda x: x
                     in (
                         checkpoint_path.split("/")[-1]
-                        if not (checkpoint_path in ["default", "tabicl", "random_forest"])
+                        if not (
+                            checkpoint_path in ["default", "tabicl", "random_forest", "xgboost"]
+                        )
                         else checkpoint_path
                     )
                 )

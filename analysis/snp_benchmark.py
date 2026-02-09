@@ -7,6 +7,7 @@ import warnings
 
 import sys
 import argparse
+from analysis.baselines import XGBoostClassifierWrapper
 import gc
 from sklearn.model_selection import StratifiedKFold, RepeatedStratifiedKFold
 from sklearn.metrics import roc_auc_score, accuracy_score
@@ -116,6 +117,8 @@ def main(
             clf = TabICLClassifier(device=device, n_estimators=1)
         elif model_name == "random_forest":
             clf = RandomForestClassifier(n_jobs=4)
+        elif model_name == "xgboost":
+            clf = XGBoostClassifierWrapper(device=device)
         else:
             raise ValueError(f"Unknown checkpoint: {model_name}")
 
@@ -168,7 +171,7 @@ def main(
                 # y = df.iloc[:, -1].values # Phenotype(binary) is last
                 y = df["Phenotype(binary)"].astype(int).values
 
-                if model_name in ["tabicl", "random_forest"]:
+                if model_name in ["tabicl", "random_forest", "xgboost"]:
                     if np.isnan(X).any():
                         imp = SimpleImputer(strategy="most_frequent")
                         X = imp.fit_transform(X)

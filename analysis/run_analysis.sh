@@ -101,7 +101,7 @@ done
 # fi
 
 # Widening Attention Extraction
-if [ "$CHECKPOINT_PATH" != "tabicl" ] && [ "$CHECKPOINT_PATH" != "random_forest" ]; then
+if [ "$CHECKPOINT_PATH" != "tabicl" ] && [ "$CHECKPOINT_PATH" != "random_forest" ] && [ "$CHECKPOINT_PATH" != "xgboost" ]; then
 if [ ! -f "${OUTPUT_DIR}/widening_attention.pkl" ]; then
     echo "----------------------------------------"
     echo "Running Widening Attention Extraction..."

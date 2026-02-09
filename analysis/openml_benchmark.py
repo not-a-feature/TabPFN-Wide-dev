@@ -3,6 +3,7 @@ import numpy as np
 import os
 from sklearn.utils import shuffle
 import torch
+from analysis.baselines import XGBoostClassifierWrapper
 
 import openml
 from openml import tasks
@@ -12,6 +13,12 @@ warnings.filterwarnings("ignore")
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score
+import sys
+import os
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from analysis.utils import PredictionResults
 from tabpfnwide.classifier import TabPFNWideClassifier
 
@@ -65,7 +72,8 @@ def main(
             # Will be initialized in loop
             clf = None
         elif checkpoint_path == "random_forest":
-            # Will be initialized in loop
+            clf = None
+        elif checkpoint_path == "xgboost":
             clf = None
 
         elif checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
@@ -106,7 +114,7 @@ def main(
                 dataset = task.get_dataset()
                 X, y, _, _ = dataset.get_data(target=task.target_name)
 
-                if checkpoint_path in ["tabicl", "random_forest"]:
+                if checkpoint_path in ["tabicl", "random_forest", "xgboost"]:
                     if X.isnull().values.any():
                         simple_imputer = SimpleImputer(strategy="most_frequent")
                         X = pd.DataFrame(simple_imputer.fit_transform(X), columns=X.columns)
@@ -146,6 +154,8 @@ def main(
                         clf = TabICLClassifier(device=device, n_estimators=1)
                     elif checkpoint_path == "random_forest":
                         clf = RandomForestClassifier(n_jobs=4)
+                    elif checkpoint_path == "xgboost":
+                        clf = XGBoostClassifierWrapper(device=device)
 
                     clf.fit(X_train, y_train)
                     pred_probs = clf.predict_proba(X_test)
@@ -218,7 +228,7 @@ if __name__ == "__main__":
         checkpoints = ["v2"]
 
     if not args.checkpoint_path:
-        checkpoints += ["tabicl", "random_forest"]
+        checkpoints += ["tabicl", "random_forest", "xgboost"]
 
     main(
         suite_id=args.suite_id,

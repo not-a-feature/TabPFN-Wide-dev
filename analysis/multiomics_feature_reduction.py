@@ -4,7 +4,14 @@ import warnings
 import wandb
 import os
 import torch
+from analysis.baselines import XGBoostClassifierWrapper
 import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import sys
+import os
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from analysis.utils import PredictionResults
 from analysis.data import get_wide_validation_datasets
 from tabpfnwide.classifier import TabPFNWideClassifier
@@ -72,9 +79,11 @@ def main(
         elif checkpoint_path == "tabicl":
             clf = TabICLClassifier(device=device, n_estimators=1)
             name = "tabicl"
-        elif checkpoint_path == "random_forest":
             clf = RandomForestClassifier(n_jobs=4)
             name = "random_forest"
+        elif checkpoint_path == "xgboost":
+            clf = XGBoostClassifierWrapper(device=device)
+            name = "xgboost"
         else:
             raise ValueError(f"Unknown checkpoint: {checkpoint_path}")
 
@@ -135,7 +144,7 @@ def main(
                 X_test = X_test_tensor.cpu().numpy()
                 y_test = y_test_tensor.cpu().numpy().flatten()
 
-                if checkpoint_path in ["tabicl", "random_forest"]:
+                if checkpoint_path in ["tabicl", "random_forest", "xgboost"]:
                     if np.isnan(X_train).any():
                         imp = SimpleImputer(strategy="most_frequent")
                         X_train = imp.fit_transform(X_train)
