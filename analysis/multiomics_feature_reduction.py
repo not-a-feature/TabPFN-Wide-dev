@@ -4,7 +4,7 @@ import warnings
 import wandb
 import os
 import torch
-from analysis.baselines import XGBoostClassifierWrapper
+from analysis.baselines import XGBoostClassifierWrapper, RealMLPClassifierWrapper
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 import sys
@@ -85,6 +85,9 @@ def main(
         elif checkpoint_path == "xgboost":
             clf = XGBoostClassifierWrapper(device=device)
             name = "xgboost"
+        elif checkpoint_path == "realmlp":
+            clf = RealMLPClassifierWrapper(device=device)
+            name = "realmlp"
         else:
             raise ValueError(f"Unknown checkpoint: {checkpoint_path}")
 
@@ -145,7 +148,7 @@ def main(
                 X_test = X_test_tensor.cpu().numpy()
                 y_test = y_test_tensor.cpu().numpy().flatten()
 
-                if checkpoint_path in ["tabicl", "random_forest", "xgboost"]:
+                if checkpoint_path in ["tabicl", "random_forest", "xgboost", "realmlp"]:
                     if np.isnan(X_train).any():
                         imp = SimpleImputer(strategy="most_frequent")
                         X_train = imp.fit_transform(X_train)

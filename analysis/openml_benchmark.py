@@ -3,7 +3,7 @@ import numpy as np
 import os
 from sklearn.utils import shuffle
 import torch
-from analysis.baselines import XGBoostClassifierWrapper
+from analysis.baselines import XGBoostClassifierWrapper, RealMLPClassifierWrapper
 
 import openml
 from openml import tasks
@@ -75,6 +75,8 @@ def main(
             clf = None
         elif checkpoint_path == "xgboost":
             clf = None
+        elif checkpoint_path == "realmlp":
+            clf = None
 
         elif checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
             clf = TabPFNWideClassifier(
@@ -114,7 +116,7 @@ def main(
                 dataset = task.get_dataset()
                 X, y, _, _ = dataset.get_data(target=task.target_name)
 
-                if checkpoint_path in ["tabicl", "random_forest", "xgboost"]:
+                if checkpoint_path in ["tabicl", "random_forest", "xgboost", "realmlp"]:
                     if X.isnull().values.any():
                         simple_imputer = SimpleImputer(strategy="most_frequent")
                         X = pd.DataFrame(simple_imputer.fit_transform(X), columns=X.columns)
@@ -156,6 +158,8 @@ def main(
                         clf = RandomForestClassifier(n_jobs=4)
                     elif checkpoint_path == "xgboost":
                         clf = XGBoostClassifierWrapper(device=device)
+                    elif checkpoint_path == "realmlp":
+                        clf = RealMLPClassifierWrapper(device=device)
 
                     clf.fit(X_train, y_train)
                     pred_probs = clf.predict_proba(X_test)
@@ -228,7 +232,7 @@ if __name__ == "__main__":
         checkpoints = ["v2"]
 
     if not args.checkpoint_path:
-        checkpoints += ["tabicl", "random_forest", "xgboost"]
+        checkpoints += ["tabicl", "random_forest", "xgboost", "realmlp"]
 
     main(
         suite_id=args.suite_id,

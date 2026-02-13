@@ -1368,7 +1368,7 @@ def plot_reduced_snp_relative_polygenicity_comparison(df, output_dir, basename, 
             ax.set_ylabel(f"Relative {format_metric(metric)} (vs {actual_baseline})", fontsize=14)
             ax.legend(loc="best", fontsize=11, frameon=False, title="Polygenicity")
             # ax.set_title(f"{model_label}", fontsize=16)
-            ax.set_ylim((-0.15, 0.15))
+            ax.set_ylim((-0.2, 0.2))
             plt.tight_layout()
             save_plots(
                 fig,

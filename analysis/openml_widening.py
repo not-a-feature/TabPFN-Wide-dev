@@ -21,7 +21,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from analysis.utils import PredictionResults, get_new_features
-from analysis.baselines import XGBoostClassifierWrapper
+from analysis.baselines import XGBoostClassifierWrapper, RealMLPClassifierWrapper
 from tabpfnwide.classifier import TabPFNWideClassifier
 
 
@@ -86,13 +86,15 @@ def main(
             ]
         )
 
-    other_classifiers = ["tabicl", "random_forest", "xgboost"]
+    other_classifiers = ["tabicl", "random_forest", "xgboost", "realmlp"]
     clf = None
     if checkpoint_path == "tabicl":
         pass  # Will be created in loop
     elif checkpoint_path == "random_forest":
         pass  # Will be created in loop
     elif checkpoint_path == "xgboost":
+        pass  # Will be created in loop
+    elif checkpoint_path == "realmlp":
         pass  # Will be created in loop
     elif checkpoint_path == "v2" or checkpoint_path.startswith("wide-v2"):
         clf = TabPFNWideClassifier(
@@ -105,7 +107,7 @@ def main(
     else:
         raise ValueError(f"Unknown checkpoint: {checkpoint_path}")
 
-    if checkpoint_path in ["tabicl", "random_forest", "xgboost"]:
+    if checkpoint_path in ["tabicl", "random_forest", "xgboost", "realmlp"]:
         if X.isnull().values.any():
             simple_imputer = SimpleImputer(strategy="most_frequent")
             X = pd.DataFrame(simple_imputer.fit_transform(X), columns=X.columns)
@@ -126,6 +128,8 @@ def main(
             clf = RandomForestClassifier(n_jobs=4)
         elif checkpoint_path == "xgboost":
             clf = XGBoostClassifierWrapper(device=device)
+        elif checkpoint_path == "realmlp":
+            clf = RealMLPClassifierWrapper(device=device)
 
         if feature_number != 0 and feature_number < X.shape[1]:
             print(

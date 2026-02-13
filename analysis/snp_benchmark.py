@@ -7,7 +7,7 @@ import warnings
 
 import sys
 import argparse
-from analysis.baselines import XGBoostClassifierWrapper
+from analysis.baselines import XGBoostClassifierWrapper, RealMLPClassifierWrapper
 import gc
 from sklearn.model_selection import StratifiedKFold, RepeatedStratifiedKFold
 from sklearn.metrics import roc_auc_score, accuracy_score
@@ -119,6 +119,8 @@ def main(
             clf = RandomForestClassifier(n_jobs=4)
         elif model_name == "xgboost":
             clf = XGBoostClassifierWrapper(device=device)
+        elif model_name == "realmlp":
+            clf = RealMLPClassifierWrapper(device=device)
         else:
             raise ValueError(f"Unknown checkpoint: {model_name}")
 
@@ -195,7 +197,7 @@ def main(
                     X_train, X_test = X[train_idx], X[test_idx]
                     y_train, y_test = y[train_idx], y[test_idx]
 
-                    if model_name in ["tabicl", "random_forest", "xgboost"]:
+                    if model_name in ["tabicl", "random_forest", "xgboost", "realmlp"]:
                         if np.isnan(X_train).any():
                             imp = SimpleImputer(strategy="most_frequent")
                             X_train = imp.fit_transform(X_train)

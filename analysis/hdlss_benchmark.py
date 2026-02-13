@@ -8,7 +8,7 @@ import torch
 import warnings
 
 import sys
-from analysis.baselines import XGBoostClassifierWrapper
+from analysis.baselines import XGBoostClassifierWrapper, RealMLPClassifierWrapper
 from tabicl import TabICLClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
@@ -107,6 +107,8 @@ def main(
             clf = RandomForestClassifier(n_jobs=4)
         elif checkpoint_path == "xgboost":
             clf = XGBoostClassifierWrapper(device=device)
+        elif checkpoint_path == "realmlp":
+            clf = RealMLPClassifierWrapper(device=device)
         else:
             raise ValueError(f"Unknown checkpoint: {checkpoint_path}")
 
@@ -141,7 +143,7 @@ def main(
             try:
                 X, y = load_mat_file(mat_file)
 
-                if checkpoint_path in ["tabicl", "random_forest", "xgboost"]:
+                if checkpoint_path in ["tabicl", "random_forest", "xgboost", "realmlp"]:
                     if np.isnan(X).any():
                         simple_imputer = SimpleImputer(strategy="most_frequent")
                         X = simple_imputer.fit_transform(X)
