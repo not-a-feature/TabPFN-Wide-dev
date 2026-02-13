@@ -46,6 +46,12 @@ MODEL_CONFIG = {
         "label": "Random Forest",
         "linestyle": (1, 1),
     },
+    "xgboost": {
+        "color": "#e377c2",
+        "order": 11,
+        "label": "XGBoost",
+        "linestyle": (3, 1, 1, 1),
+    },
 }
 
 

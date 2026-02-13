@@ -35,6 +35,9 @@ class XGBoostClassifierWrapper(BaseEstimator, ClassifierMixin):
         self.model.fit(X, y)
         return self
 
+    def to(self, device):
+        pass
+
     def predict(self, X):
         return self.model.predict(X)
 
