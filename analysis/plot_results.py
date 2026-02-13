@@ -127,7 +127,7 @@ def format_metric(metric):
     metric = metric.replace("_", " ").title()
     if metric == "Roc Auc":
         return "AUROC"
-    return
+    return metric
 
 
 def plot_categorical_comparison(

@@ -189,7 +189,7 @@ def main(
                     n_splits=3, n_repeats=10 if X.shape[0] < 2500 else 3, random_state=42
                 )
 
-                expected_folds = skf.get_n_splits() * skf.n_repeats
+                expected_folds = skf.get_n_splits()
                 if len(completed_folds) == expected_folds:
                     print(
                         f"Skipping dataset {dataset_name}, all {expected_folds} folds already complete"

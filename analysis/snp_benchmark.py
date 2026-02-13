@@ -171,11 +171,6 @@ def main(
                 # y = df.iloc[:, -1].values # Phenotype(binary) is last
                 y = df["Phenotype(binary)"].astype(int).values
 
-                if model_name in ["tabicl", "random_forest", "xgboost"]:
-                    if np.isnan(X).any():
-                        imp = SimpleImputer(strategy="most_frequent")
-                        X = imp.fit_transform(X)
-
                 # Cross validation
                 strat_kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
@@ -199,6 +194,12 @@ def main(
 
                     X_train, X_test = X[train_idx], X[test_idx]
                     y_train, y_test = y[train_idx], y[test_idx]
+
+                    if model_name in ["tabicl", "random_forest", "xgboost"]:
+                        if np.isnan(X_train).any():
+                            imp = SimpleImputer(strategy="most_frequent")
+                            X_train = imp.fit_transform(X_train)
+                            X_test = imp.transform(X_test)
 
                     try:
                         clf.fit(X_train, y_train)
