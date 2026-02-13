@@ -993,8 +993,8 @@ def plot_snp(df, output_dir, basename):
 
 
 # Models to include in reduced plots (using raw checkpoint names)
-REDUCED_MODELS = ["v2", "wide-v2-5k", "tabicl", "random_forest"]
-REDUCED_MODELS_LABELS = ["TabPFN v2", "Wide (5k)", "TabICL", "Random Forest"]
+REDUCED_MODELS = ["v2", "wide-v2-5k", "tabicl", "random_forest", "xgboost"]
+REDUCED_MODELS_LABELS = ["TabPFN v2", "Wide (5k)", "TabICL", "Random Forest", "XGBoost"]
 
 
 def filter_to_reduced_models(df, col="checkpoint"):
@@ -1568,6 +1568,7 @@ def _generate_multiomics_latex_table(df, output_dir, basename, metric, metric_di
         "Wide (8k, No-Cat)",
         "TabICL",
         "Random Forest",
+        "XGBoost",
     ]
 
     df = df[df["checkpoint"].isin(target_models_order)]

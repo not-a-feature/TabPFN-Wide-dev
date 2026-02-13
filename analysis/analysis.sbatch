@@ -26,15 +26,16 @@ source training/init.sh
 # Define Jobs: Type:Value
 # TODO Uppdate array size
 JOBS=(
-    "MODEL:v2"
-    "MODEL:wide-v2-1.5k"
-    "MODEL:wide-v2-1.5k-nocat"
-    "MODEL:wide-v2-5k"
-    "MODEL:wide-v2-5k-nocat"
-    "MODEL:wide-v2-8k"
-    "MODEL:wide-v2-8k-nocat"
+    #"MODEL:v2"
+    #"MODEL:wide-v2-1.5k"
+    #"MODEL:wide-v2-1.5k-nocat"
+    #"MODEL:wide-v2-5k"
+    #"MODEL:wide-v2-5k-nocat"
+    #"MODEL:wide-v2-8k"
+    #"MODEL:wide-v2-8k-nocat"
     "MODEL:tabicl"
     "MODEL:random_forest"
+    "MODEL:xgboost"
 )
 
 if [ "$SLURM_ARRAY_TASK_ID" -ge "${#JOBS[@]}" ]; then
