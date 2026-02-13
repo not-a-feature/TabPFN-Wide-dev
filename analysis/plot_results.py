@@ -1312,16 +1312,10 @@ def plot_reduced_snp_relative_polygenicity_comparison(df, output_dir, basename, 
     if df_baseline.empty:
         return
 
-    # Filter baseline to minimum n_features (initial performance)
-    min_features = df_baseline["n_features"].min()
-    df_baseline = df_baseline[df_baseline["n_features"] == min_features].copy()
+    df_baseline = df_baseline.rename(columns={metric: "baseline_score"}).drop(columns=[hue_col])
 
-    df_baseline = df_baseline.rename(columns={metric: "baseline_score"}).drop(
-        columns=[hue_col, "n_features"]
-    )
-
-    # Merge on Polygenicity only (broadcasting baseline score across all feature counts)
-    df_merged = pd.merge(df_agg, df_baseline, on=["Polygenicity"], how="left")
+    # Merge on Polygenicity and n_features (matched feature counts)
+    df_merged = pd.merge(df_agg, df_baseline, on=["Polygenicity", "n_features"], how="left")
     df_merged["relative_score"] = df_merged[metric] - df_merged["baseline_score"]
 
     # Iterate over all models except baseline
@@ -1374,7 +1368,7 @@ def plot_reduced_snp_relative_polygenicity_comparison(df, output_dir, basename, 
             ax.set_ylabel(f"Relative {format_metric(metric)} (vs {actual_baseline})", fontsize=14)
             ax.legend(loc="best", fontsize=11, frameon=False, title="Polygenicity")
             # ax.set_title(f"{model_label}", fontsize=16)
-            ax.set_ylim((0.025, -0.55))
+            ax.set_ylim((-0.15, 0.15))
             plt.tight_layout()
             save_plots(
                 fig,

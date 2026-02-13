@@ -79,6 +79,7 @@ def main(
         elif checkpoint_path == "tabicl":
             clf = TabICLClassifier(device=device, n_estimators=1)
             name = "tabicl"
+        elif checkpoint_path == "random_forest":
             clf = RandomForestClassifier(n_jobs=4)
             name = "random_forest"
         elif checkpoint_path == "xgboost":

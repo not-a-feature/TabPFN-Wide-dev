@@ -24,8 +24,7 @@ source training/init.sh
 # Define Jobs: Type:Value
 # TODO Uppdate array size
 JOBS=(
-    "MODEL:xgboost"
-    "MODEL:realmlp"
+    "MODEL:tabicl"
 )
 SLURM_ARRAY_TASK_ID=0
 if [ "$SLURM_ARRAY_TASK_ID" -ge "${#JOBS[@]}" ]; then
