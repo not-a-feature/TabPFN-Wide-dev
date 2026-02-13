@@ -63,6 +63,9 @@ class RealMLPClassifierWrapper(BaseEstimator, ClassifierMixin):
             **self.kwargs,
         )
         self.model.fit(X, y)
+        # Patch eval method
+        if not hasattr(self.model, "eval"):
+            self.model.eval = lambda: None
         return self
 
     def to(self, device):
