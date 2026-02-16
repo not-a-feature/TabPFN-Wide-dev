@@ -14,8 +14,6 @@ plt.rcParams["pdf.fonttype"] = 42
 plt.rcParams["ps.fonttype"] = 42
 
 
-# Hard-coded model configuration for consistent plotting
-# linestyle: tuple of (segment, gap) or "" for solid. E.g., (2, 2) for dashed, (1, 1) for dotted.
 MODEL_CONFIG = {
     "v2": {"color": "#1f77b4", "order": 0, "label": "TabPFN v2", "linestyle": ""},
     "wide-v2-1.5k": {"color": "#ff7f0e", "order": 1, "label": "Wide (1.5k)", "linestyle": ""},
@@ -51,6 +49,12 @@ MODEL_CONFIG = {
         "order": 11,
         "label": "XGBoost",
         "linestyle": (3, 1, 1, 1),
+    },
+    "realmlp": {
+        "color": "#8c564b",
+        "order": 12,
+        "label": "RealMLP",
+        "linestyle": (3, 1, 1, 1, 1, 1),
     },
 }
 
@@ -993,8 +997,8 @@ def plot_snp(df, output_dir, basename):
 
 
 # Models to include in reduced plots (using raw checkpoint names)
-REDUCED_MODELS = ["v2", "wide-v2-5k", "tabicl", "random_forest", "xgboost"]
-REDUCED_MODELS_LABELS = ["TabPFN v2", "Wide (5k)", "TabICL", "Random Forest", "XGBoost"]
+REDUCED_MODELS = ["v2", "wide-v2-5k", "tabicl", "random_forest", "xgboost", "realmlp"]
+REDUCED_MODELS_LABELS = ["TabPFN v2", "Wide (5k)", "TabICL", "Random Forest", "XGBoost", "RealMLP"]
 
 
 def filter_to_reduced_models(df, col="checkpoint"):
@@ -1569,6 +1573,7 @@ def _generate_multiomics_latex_table(df, output_dir, basename, metric, metric_di
         "TabICL",
         "Random Forest",
         "XGBoost",
+        "RealMLP",
     ]
 
     df = df[df["checkpoint"].isin(target_models_order)]
