@@ -16,25 +16,30 @@ plt.rcParams["ps.fonttype"] = 42
 
 MODEL_CONFIG = {
     "v2": {"color": "#1f77b4", "order": 0, "label": "TabPFN v2", "linestyle": ""},
-    "wide-v2-1.5k": {"color": "#ff7f0e", "order": 1, "label": "Wide (1.5k)", "linestyle": ""},
+    "wide-v2-1.5k": {
+        "color": "#ff7f0e",
+        "order": 1,
+        "label": "TabPFN-Wide (1.5k)",
+        "linestyle": "",
+    },
     "wide-v2-1.5k-nocat": {
         "color": "#ffbb78",
         "order": 2,
-        "label": "Wide (1.5k, No-Cat)",
+        "label": "TabPFN-Wide (1.5k, No-Cat)",
         "linestyle": (2, 2),
     },
-    "wide-v2-5k": {"color": "#2ca02c", "order": 3, "label": "Wide (5k)", "linestyle": ""},
+    "wide-v2-5k": {"color": "#2ca02c", "order": 3, "label": "TabPFN-Wide (5k)", "linestyle": ""},
     "wide-v2-5k-nocat": {
         "color": "#98df8a",
         "order": 4,
-        "label": "Wide (5k, No-Cat)",
+        "label": "TabPFN-Wide (5k, No-Cat)",
         "linestyle": (2, 2),
     },
-    "wide-v2-8k": {"color": "#d62728", "order": 5, "label": "Wide (8k)", "linestyle": ""},
+    "wide-v2-8k": {"color": "#d62728", "order": 5, "label": "TabPFN-Wide (8k)", "linestyle": ""},
     "wide-v2-8k-nocat": {
         "color": "#ff9896",
         "order": 6,
-        "label": "Wide (8k, No-Cat)",
+        "label": "TabPFN-Wide (8k, No-Cat)",
         "linestyle": (2, 2),
     },
     "tabicl": {"color": "#9467bd", "order": 9, "label": "TabICL", "linestyle": (4, 2)},
@@ -452,6 +457,60 @@ def plot_hdlss(df, output_dir, basename):
                     # xlabel="Checkpoint",
                     title=f"{ds} - {format_metric(metric)}",
                     suffix="_comparison",
+                )
+
+
+def plot_reduced_hdlss_boxplot(df, output_dir, basename):
+    """Compact reduced boxplot for HDLSS benchmarks (wide-5k + baselines only)."""
+    output_dir = os.path.join(output_dir, "reduced_plots")
+    metrics = [c for c in ["accuracy", "roc_auc_score"] if c in df.columns]
+    df = clean_checkpoint_names(df)
+
+    # Keep only wide-5k and baselines
+    keep_models = ["v2", "wide-v2-5k", "tabicl", "random_forest", "xgboost", "realmlp"]
+    keep_labels = [MODEL_CONFIG[m]["label"] for m in keep_models if m in MODEL_CONFIG]
+    df = df[df["checkpoint"].isin(keep_models + keep_labels)]
+
+    if df.empty:
+        return
+
+    for metric in metrics:
+        palette, hue_order, _ = get_model_style(df, "checkpoint")
+
+        with sns.plotting_context("paper", font_scale=1.6):
+            fig, ax = plt.subplots(figsize=(6, 6))
+            sns.boxplot(
+                data=df,
+                x="checkpoint",
+                y=metric,
+                hue="checkpoint",
+                hue_order=hue_order,
+                palette=palette,
+                order=hue_order,
+                ax=ax,
+                width=0.6,
+            )
+            ax.set_ylim(0.4, 1.05)
+            ax.set_xlabel("", fontsize=14)
+            ax.set_ylabel(format_metric(metric), fontsize=14)
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right", fontsize=11)
+            if ax.get_legend() is not None:
+                ax.get_legend().remove()
+            plt.tight_layout()
+            save_plots(fig, output_dir, f"{basename}_{metric}_boxplot_reduced")
+
+        # Per-dataset comparison (all datasets in one plot)
+        if "dataset_name" in df.columns and df["checkpoint"].nunique() > 1:
+            for metric in metrics:
+                plot_categorical_comparison(
+                    df,
+                    x_col="dataset_name",
+                    y_col=metric,
+                    hue_col="checkpoint",
+                    output_dir=output_dir,
+                    basename=basename,
+                    xlabel="Dataset",
+                    suffix=f"_{metric}_per_dataset_reduced",
                 )
 
 
@@ -997,8 +1056,26 @@ def plot_snp(df, output_dir, basename):
 
 
 # Models to include in reduced plots (using raw checkpoint names)
-REDUCED_MODELS = ["v2", "wide-v2-5k", "tabicl", "random_forest", "xgboost", "realmlp"]
-REDUCED_MODELS_LABELS = ["TabPFN v2", "Wide (5k)", "TabICL", "Random Forest", "XGBoost", "RealMLP"]
+REDUCED_MODELS = [
+    "v2",
+    "wide-v2-1.5k",
+    "wide-v2-5k",
+    "wide-v2-8k",
+    "tabicl",
+    "random_forest",
+    "xgboost",
+    "realmlp",
+]
+REDUCED_MODELS_LABELS = [
+    "TabPFNv2",
+    "TabPFN-Wide (1.5k)",
+    "TabPFN-Wide (5k)",
+    "TabPFN-Wide (8k)",
+    "TabICL",
+    "Random Forest",
+    "XGBoost",
+    "RealMLP",
+]
 
 
 def filter_to_reduced_models(df, col="checkpoint"):
@@ -1093,6 +1170,9 @@ def plot_reduced_snp(df, output_dir, basename):
     hue_col = "checkpoint" if "checkpoint" in df.columns else "model"
     df = clean_checkpoint_names(df, col=hue_col)
     df = filter_to_reduced_models(df, col=hue_col)
+    # Exclude 1.5k and 8k variants from this plot
+    exclude = ["wide-v2-1.5k", "wide-v2-8k", "TabPFN-Wide (1.5k)", "TabPFN-Wide (8k)"]
+    df = df[~df[hue_col].isin(exclude)]
 
     if df.empty:
         print("No data after filtering for reduced models (SNP).")
@@ -1212,6 +1292,9 @@ def plot_reduced_snp_relative(df, output_dir, basename, baseline_name="v2"):
     hue_col = "checkpoint" if "checkpoint" in df.columns else "model"
     df = clean_checkpoint_names(df, col=hue_col)
     df = filter_to_reduced_models(df, col=hue_col)
+    # Exclude 1.5k and 8k variants from this plot
+    exclude = ["wide-v2-1.5k", "wide-v2-8k", "TabPFN-Wide (1.5k)", "TabPFN-Wide (8k)"]
+    df = df[~df[hue_col].isin(exclude)]
 
     if df.empty:
         return
@@ -1391,6 +1474,9 @@ def plot_reduced_snp_average_poly(df, output_dir, basename):
     hue_col = "checkpoint" if "checkpoint" in df.columns else "model"
     df = clean_checkpoint_names(df, col=hue_col)
     df = filter_to_reduced_models(df, col=hue_col)
+    # Exclude 1.5k and 8k variants from this plot
+    exclude = ["wide-v2-1.5k", "wide-v2-8k", "TabPFN-Wide (1.5k)", "TabPFN-Wide (8k)"]
+    df = df[~df[hue_col].isin(exclude)]
 
     if df.empty:
         return
@@ -1437,6 +1523,9 @@ def plot_reduced_multiomics_overview(df, output_dir, basename):
     metrics = [c for c in ["roc_auc", "roc_auc_score"] if c in df.columns]
     df = clean_checkpoint_names(df)
     df = filter_to_reduced_models(df)
+    # Exclude 1.5k and 8k variants from this plot
+    exclude = ["wide-v2-1.5k", "wide-v2-8k", "TabPFN-Wide (1.5k)", "TabPFN-Wide (8k)"]
+    df = df[~df["checkpoint"].isin(exclude)]
 
     if df.empty:
         return
@@ -1512,12 +1601,48 @@ def plot_reduced_multiomics_overview_boxplot(df, output_dir, basename):
             hue_col="checkpoint",
             output_dir=output_dir,
             basename=basename,
-            # xlabel="Checkpoint",
+            xlabel="",
             title=f"Multiomics Overview (Reduced) - {format_metric(metric)} Distribution",
             suffix=f"_{metric}_overview_boxplot_reduced",
             figsize=(6, 6),
             xticks_rotation=45,
-            wrap_width=10,
+            wrap_width=None,
+            ylim=(0.5, 1.0),
+        )
+
+
+def plot_reduced_multiomics_overview_boxplot_with_baselines(df, output_dir, basename):
+    """
+    Reduced Boxplot distribution including baselines.
+    Saves to 'reduced_plots' subdirectory.
+    """
+    output_dir = os.path.join(output_dir, "reduced_plots")
+    metrics = [c for c in ["roc_auc", "roc_auc_score"] if c in df.columns]
+
+    # Filter to max 17500 features (same as overview)
+    if "n_features" in df.columns:
+        df = df[df["n_features"] <= 17500]
+
+    df_reduced = clean_checkpoint_names(df)
+    df_reduced = filter_to_reduced_models(df_reduced)
+
+    if df_reduced.empty:
+        return
+
+    for metric in metrics:
+        plot_categorical_comparison(
+            df_reduced,
+            x_col="checkpoint",
+            y_col=metric,
+            hue_col="checkpoint",
+            output_dir=output_dir,
+            basename=basename,
+            xlabel="",
+            title=f"Multiomics Overview (Reduced) - {format_metric(metric)} Distribution",
+            suffix=f"_{metric}_overview_boxplot_reduced_with_baselines",
+            figsize=(6, 6),
+            xticks_rotation=45,
+            wrap_width=None,
             ylim=(0.5, 1.0),
         )
 
@@ -1564,12 +1689,12 @@ def _generate_multiomics_latex_table(df, output_dir, basename, metric, metric_di
 
     target_models_order = [
         "TabPFN v2",
-        "Wide (1.5k)",
-        "Wide (1.5k, No-Cat)",
-        "Wide (5k)",
-        "Wide (5k, No-Cat)",
-        "Wide (8k)",
-        "Wide (8k, No-Cat)",
+        "TabPFN-Wide (1.5k)",
+        "TabPFN-Wide (1.5k, No-Cat)",
+        "TabPFN-Wide (5k)",
+        "TabPFN-Wide (5k, No-Cat)",
+        "TabPFN-Wide (8k)",
+        "TabPFN-Wide (8k, No-Cat)",
         "TabICL",
         "Random Forest",
         "XGBoost",
@@ -1646,7 +1771,7 @@ def _generate_multiomics_latex_table(df, output_dir, basename, metric, metric_di
         row_str += "\\\\\n"
         latex_str += row_str
 
-        if model == "Wide (8k, No-Cat)":
+        if model == "TabPFN-Wide (8k, No-Cat)":
             latex_str += "\\midrule\n"
 
     metric_label = metric_display_name.lower().replace(" ", "_")
@@ -1873,9 +1998,11 @@ def main():
                     plot_multiomics_overview(combined_df, output_dir, basename)
 
                 # Reduced plots for multiomics
-                # Reduced plots for multiomics
                 plot_reduced_multiomics_overview(combined_df.copy(), output_dir, basename)
                 plot_reduced_multiomics_overview_boxplot(combined_df.copy(), output_dir, basename)
+                plot_reduced_multiomics_overview_boxplot_with_baselines(
+                    combined_df.copy(), output_dir, basename
+                )
                 plot_reduced_multiomics_overview_relative(combined_df.copy(), output_dir, basename)
                 generate_multiomics_latex_table(combined_df.copy(), output_dir, basename)
             elif "grouping" in basename.lower():
@@ -1884,6 +2011,7 @@ def main():
             elif "hdlss" in basename.lower():
                 if not args.reduced:
                     plot_hdlss(combined_df, output_dir, basename)
+                plot_reduced_hdlss_boxplot(combined_df.copy(), output_dir, basename)
             elif "openml" in basename.lower() and "widening" not in basename.lower():
                 if not args.reduced:
                     plot_openml(combined_df, output_dir, basename)
