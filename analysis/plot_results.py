@@ -1185,39 +1185,39 @@ def plot_reduced_snp(df, output_dir, basename):
     if "Polygenicity" not in df.columns:
         return
 
-    # Only plot polygenicity 0.01
-    polygenicity = 0.01
-    poly_df = df[df["Polygenicity"] == polygenicity]
-    if poly_df.empty:
-        return
+    # Plot for each polygenicity
+    for polygenicity in sorted(df["Polygenicity"].unique()):
+        poly_df = df[df["Polygenicity"] == polygenicity]
+        if poly_df.empty:
+            continue
 
-    palette, hue_order, dashes = get_model_style(poly_df, hue_col)
+        palette, hue_order, dashes = get_model_style(poly_df, hue_col)
 
-    # Publication styling
-    with sns.plotting_context("paper", font_scale=1.6):
-        fig, ax = plt.subplots(figsize=(8, 8))
-        sns.lineplot(
-            data=poly_df,
-            x="n_features",
-            y=metric,
-            hue=hue_col,
-            hue_order=hue_order,
-            style=hue_col,
-            style_order=hue_order,
-            markers=True,
-            dashes=dashes if dashes else True,
-            palette=palette,
-            linewidth=2.5,
-            markersize=8,
-            err_kws={"alpha": 0.1},
-            ax=ax,
-        )
-        ax.set_ylim(0.4, 1)
-        ax.set_xlabel("Number of Features", fontsize=14)
-        ax.set_ylabel(format_metric(metric), fontsize=14)
-        ax.legend(loc="best", fontsize=11, frameon=False)
-        plt.tight_layout()
-        save_plots(fig, output_dir, f"{basename}_{metric}_polygenicity_{polygenicity}_reduced")
+        # Publication styling
+        with sns.plotting_context("paper", font_scale=1.6):
+            fig, ax = plt.subplots(figsize=(8, 8))
+            sns.lineplot(
+                data=poly_df,
+                x="n_features",
+                y=metric,
+                hue=hue_col,
+                hue_order=hue_order,
+                style=hue_col,
+                style_order=hue_order,
+                markers=True,
+                dashes=dashes if dashes else True,
+                palette=palette,
+                linewidth=2.5,
+                markersize=8,
+                err_kws={"alpha": 0.1},
+                ax=ax,
+            )
+            ax.set_ylim(0.35, 1)
+            ax.set_xlabel("Number of Features", fontsize=14)
+            ax.set_ylabel(format_metric(metric), fontsize=14)
+            ax.legend(loc="lower right", fontsize=11, frameon=False)
+            plt.tight_layout()
+            save_plots(fig, output_dir, f"{basename}_{metric}_polygenicity_{polygenicity}_reduced")
 
 
 def plot_snp_relative(df, output_dir, basename, baseline_name="v2"):
@@ -1305,65 +1305,65 @@ def plot_reduced_snp_relative(df, output_dir, basename, baseline_name="v2"):
     if "Polygenicity" not in df.columns:
         return
 
-    # Filter to Polygenicity 0.01
-    polygenicity = 0.01
-    df = df[df["Polygenicity"] == polygenicity]
-    if df.empty:
-        return
+    # Plot for each polygenicity
+    for polygenicity in sorted(df["Polygenicity"].unique()):
+        df_poly = df[df["Polygenicity"] == polygenicity]
+        if df_poly.empty:
+            continue
 
-    # Aggregate
-    group_cols = [hue_col, "n_features"]
-    df_agg = df.groupby(group_cols)[metric].mean().reset_index()
+        # Aggregate
+        group_cols = [hue_col, "n_features"]
+        df_agg = df_poly.groupby(group_cols)[metric].mean().reset_index()
 
-    # Calculate Relative
-    baseline_label = MODEL_CONFIG.get(baseline_name, {}).get("label", baseline_name)
-    unique_checkpoints = df_agg[hue_col].unique()
-    actual_baseline = baseline_label if baseline_label in unique_checkpoints else baseline_name
+        # Calculate Relative
+        baseline_label = MODEL_CONFIG.get(baseline_name, {}).get("label", baseline_name)
+        unique_checkpoints = df_agg[hue_col].unique()
+        actual_baseline = baseline_label if baseline_label in unique_checkpoints else baseline_name
 
-    df_baseline = df_agg[df_agg[hue_col] == actual_baseline].copy()
-    if df_baseline.empty:
-        return
+        df_baseline = df_agg[df_agg[hue_col] == actual_baseline].copy()
+        if df_baseline.empty:
+            continue
 
-    df_baseline = df_baseline.rename(columns={metric: "baseline_score"}).drop(columns=[hue_col])
+        df_baseline = df_baseline.rename(columns={metric: "baseline_score"}).drop(columns=[hue_col])
 
-    df_merged = pd.merge(df_agg, df_baseline, on=["n_features"], how="left")
-    df_merged["relative_score"] = df_merged[metric] - df_merged["baseline_score"]
+        df_merged = pd.merge(df_agg, df_baseline, on=["n_features"], how="left")
+        df_merged["relative_score"] = df_merged[metric] - df_merged["baseline_score"]
 
-    # Remove baseline from plot
-    df_plot = df_merged[df_merged[hue_col] != actual_baseline].copy()
-    if df_plot.empty:
-        return
+        # Remove baseline from plot
+        df_plot = df_merged[df_merged[hue_col] != actual_baseline].copy()
+        if df_plot.empty:
+            continue
 
-    palette, hue_order, dashes = get_model_style(df_plot, hue_col)
+        palette, hue_order, dashes = get_model_style(df_plot, hue_col)
 
-    with sns.plotting_context("paper", font_scale=1.6):
-        fig, ax = plt.subplots(figsize=(8, 8))
-        sns.lineplot(
-            data=df_plot,
-            x="n_features",
-            y="relative_score",
-            hue=hue_col,
-            hue_order=hue_order,
-            style=hue_col,
-            style_order=hue_order,
-            markers=True,
-            dashes=dashes if dashes else True,
-            palette=palette,
-            linewidth=2.5,
-            markersize=8,
-            ax=ax,
-            errorbar="sd",
-            err_kws={"alpha": 0.1},
-        )
-        ax.axhline(0, color="black", linestyle="--", linewidth=1)
-        # ax.set_ylim(-0.05, 0.25)
-        ax.set_xlabel("Number of Features", fontsize=14)
-        ax.set_ylabel(f"Relative {format_metric(metric)} (vs {actual_baseline})", fontsize=14)
-        ax.legend(loc="best", fontsize=11, frameon=False)
-        plt.tight_layout()
-        save_plots(
-            fig, output_dir, f"{basename}_{metric}_polygenicity_{polygenicity}_reduced_relative"
-        )
+        with sns.plotting_context("paper", font_scale=1.6):
+            fig, ax = plt.subplots(figsize=(8, 8))
+            sns.lineplot(
+                data=df_plot,
+                x="n_features",
+                y="relative_score",
+                hue=hue_col,
+                hue_order=hue_order,
+                style=hue_col,
+                style_order=hue_order,
+                markers=True,
+                dashes=dashes if dashes else True,
+                palette=palette,
+                linewidth=2.5,
+                markersize=8,
+                ax=ax,
+                errorbar="sd",
+                err_kws={"alpha": 0.1},
+            )
+            ax.axhline(0, color="black", linestyle="--", linewidth=1)
+            # ax.set_ylim(-0.05, 0.25)
+            ax.set_xlabel("Number of Features", fontsize=14)
+            ax.set_ylabel(f"Relative {format_metric(metric)} (vs {actual_baseline})", fontsize=14)
+            ax.legend(loc="lower right", fontsize=11, frameon=False)
+            plt.tight_layout()
+            save_plots(
+                fig, output_dir, f"{basename}_{metric}_polygenicity_{polygenicity}_reduced_relative"
+            )
 
 
 def plot_reduced_snp_relative_polygenicity_comparison(df, output_dir, basename, baseline_name="v2"):
